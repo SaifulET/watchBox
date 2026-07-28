@@ -20,24 +20,18 @@ WatchBox is a backend-only Node.js service for a luxury watch marketplace and an
 
 ## Local Setup
 
-1. Enable pnpm through Corepack if a global pnpm executable is unavailable:
+1. Install dependencies:
 
 ```bash
-corepack prepare pnpm@9.15.4 --activate
+npm install
 ```
 
-2. Install dependencies:
+2. Copy `.env.example` to `.env` and provide backend service URLs and secrets.
+
+3. Start the API:
 
 ```bash
-corepack pnpm install
-```
-
-3. Copy `.env.example` to `.env` and provide backend service URLs and secrets.
-
-4. Start the API:
-
-```bash
-corepack pnpm dev
+npm run dev
 ```
 
 Health endpoints:
@@ -51,13 +45,13 @@ Readiness checks only MongoDB, Redis, and RabbitMQ when those clients are connec
 ## Scripts
 
 ```bash
-corepack pnpm typecheck
-corepack pnpm lint
-corepack pnpm test
-corepack pnpm build
-corepack pnpm seed
-corepack pnpm mongo:indexes
-corepack pnpm atlas:indexes
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run seed
+npm run mongo:indexes
+npm run atlas:indexes
 ```
 
 ## API Documentation
