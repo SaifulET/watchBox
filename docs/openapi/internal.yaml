@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: WatchBox Internal API
+  version: 0.1.0
+paths:
+  /internal:
+    get:
+      tags: [Internal]
+      summary: Internal API root
+      responses:
+        "200":
+          description: Internal API metadata.
