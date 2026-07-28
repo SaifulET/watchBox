@@ -9,8 +9,7 @@ import { createLogger, type WatchboxLogger } from "./common/utils/logger.js";
 import { registerSwagger } from "./docs/swagger.js";
 import type { RabbitConnection } from "./infrastructure/rabbitmq/connection.js";
 import type { RedisClient } from "./infrastructure/redis/client.js";
-import { registerRoutes } from "./routes/index.js";
-import type { HealthRouteDependencies } from "./routes/health.routes.js";
+import { registerRoutes, type RouteDependencies } from "./routes/index.js";
 
 export type AppDependencies = {
   logger: WatchboxLogger;
@@ -27,6 +26,7 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
   app.use(
     pinoHttp({
       logger,
+      autoLogging: false,
       genReqId: (req) => req.headers["x-request-id"]?.toString() ?? randomUUID()
     })
   );
@@ -35,7 +35,7 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
-  const routeDependencies: HealthRouteDependencies = {};
+  const routeDependencies: RouteDependencies = {};
   if (overrides.redis) {
     routeDependencies.redis = overrides.redis;
   }

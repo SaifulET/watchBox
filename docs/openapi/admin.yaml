@@ -2,6 +2,11 @@ openapi: 3.1.0
 info:
   title: WatchBox Admin API
   version: 0.1.0
+servers:
+  - url: http://localhost:4000
+tags:
+  - name: Admin
+  - name: Admin Auth
 paths:
   /api/v1/admin:
     get:
@@ -10,3 +15,262 @@ paths:
       responses:
         "200":
           description: Admin API metadata.
+  /api/v1/admin/auth/login:
+    post:
+      tags: [Admin Auth]
+      summary: Login with administrator credentials.
+      requestBody:
+        $ref: "#/components/requestBodies/Login"
+      responses:
+        "200":
+          description: Admin session created.
+  /api/v1/admin/auth/refresh:
+    post:
+      tags: [Admin Auth]
+      summary: Rotate an admin refresh token.
+      requestBody:
+        $ref: "#/components/requestBodies/Refresh"
+      responses:
+        "200":
+          description: New access and refresh tokens.
+  /api/v1/admin/auth/logout:
+    post:
+      tags: [Admin Auth]
+      summary: Revoke the current admin session.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          description: Session revoked.
+  /api/v1/admin/auth/logout-all:
+    post:
+      tags: [Admin Auth]
+      summary: Revoke all admin sessions.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Sessions revoked.
+  /api/v1/admin/auth/forgot-password:
+    post:
+      tags: [Admin Auth]
+      summary: Request an admin password reset.
+      requestBody:
+        $ref: "#/components/requestBodies/Email"
+      responses:
+        "200":
+          description: Reset delivery accepted.
+  /api/v1/admin/auth/verify-reset-code:
+    post:
+      tags: [Admin Auth]
+      summary: Check whether an admin reset token is valid.
+      requestBody:
+        $ref: "#/components/requestBodies/Token"
+      responses:
+        "200":
+          description: Reset token is valid.
+  /api/v1/admin/auth/reset-password:
+    post:
+      tags: [Admin Auth]
+      summary: Reset an admin password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset.
+  /api/v1/admin/auth/change-password:
+    post:
+      tags: [Admin Auth]
+      summary: Change the current admin password.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed.
+  /api/v1/admin/auth/sessions:
+    get:
+      tags: [Admin Auth]
+      summary: List active admin sessions.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Active sessions.
+  /api/v1/admin/auth/sessions/{sessionId}:
+    delete:
+      tags: [Admin Auth]
+      summary: Revoke an admin session.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session revoked.
+  /api/v1/admin/auth/mfa/setup:
+    post:
+      tags: [Admin Auth]
+      summary: Start admin MFA setup.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: MFA setup challenge created.
+  /api/v1/admin/auth/mfa/verify:
+    post:
+      tags: [Admin Auth]
+      summary: Verify an admin MFA setup code.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaVerifyRequest"
+      responses:
+        "200":
+          description: MFA enabled.
+  /api/v1/admin/auth/mfa/challenge:
+    post:
+      tags: [Admin Auth]
+      summary: Request an admin MFA challenge.
+      requestBody:
+        $ref: "#/components/requestBodies/Email"
+      responses:
+        "200":
+          description: MFA challenge delivery accepted.
+  /api/v1/admin/auth/mfa:
+    delete:
+      tags: [Admin Auth]
+      summary: Disable admin MFA.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: MFA disabled.
+  /api/v1/admin/auth/me/permissions:
+    get:
+      tags: [Admin Auth]
+      summary: Get current admin permissions.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current admin roles and permissions.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
+  requestBodies:
+    Login:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LoginRequest"
+    Refresh:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RefreshRequest"
+    Email:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EmailRequest"
+    Token:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TokenRequest"
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+    EmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    TokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 8
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 8
+        newPassword:
+          type: string
+          minLength: 8
+    MfaVerifyRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6

@@ -4,6 +4,10 @@ info:
   version: 0.1.0
 servers:
   - url: http://localhost:4000
+tags:
+  - name: Health
+  - name: Customer
+  - name: Customer Auth
 paths:
   /health:
     get:
@@ -35,8 +39,371 @@ paths:
       responses:
         "200":
           description: Customer API metadata.
+  /api/v1/auth/register:
+    post:
+      tags: [Customer Auth]
+      summary: Register a customer account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Customer account and session created.
+  /api/v1/auth/login:
+    post:
+      tags: [Customer Auth]
+      summary: Login with customer credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Customer session created.
+  /api/v1/auth/refresh:
+    post:
+      tags: [Customer Auth]
+      summary: Rotate a customer refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: New access and refresh tokens.
+  /api/v1/auth/logout:
+    post:
+      tags: [Customer Auth]
+      summary: Revoke the current customer session.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          description: Session revoked.
+  /api/v1/auth/logout-all:
+    post:
+      tags: [Customer Auth]
+      summary: Revoke all customer sessions.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Sessions revoked.
+  /api/v1/auth/verify-email/request:
+    post:
+      tags: [Customer Auth]
+      summary: Request email verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification delivery accepted.
+  /api/v1/auth/verify-email/confirm:
+    post:
+      tags: [Customer Auth]
+      summary: Confirm customer email verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+      responses:
+        "200":
+          description: Email verified.
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Customer Auth]
+      summary: Request a password reset token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Reset delivery accepted.
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Customer Auth]
+      summary: Reset a customer password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset.
+  /api/v1/auth/change-password:
+    post:
+      tags: [Customer Auth]
+      summary: Change the current customer password.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed.
+  /api/v1/auth/sessions:
+    get:
+      tags: [Customer Auth]
+      summary: List active customer sessions.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Active sessions.
+  /api/v1/auth/sessions/{sessionId}:
+    delete:
+      tags: [Customer Auth]
+      summary: Revoke a customer session.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session revoked.
+  /api/v1/users/me:
+    get:
+      tags: [Customer]
+      summary: Get the current customer profile.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current customer profile.
+    patch:
+      tags: [Customer]
+      summary: Update the current customer profile.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated customer profile.
+    delete:
+      tags: [Customer]
+      summary: Delete the current customer account.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Account deleted.
+  /api/v1/users/me/activity:
+    get:
+      tags: [Customer]
+      summary: Get current customer account activity.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Activity summary.
+  /api/v1/users/me/stats:
+    get:
+      tags: [Customer]
+      summary: Get current customer marketplace stats.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stats summary.
+  /api/v1/users/me/preferences:
+    get:
+      tags: [Customer]
+      summary: Get current customer preferences.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Customer preferences.
+    patch:
+      tags: [Customer]
+      summary: Update current customer preferences.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePreferencesRequest"
+      responses:
+        "200":
+          description: Updated customer preferences.
+  /api/v1/users/me/avatar/upload-url:
+    post:
+      tags: [Customer]
+      summary: Reserve an avatar object key and upload URL.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Avatar upload URL created.
+  /api/v1/users/me/avatar/confirm:
+    post:
+      tags: [Customer]
+      summary: Confirm the uploaded avatar object key.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmAvatarRequest"
+      responses:
+        "200":
+          description: Avatar confirmed.
+  /api/v1/users/me/avatar:
+    delete:
+      tags: [Customer]
+      summary: Remove the current customer avatar.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Avatar removed.
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-fA-F0-9]{24}$"
   schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        displayName:
+          type: string
+          minLength: 2
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+    EmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    TokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 8
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 8
+        newPassword:
+          type: string
+          minLength: 8
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+        country:
+          type: string
+    UpdatePreferencesRequest:
+      type: object
+      properties:
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        locale:
+          type: string
+        newsletter:
+          type: boolean
+        priceAlerts:
+          type: boolean
+    ConfirmAvatarRequest:
+      type: object
+      required: [avatarKey]
+      properties:
+        avatarKey:
+          type: string
     ResponseMeta:
       type: object
       required: [requestId]

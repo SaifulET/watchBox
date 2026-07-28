@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { sendSuccess } from "../common/utils/api-response.js";
+import { createCustomerAuthRouter } from "../modules/customer/auth/auth.routes.js";
+import { createUsersRouter } from "../modules/customer/users/users.routes.js";
+import { createGeneratedApiRouter } from "../modules/generated-api/generated-api.routes.js";
+import type { RouteDependencies } from "./index.js";
 
-export const createCustomerRouter = (): Router => {
+export const createCustomerRouter = (dependencies: RouteDependencies = {}): Router => {
   const router = Router();
 
   router.get("/", (req, res) => {
@@ -10,6 +14,10 @@ export const createCustomerRouter = (): Router => {
       version: "0.1.0"
     });
   });
+
+  router.use("/auth", createCustomerAuthRouter(dependencies));
+  router.use("/users", createUsersRouter(dependencies));
+  router.use(createGeneratedApiRouter(dependencies));
 
   return router;
 };

@@ -1,7 +1,12 @@
 import { config as loadDotenv } from "dotenv";
+import { expand } from "dotenv-expand";
 import { z } from "zod";
 
-loadDotenv();
+expand(loadDotenv());
+
+const optionalEnvString = z.preprocess((value) => (value === "" ? undefined : value), z.string().optional());
+const optionalEnvUrl = z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional());
+const optionalEnvEmail = z.preprocess((value) => (value === "" ? undefined : value), z.string().email().optional());
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -9,8 +14,8 @@ const envSchema = z.object({
   API_PREFIX: z.string().startsWith("/").default("/api/v1"),
   MONGODB_URI: z.string().min(1).default("mongodb://localhost:27017/watchbox"),
   MONGODB_DATABASE: z.string().min(1).default("watchbox"),
-  REDIS_URL: z.string().url().default("redis://localhost:6379"),
-  RABBITMQ_URL: z.string().min(1).default("amqp://watchbox:watchbox@localhost:5672"),
+  REDIS_URL: z.string().url(),
+  RABBITMQ_URL: z.string().min(1),
   RABBITMQ_DOMAIN_EXCHANGE: z.string().default("watchbox.domain"),
   RABBITMQ_JOB_EXCHANGE: z.string().default("watchbox.jobs"),
   RABBITMQ_DEAD_LETTER_EXCHANGE: z.string().default("watchbox.dead-letter"),
@@ -21,28 +26,34 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("30d"),
   STORAGE_PROVIDER: z.enum(["s3", "minio", "local"]).default("local"),
-  S3_ENDPOINT: z.string().url().optional(),
+  S3_ENDPOINT: optionalEnvUrl,
   S3_BUCKET: z.string().default("watchbox-local"),
   S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY_ID: z.string().default("watchbox"),
   S3_SECRET_ACCESS_KEY: z.string().default("watchbox-secret"),
   ATLAS_SEARCH_INDEX: z.string().default("listings_search"),
   ATLAS_VECTOR_INDEX: z.string().default("listing_embeddings_vector"),
-  EBAY_CLIENT_ID: z.string().optional(),
-  EBAY_CLIENT_SECRET: z.string().optional(),
-  EBAY_REDIRECT_URI: z.string().url().optional(),
+  EBAY_CLIENT_ID: optionalEnvString,
+  EBAY_CLIENT_SECRET: optionalEnvString,
+  EBAY_REDIRECT_URI: optionalEnvUrl,
   EBAY_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  EMAIL_PROVIDER: z.enum(["local", "ses", "sendgrid", "mailgun"]).default("local"),
+  STRIPE_SECRET_KEY: optionalEnvString,
+  STRIPE_WEBHOOK_SECRET: optionalEnvString,
+  EMAIL_PROVIDER: z.enum(["local", "smtp", "ses", "sendgrid", "mailgun"]).default("local"),
   EMAIL_FROM: z.string().email().default("no-reply@watchbox.local"),
-  EMAIL_API_KEY: z.string().optional(),
-  FCM_PROJECT_ID: z.string().optional(),
-  FCM_CLIENT_EMAIL: z.string().email().optional(),
-  FCM_PRIVATE_KEY: z.string().optional(),
+  EMAIL_API_KEY: optionalEnvString,
+  SMTP_HOST: optionalEnvString,
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: optionalEnvString,
+  SMTP_PASSWORD: optionalEnvString,
+  WEB_APP_URL: z.string().url().default("http://localhost:3000"),
+  FCM_PROJECT_ID: optionalEnvString,
+  FCM_CLIENT_EMAIL: optionalEnvEmail,
+  FCM_PRIVATE_KEY: optionalEnvString,
   AI_PROVIDER: z.enum(["local", "http"]).default("local"),
-  AI_SERVICE_URL: z.string().url().optional(),
-  AI_SERVICE_TOKEN: z.string().optional(),
+  AI_SERVICE_URL: optionalEnvUrl,
+  AI_SERVICE_TOKEN: optionalEnvString,
   ENCRYPTION_KEY: z.string().min(32).default("dev-encryption-key-32-bytes-minimum")
 });
 
