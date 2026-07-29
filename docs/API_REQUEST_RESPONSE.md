@@ -895,10 +895,7 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "currency": "USD",
-  "locale": "en-US",
-  "newsletter": true,
-  "priceAlerts": true
+  "currency": "USD"
 }
 ```
 Success response:
@@ -910,10 +907,7 @@ Success response:
     "resource": "preferences",
     "status": "active",
     "data": {
-      "currency": "USD",
-      "locale": "en-US",
-      "newsletter": true,
-      "priceAlerts": true
+      "currency": "USD"
     }
   },
   "meta": {

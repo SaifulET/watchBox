@@ -12,9 +12,6 @@ export type CustomerAccount = {
   avatarKey?: string;
   preferences: {
     currency: string;
-    locale: string;
-    newsletter: boolean;
-    priceAlerts: boolean;
   };
   lastLoginAt?: Date;
   deletedAt?: Date;
@@ -72,10 +69,7 @@ const customerAccountSchema = new Schema<CustomerAccount>(
     country: { type: String, trim: true },
     avatarKey: { type: String, trim: true },
     preferences: {
-      currency: { type: String, default: "USD" },
-      locale: { type: String, default: "en-US" },
-      newsletter: { type: Boolean, default: true },
-      priceAlerts: { type: Boolean, default: true }
+      currency: { type: String, default: "USD" }
     },
     lastLoginAt: Date,
     deletedAt: Date

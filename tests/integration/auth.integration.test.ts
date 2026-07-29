@@ -239,11 +239,17 @@ describe("auth APIs", () => {
     const preferences = await request(app)
       .patch("/api/v1/users/me/preferences")
       .set("Authorization", authorization)
-      .send({ currency: "eur", newsletter: false })
+      .send({ currency: "eur" })
       .expect(200);
-    const preferencesBody = preferences.body as DataResponse<{ currency: string; newsletter: boolean }>;
+    const preferencesBody = preferences.body as DataResponse<{ currency: string; newsletter?: boolean }>;
     expect(preferencesBody.data.currency).toBe("EUR");
-    expect(preferencesBody.data.newsletter).toBe(false);
+    expect(preferencesBody.data.newsletter).toBeUndefined();
+
+    await request(app)
+      .patch("/api/v1/users/me/preferences")
+      .set("Authorization", authorization)
+      .send({ newsletter: false })
+      .expect(400);
 
     await request(app)
       .get("/api/v1/users/me/activity")

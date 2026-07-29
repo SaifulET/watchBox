@@ -9,9 +9,6 @@ export type CustomerProfile = {
   avatarKey?: string;
   preferences: {
     currency: string;
-    locale: string;
-    newsletter: boolean;
-    priceAlerts: boolean;
   };
   createdAt: string;
   updatedAt: string;

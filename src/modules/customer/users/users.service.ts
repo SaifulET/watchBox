@@ -29,7 +29,9 @@ const serializeProfile = (account: CustomerAccountDocument): CustomerProfile => 
     displayName: account.displayName,
     status: account.status,
     emailVerified: account.emailVerified,
-    preferences: account.preferences,
+    preferences: {
+      currency: account.preferences.currency
+    },
     createdAt: account.createdAt.toISOString(),
     updatedAt: account.updatedAt.toISOString()
   };
@@ -110,7 +112,7 @@ export class UserService {
 
   public async getPreferences(userId: string): Promise<CustomerProfile["preferences"]> {
     const account = await this.requireAccount(userId);
-    return account.preferences;
+    return { currency: account.preferences.currency };
   }
 
   public async updatePreferences(
@@ -126,7 +128,7 @@ export class UserService {
       throw new ResourceNotFoundError("User profile not found.");
     }
     await this.publish("customer.preferences-updated", userId, { fields: Object.keys(input) });
-    return updated.preferences;
+    return { currency: updated.preferences.currency };
   }
 
   public async createAvatarUploadUrl(userId: string): Promise<{

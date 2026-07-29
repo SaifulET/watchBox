@@ -1445,7 +1445,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"currency\": \"USD\",\n  \"locale\": \"en-US\",\n  \"newsletter\": true,\n  \"priceAlerts\": true\n}",
+          "raw": "{\n  \"currency\": \"USD\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -1489,7 +1489,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"currency\": \"USD\",\n  \"locale\": \"en-US\",\n  \"newsletter\": true,\n  \"priceAlerts\": true\n}",
+              "raw": "{\n  \"currency\": \"USD\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1499,7 +1499,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"preferences\",\n    \"status\": \"active\",\n    \"data\": {\n      \"currency\": \"USD\",\n      \"locale\": \"en-US\",\n      \"newsletter\": true,\n      \"priceAlerts\": true\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"preferences\",\n    \"status\": \"active\",\n    \"data\": {\n      \"currency\": \"USD\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },

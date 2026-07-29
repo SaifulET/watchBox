@@ -117,7 +117,9 @@ const serializeCustomer = (account: CustomerAccountDocument) => ({
   displayName: account.displayName,
   status: account.status,
   emailVerified: account.emailVerified,
-  preferences: account.preferences,
+  preferences: {
+    currency: account.preferences.currency
+  },
   createdAt: account.createdAt.toISOString(),
   updatedAt: account.updatedAt.toISOString()
 });

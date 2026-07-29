@@ -10,11 +10,9 @@ export const updateProfileSchema = z
 
 export const updatePreferencesSchema = z
   .object({
-    currency: z.string().trim().length(3).toUpperCase().optional(),
-    locale: z.string().trim().min(2).max(20).optional(),
-    newsletter: z.boolean().optional(),
-    priceAlerts: z.boolean().optional()
+    currency: z.string().trim().length(3).toUpperCase().optional()
   })
+  .strict()
   .refine((value) => Object.keys(value).length > 0, "At least one preference field is required.");
 
 export const confirmAvatarSchema = z.object({

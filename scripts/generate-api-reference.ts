@@ -106,7 +106,7 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
     return { displayName: "Updated Name", phone: "+15551234567", country: "United States" };
   }
   if (endpoint.path.includes("/preferences")) {
-    return { currency: "USD", locale: "en-US", newsletter: true, priceAlerts: true };
+    return { currency: "USD" };
   }
   if (endpoint.path.includes("/avatar/confirm")) {
     return { avatarKey: "{{avatarKey}}" };
