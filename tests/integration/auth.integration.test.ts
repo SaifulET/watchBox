@@ -62,6 +62,7 @@ const connectForTests = async (): Promise<void> => {
 describe("auth APIs", () => {
   beforeAll(async () => {
     await connectForTests();
+    await Promise.all([CustomerAccountModel.syncIndexes(), AdminAccountModel.syncIndexes()]);
   });
 
   beforeEach(async () => {
@@ -280,6 +281,15 @@ describe("auth APIs", () => {
       .get("/api/v1/users/me")
       .set("Authorization", authorization)
       .expect(401);
+
+    await request(app)
+      .post("/api/v1/auth/register")
+      .send({
+        email: "profile@example.com",
+        password: "new-profile-password",
+        displayName: "New Profile User"
+      })
+      .expect(201);
   });
 
   it("authenticates admins and exposes admin auth workflows", async () => {

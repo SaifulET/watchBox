@@ -41,7 +41,17 @@ export class CustomerAuthController {
 
   public register = async (req: Request, res: Response): Promise<void> => {
     const result = await this.service.register(req.body as RegisterInput, fingerprintFromRequest(req));
-    sendSuccess(res, req.requestId, result, 201);
+    res.once("finish", () => {
+      void this.service
+        .sendRegistrationEmailVerification(result.emailVerification)
+        .catch((error: unknown) => {
+          req.log?.error(
+            { err: error, requestId: req.requestId, accountId: result.emailVerification.accountId },
+            "Failed to send registration email verification"
+          );
+        });
+    });
+    sendSuccess(res, req.requestId, result.auth, 201);
   };
 
   public login = async (req: Request, res: Response): Promise<void> => {

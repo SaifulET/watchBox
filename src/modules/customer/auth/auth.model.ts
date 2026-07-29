@@ -63,7 +63,7 @@ export type AccountToken = {
 
 const customerAccountSchema = new Schema<CustomerAccount>(
   {
-    email: { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     displayName: { type: String, required: true, trim: true },
     status: { type: String, enum: ["active", "suspended", "deleted"], default: "active", index: true },
@@ -82,10 +82,17 @@ const customerAccountSchema = new Schema<CustomerAccount>(
   },
   { timestamps: true }
 );
+customerAccountSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { deletedAt: null }
+  }
+);
 
 const adminAccountSchema = new Schema<AdminAccount>(
   {
-    email: { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     displayName: { type: String, required: true, trim: true },
     status: { type: String, enum: ["active", "suspended", "deleted"], default: "active", index: true },
@@ -96,6 +103,13 @@ const adminAccountSchema = new Schema<AdminAccount>(
     deletedAt: Date
   },
   { timestamps: true }
+);
+adminAccountSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { deletedAt: null }
+  }
 );
 
 const authSessionSchema = new Schema<AuthSession>(

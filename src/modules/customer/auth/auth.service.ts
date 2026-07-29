@@ -63,6 +63,17 @@ type LoginResult<TAccount> = {
   tokens: TokenPair;
 };
 
+type PendingEmailVerification = {
+  accountId: string;
+  email: string;
+  token: string;
+};
+
+type RegisterResult<TAccount> = {
+  auth: LoginResult<TAccount>;
+  emailVerification: PendingEmailVerification;
+};
+
 type SessionResponse = {
   id: string;
   ipAddress?: string;
@@ -166,7 +177,7 @@ export class CustomerAuthService {
   public async register(
     input: RegisterInput,
     fingerprint: RequestFingerprint
-  ): Promise<LoginResult<SerializedAccount>> {
+  ): Promise<RegisterResult<SerializedAccount>> {
     try {
       const passwordHash = await this.passwords.hash(input.password);
       const account = await this.customers.create({
@@ -184,15 +195,26 @@ export class CustomerAuthService {
         "email-verification",
         verificationTtlHours * 60 * 60 * 1000
       );
-      await this.sendEmailVerification(account.email, verificationToken);
       const auth = await this.createSession(account._id, "customer", fingerprint);
-      return { account: serializeCustomer(account), ...auth };
+      return {
+        auth: { account: serializeCustomer(account), ...auth },
+        emailVerification: {
+          accountId: account._id.toString(),
+          email: account.email,
+          token: verificationToken
+        }
+      };
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         throw new ConflictError("An account already exists for this email address.");
       }
       throw error;
     }
+  }
+
+  public async sendRegistrationEmailVerification(input: PendingEmailVerification): Promise<void> {
+    await this.sendEmailVerification(input.email, input.token);
+    await this.publish("customer.email-verification-requested", input.accountId, { email: input.email });
   }
 
   public async login(
