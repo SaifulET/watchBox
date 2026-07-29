@@ -93,7 +93,11 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
     return { token: "{{token}}" };
   }
   if (endpoint.path.includes("reset-password")) {
-    return { token: "{{token}}", password: "new-password" };
+    return {
+      token: "{{token}}",
+      newPassword: "new-password",
+      confirmPassword: "new-password"
+    };
   }
   if (endpoint.path.includes("change-password")) {
     return { currentPassword: "current-password", newPassword: "new-password" };

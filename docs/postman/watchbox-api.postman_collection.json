@@ -662,7 +662,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+          "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -695,7 +695,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+              "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -705,7 +705,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"password\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"newPassword\": \"new-password\",\n      \"confirmPassword\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -15838,7 +15838,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+          "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -15872,7 +15872,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+              "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -15882,7 +15882,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"password\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"newPassword\": \"new-password\",\n      \"confirmPassword\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -18482,7 +18482,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+          "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -18517,7 +18517,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+              "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -18527,7 +18527,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"password\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"newPassword\": \"new-password\",\n      \"confirmPassword\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -19662,7 +19662,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+          "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19697,7 +19697,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"{{token}}\",\n  \"password\": \"new-password\"\n}",
+              "raw": "{\n  \"token\": \"{{token}}\",\n  \"newPassword\": \"new-password\",\n  \"confirmPassword\": \"new-password\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -19707,7 +19707,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"password\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"reset-password\",\n    \"status\": \"active\",\n    \"data\": {\n      \"token\": \"{{token}}\",\n      \"newPassword\": \"new-password\",\n      \"confirmPassword\": \"new-password\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },

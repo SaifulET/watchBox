@@ -417,7 +417,8 @@ Request body:
 ```json
 {
   "token": "{{token}}",
-  "password": "new-password"
+  "newPassword": "new-password",
+  "confirmPassword": "new-password"
 }
 ```
 Success response:
@@ -430,7 +431,8 @@ Success response:
     "status": "active",
     "data": {
       "token": "{{token}}",
-      "password": "new-password"
+      "newPassword": "new-password",
+      "confirmPassword": "new-password"
     }
   },
   "meta": {
@@ -9622,7 +9624,8 @@ Request body:
 ```json
 {
   "token": "{{token}}",
-  "password": "new-password"
+  "newPassword": "new-password",
+  "confirmPassword": "new-password"
 }
 ```
 Success response:
@@ -9635,7 +9638,8 @@ Success response:
     "status": "active",
     "data": {
       "token": "{{token}}",
-      "password": "new-password"
+      "newPassword": "new-password",
+      "confirmPassword": "new-password"
     }
   },
   "meta": {
@@ -11186,7 +11190,8 @@ Request body:
 ```json
 {
   "token": "{{token}}",
-  "password": "new-password"
+  "newPassword": "new-password",
+  "confirmPassword": "new-password"
 }
 ```
 Success response:
@@ -11199,7 +11204,8 @@ Success response:
     "status": "active",
     "data": {
       "token": "{{token}}",
-      "password": "new-password"
+      "newPassword": "new-password",
+      "confirmPassword": "new-password"
     }
   },
   "meta": {
@@ -11874,7 +11880,8 @@ Request body:
 ```json
 {
   "token": "{{token}}",
-  "password": "new-password"
+  "newPassword": "new-password",
+  "confirmPassword": "new-password"
 }
 ```
 Success response:
@@ -11887,7 +11894,8 @@ Success response:
     "status": "active",
     "data": {
       "token": "{{token}}",
-      "password": "new-password"
+      "newPassword": "new-password",
+      "confirmPassword": "new-password"
     }
   },
   "meta": {

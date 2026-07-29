@@ -170,7 +170,20 @@ describe("auth APIs", () => {
 
     await request(app)
       .post("/api/v1/auth/reset-password")
-      .send({ token: resetToken, password: "new-password" })
+      .send({
+        token: resetToken,
+        newPassword: "new-password",
+        confirmPassword: "different-password"
+      })
+      .expect(400);
+
+    await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: resetToken,
+        newPassword: "new-password",
+        confirmPassword: "new-password"
+      })
       .expect(200);
 
     await request(app)

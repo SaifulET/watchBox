@@ -36,10 +36,16 @@ export const forgotPasswordSchema = z.object({
   email
 });
 
-export const resetPasswordSchema = z.object({
-  token,
-  password
-});
+export const resetPasswordSchema = z
+  .object({
+    token,
+    newPassword: password,
+    confirmPassword: password
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match."
+  });
 
 export const changePasswordSchema = z.object({
   currentPassword: password,

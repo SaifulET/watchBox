@@ -358,11 +358,14 @@ components:
           type: string
     ResetPasswordRequest:
       type: object
-      required: [token, password]
+      required: [token, newPassword, confirmPassword]
       properties:
         token:
           type: string
-        password:
+        newPassword:
+          type: string
+          minLength: 8
+        confirmPassword:
           type: string
           minLength: 8
     ChangePasswordRequest:

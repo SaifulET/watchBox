@@ -295,7 +295,7 @@ export class CustomerAuthService {
 
   public async resetPassword(input: ResetPasswordInput): Promise<{ reset: true }> {
     const token = await this.consumeToken("customer", "password-reset", input.token);
-    const passwordHash = await this.passwords.hash(input.password);
+    const passwordHash = await this.passwords.hash(input.newPassword);
     await this.customers.updateById(token.accountId, { $set: { passwordHash } });
     await this.sessions.revokeAll(token.accountId, "customer");
     await this.publish("customer.password-reset", token.accountId, {});
@@ -626,7 +626,7 @@ export class AdminAuthService extends CustomerAuthService {
 
   public override async resetPassword(input: ResetPasswordInput): Promise<{ reset: true }> {
     const token = await this.consumeToken("admin", "admin-password-reset", input.token);
-    const passwordHash = await this.passwords.hash(input.password);
+    const passwordHash = await this.passwords.hash(input.newPassword);
     await this.admins.updateById(token.accountId, { $set: { passwordHash } });
     await this.sessions.revokeAll(token.accountId, "admin");
     await this.publish("admin.password-reset", token.accountId, {});
