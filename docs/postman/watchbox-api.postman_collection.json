@@ -93,7 +93,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"account\": {\n      \"id\": \"64f000000000000000000001\",\n      \"email\": \"customer@example.com\",\n      \"displayName\": \"Customer One\"\n    },\n    \"sessionId\": \"64f000000000000000000002\",\n    \"tokens\": {\n      \"accessToken\": \"jwt-access-token\",\n      \"refreshToken\": \"jwt-refresh-token\",\n      \"tokenType\": \"Bearer\",\n      \"expiresIn\": 900\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"account\": {\n      \"id\": \"64f000000000000000000001\",\n      \"email\": \"customer@example.com\",\n      \"displayName\": \"Customer One\",\n      \"darkMode\": false,\n      \"notificationPreferences\": {\n        \"emailAlerts\": true\n      },\n      \"preferences\": {\n        \"currency\": \"USD\"\n      }\n    },\n    \"sessionId\": \"64f000000000000000000002\",\n    \"tokens\": {\n      \"accessToken\": \"jwt-access-token\",\n      \"refreshToken\": \"jwt-refresh-token\",\n      \"tokenType\": \"Bearer\",\n      \"expiresIn\": 900\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -164,7 +164,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"account\": {\n      \"id\": \"64f000000000000000000001\",\n      \"email\": \"customer@example.com\",\n      \"displayName\": \"Customer One\"\n    },\n    \"sessionId\": \"64f000000000000000000002\",\n    \"tokens\": {\n      \"accessToken\": \"jwt-access-token\",\n      \"refreshToken\": \"jwt-refresh-token\",\n      \"tokenType\": \"Bearer\",\n      \"expiresIn\": 900\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"account\": {\n      \"id\": \"64f000000000000000000001\",\n      \"email\": \"customer@example.com\",\n      \"displayName\": \"Customer One\",\n      \"darkMode\": false,\n      \"notificationPreferences\": {\n        \"emailAlerts\": true\n      },\n      \"preferences\": {\n        \"currency\": \"USD\"\n      }\n    },\n    \"sessionId\": \"64f000000000000000000002\",\n    \"tokens\": {\n      \"accessToken\": \"jwt-access-token\",\n      \"refreshToken\": \"jwt-refresh-token\",\n      \"tokenType\": \"Bearer\",\n      \"expiresIn\": 900\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -490,7 +490,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"delivery\": \"email\",\n    \"expiresInMinutes\": 1440,\n    \"developmentToken\": \"development-only-token\"\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"delivery\": \"email\",\n    \"expiresInMinutes\": 1,\n    \"developmentToken\": \"development-only-token\"\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -1406,7 +1406,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"currency\": \"USD\"\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -1499,7 +1499,175 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"preferences\",\n    \"status\": \"active\",\n    \"data\": {\n      \"currency\": \"USD\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"currency\": \"USD\"\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/users/me/dark-mode",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me/dark-mode",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me",
+            "dark-mode"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/dark-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me",
+                "dark-mode"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"darkMode\": false\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "PATCH /api/v1/users/me/dark-mode",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me/dark-mode",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me",
+            "dark-mode"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"darkMode\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/dark-mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me",
+                "dark-mode"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"darkMode\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"darkMode\": true\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -10426,7 +10594,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"emailAlerts\": false\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -10463,7 +10631,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Updated value\",\n  \"status\": \"active\"\n}",
+          "raw": "{\n  \"emailAlerts\": true\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -10505,7 +10673,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated value\",\n  \"status\": \"active\"\n}",
+              "raw": "{\n  \"emailAlerts\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10515,7 +10683,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"notification-preferences\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Updated value\",\n      \"status\": \"active\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"emailAlerts\": true\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },

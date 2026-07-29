@@ -19,6 +19,9 @@ type AuthResponse = {
     account: {
       id: string;
       email: string;
+      notificationPreferences?: {
+        emailAlerts: boolean;
+      };
     };
     sessionId: string;
     tokens: {
@@ -91,6 +94,7 @@ describe("auth APIs", () => {
 
     expect(registered.success).toBe(true);
     expect(registered.data.account.email).toBe("buyer@example.com");
+    expect(registered.data.account.notificationPreferences?.emailAlerts).toBe(true);
     expect(registered.data.tokens.tokenType).toBe("Bearer");
 
     const sessions = await request(app)
@@ -165,6 +169,7 @@ describe("auth APIs", () => {
       .send({ email: "reset@example.com" })
       .expect(200);
     const verificationBody = verification.body as DataResponse<TokenDeliveryResponse>;
+    expect(verificationBody.data.expiresInMinutes).toBe(1);
     const verificationToken = verificationBody.data.developmentToken;
     if (!verificationToken) {
       throw new Error("Expected a development verification token.");
@@ -245,6 +250,38 @@ describe("auth APIs", () => {
     expect(preferencesBody.data.currency).toBe("EUR");
     expect(preferencesBody.data.newsletter).toBeUndefined();
 
+    const darkMode = await request(app)
+      .get("/api/v1/users/me/dark-mode")
+      .set("Authorization", authorization)
+      .expect(200);
+    const darkModeBody = darkMode.body as DataResponse<{ darkMode: boolean }>;
+    expect(darkModeBody.data.darkMode).toBe(false);
+
+    const updatedDarkMode = await request(app)
+      .patch("/api/v1/users/me/dark-mode")
+      .set("Authorization", authorization)
+      .send({ darkMode: true })
+      .expect(200);
+    const updatedDarkModeBody = updatedDarkMode.body as DataResponse<{ darkMode: boolean }>;
+    expect(updatedDarkModeBody.data.darkMode).toBe(true);
+
+    const notificationPreferences = await request(app)
+      .get("/api/v1/notification-preferences")
+      .set("Authorization", authorization)
+      .expect(200);
+    const notificationPreferencesBody =
+      notificationPreferences.body as DataResponse<{ emailAlerts: boolean }>;
+    expect(notificationPreferencesBody.data.emailAlerts).toBe(true);
+
+    const updatedNotificationPreferences = await request(app)
+      .patch("/api/v1/notification-preferences")
+      .set("Authorization", authorization)
+      .send({ emailAlerts: false })
+      .expect(200);
+    const updatedNotificationPreferencesBody =
+      updatedNotificationPreferences.body as DataResponse<{ emailAlerts: boolean }>;
+    expect(updatedNotificationPreferencesBody.data.emailAlerts).toBe(false);
+
     await request(app)
       .patch("/api/v1/users/me/preferences")
       .set("Authorization", authorization)
@@ -282,6 +319,14 @@ describe("auth APIs", () => {
       .delete("/api/v1/users/me")
       .set("Authorization", authorization)
       .expect(200);
+
+    await expect(CustomerAccountModel.exists({ _id: registered.data.account.id })).resolves.toBeNull();
+    await expect(AuthSessionModel.countDocuments({ accountId: registered.data.account.id })).resolves.toBe(
+      0
+    );
+    await expect(AccountTokenModel.countDocuments({ accountId: registered.data.account.id })).resolves.toBe(
+      0
+    );
 
     await request(app)
       .get("/api/v1/users/me")

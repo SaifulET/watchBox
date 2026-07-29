@@ -84,7 +84,8 @@ type SessionResponse = {
 
 const accessTtlSeconds = 15 * 60;
 const resetTtlMinutes = 15;
-const verificationTtlHours = 24;
+const verificationTtlMilliseconds = 60 * 1000;
+const verificationTtlMinutes = 1;
 
 const isDuplicateKeyError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -117,6 +118,10 @@ const serializeCustomer = (account: CustomerAccountDocument) => ({
   displayName: account.displayName,
   status: account.status,
   emailVerified: account.emailVerified,
+  darkMode: Boolean(account.darkMode),
+  notificationPreferences: {
+    emailAlerts: account.notificationPreferences?.emailAlerts ?? true
+  },
   preferences: {
     currency: account.preferences.currency
   },
@@ -195,7 +200,7 @@ export class CustomerAuthService {
         "customer",
         account._id,
         "email-verification",
-        verificationTtlHours * 60 * 60 * 1000
+        verificationTtlMilliseconds
       );
       const auth = await this.createSession(account._id, "customer", fingerprint);
       return {
@@ -264,17 +269,17 @@ export class CustomerAuthService {
   ): Promise<{ delivery: string; expiresInMinutes: number; developmentToken?: string }> {
     const account = await this.customers.findByEmail(input.email);
     if (!account) {
-      return { delivery: "email", expiresInMinutes: verificationTtlHours * 60 };
+      return { delivery: "email", expiresInMinutes: verificationTtlMinutes };
     }
     const rawToken = await this.createAccountToken(
       "customer",
       account._id,
       "email-verification",
-      verificationTtlHours * 60 * 60 * 1000
+      verificationTtlMilliseconds
     );
     await this.sendEmailVerification(account.email, rawToken);
     await this.publish("customer.email-verification-requested", account._id, { email: account.email });
-    return this.tokenDeliveryResponse(rawToken, verificationTtlHours * 60);
+    return this.tokenDeliveryResponse(rawToken, verificationTtlMinutes);
   }
 
   public async confirmEmail(input: VerifyEmailConfirmInput): Promise<{ verified: true }> {

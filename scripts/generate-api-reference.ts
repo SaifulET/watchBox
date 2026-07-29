@@ -102,8 +102,14 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   if (endpoint.path.includes("mfa/verify")) {
     return { code: "{{mfaCode}}" };
   }
+  if (endpoint.path === "/api/v1/notification-preferences" && endpoint.method === "PATCH") {
+    return { emailAlerts: true };
+  }
   if (endpoint.path === "/api/v1/users/me" && endpoint.method === "PATCH") {
     return { displayName: "Updated Name", phone: "+15551234567", country: "United States" };
+  }
+  if (endpoint.path.includes("/dark-mode")) {
+    return { darkMode: true };
   }
   if (endpoint.path.includes("/preferences")) {
     return { currency: "USD" };
@@ -143,6 +149,36 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
 };
 
 const successResponse = (endpoint: Endpoint): Record<string, unknown> => {
+  if (endpoint.path === "/api/v1/notification-preferences") {
+    return {
+      success: true,
+      data: {
+        emailAlerts: endpoint.method === "PATCH"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
+  if (endpoint.path.includes("/dark-mode")) {
+    return {
+      success: true,
+      data: {
+        darkMode: endpoint.method === "PATCH"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
+  if (endpoint.path === "/api/v1/users/me/preferences") {
+    return {
+      success: true,
+      data: {
+        currency: "USD"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
   if (endpoint.method === "GET" && !endpoint.path.match(/:\w+/)) {
     return {
       success: true,
@@ -164,7 +200,18 @@ const successResponse = (endpoint: Endpoint): Record<string, unknown> => {
         account: {
           id: "64f000000000000000000001",
           email: endpoint.path.includes("/admin/") ? "admin@example.com" : "customer@example.com",
-          displayName: endpoint.path.includes("/admin/") ? "Admin One" : "Customer One"
+          displayName: endpoint.path.includes("/admin/") ? "Admin One" : "Customer One",
+          ...(endpoint.path.includes("/admin/")
+            ? {}
+            : {
+                darkMode: false,
+                notificationPreferences: {
+                  emailAlerts: true
+                },
+                preferences: {
+                  currency: "USD"
+                }
+              })
         },
         sessionId: "64f000000000000000000002",
         tokens: {
@@ -209,7 +256,7 @@ const successResponse = (endpoint: Endpoint): Record<string, unknown> => {
       success: true,
       data: {
         delivery: "email",
-        expiresInMinutes: 1440,
+        expiresInMinutes: 1,
         developmentToken: "development-only-token"
       },
       meta: { requestId: "request-id" }

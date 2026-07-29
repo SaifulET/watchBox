@@ -97,6 +97,8 @@ export const requiredApiEndpoints: RequiredApiEndpoint[] = [
   endpoint("GET", "/api/v1/users/me/stats"),
   endpoint("GET", "/api/v1/users/me/preferences"),
   endpoint("PATCH", "/api/v1/users/me/preferences"),
+  endpoint("GET", "/api/v1/users/me/dark-mode"),
+  endpoint("PATCH", "/api/v1/users/me/dark-mode"),
   endpoint("POST", "/api/v1/users/me/avatar/upload-url"),
   endpoint("POST", "/api/v1/users/me/avatar/confirm"),
   endpoint("DELETE", "/api/v1/users/me/avatar"),

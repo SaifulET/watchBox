@@ -19,6 +19,13 @@ export const confirmAvatarSchema = z.object({
   avatarKey: z.string().trim().min(8).max(512)
 });
 
+export const updateDarkModeSchema = z
+  .object({
+    darkMode: z.boolean()
+  })
+  .strict();
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type ConfirmAvatarInput = z.infer<typeof confirmAvatarSchema>;
+export type UpdateDarkModeInput = z.infer<typeof updateDarkModeSchema>;

@@ -8,15 +8,20 @@ import { UserController } from "./users.controller.js";
 import { UserService } from "./users.service.js";
 import {
   confirmAvatarSchema,
+  updateDarkModeSchema,
   updatePreferencesSchema,
   updateProfileSchema
 } from "./users.validation.js";
 
 export const createUsersRouter = (dependencies: RouteDependencies = {}): Router => {
   const router = Router();
-  const service = new UserService({
+  const serviceDependencies: ConstructorParameters<typeof UserService>[0] = {
     events: new DomainEventPublisher(dependencies.rabbitMq)
-  });
+  };
+  if (dependencies.redis) {
+    serviceDependencies.redis = dependencies.redis;
+  }
+  const service = new UserService(serviceDependencies);
   const controller = new UserController(service);
   const customerAuth = authenticate("customer");
 
@@ -31,6 +36,12 @@ export const createUsersRouter = (dependencies: RouteDependencies = {}): Router 
     "/me/preferences",
     validate({ body: updatePreferencesSchema }),
     asyncHandler(controller.updatePreferences)
+  );
+  router.get("/me/dark-mode", asyncHandler(controller.darkMode));
+  router.patch(
+    "/me/dark-mode",
+    validate({ body: updateDarkModeSchema }),
+    asyncHandler(controller.updateDarkMode)
   );
   router.post("/me/avatar/upload-url", asyncHandler(controller.avatarUploadUrl));
   router.post(

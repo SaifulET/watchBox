@@ -4,6 +4,7 @@ import { sendSuccess } from "../../../common/utils/api-response.js";
 import type { UserService } from "./users.service.js";
 import type {
   ConfirmAvatarInput,
+  UpdateDarkModeInput,
   UpdatePreferencesInput,
   UpdateProfileInput
 } from "./users.validation.js";
@@ -44,6 +45,18 @@ export class UserController {
 
   public preferences = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(res, req.requestId, await this.service.getPreferences(actorId(req)));
+  };
+
+  public darkMode = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.getDarkMode(actorId(req)));
+  };
+
+  public updateDarkMode = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.updateDarkMode(actorId(req), req.body as UpdateDarkModeInput)
+    );
   };
 
   public updatePreferences = async (req: Request, res: Response): Promise<void> => {

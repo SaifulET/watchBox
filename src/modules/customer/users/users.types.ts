@@ -4,6 +4,7 @@ export type CustomerProfile = {
   displayName: string;
   status: string;
   emailVerified: boolean;
+  darkMode: boolean;
   phone?: string;
   country?: string;
   avatarKey?: string;
@@ -19,4 +20,8 @@ export type CustomerStats = {
   orders: number;
   savedSearches: number;
   watchlists: number;
+};
+
+export type DarkModePreference = {
+  darkMode: boolean;
 };

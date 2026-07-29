@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { sendSuccess } from "../common/utils/api-response.js";
 import { createCustomerAuthRouter } from "../modules/customer/auth/auth.routes.js";
+import { createNotificationPreferencesRouter } from "../modules/customer/notification-preferences/notification-preferences.routes.js";
 import { createUsersRouter } from "../modules/customer/users/users.routes.js";
 import { createGeneratedApiRouter } from "../modules/generated-api/generated-api.routes.js";
 import type { RouteDependencies } from "./index.js";
@@ -17,6 +18,7 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
 
   router.use("/auth", createCustomerAuthRouter(dependencies));
   router.use("/users", createUsersRouter(dependencies));
+  router.use("/notification-preferences", createNotificationPreferencesRouter(dependencies));
   router.use(createGeneratedApiRouter(dependencies));
 
   return router;

@@ -27,7 +27,14 @@ Success response:
     "account": {
       "id": "64f000000000000000000001",
       "email": "customer@example.com",
-      "displayName": "Customer One"
+      "displayName": "Customer One",
+      "darkMode": false,
+      "notificationPreferences": {
+        "emailAlerts": true
+      },
+      "preferences": {
+        "currency": "USD"
+      }
     },
     "sessionId": "64f000000000000000000002",
     "tokens": {
@@ -84,7 +91,14 @@ Success response:
     "account": {
       "id": "64f000000000000000000001",
       "email": "customer@example.com",
-      "displayName": "Customer One"
+      "displayName": "Customer One",
+      "darkMode": false,
+      "notificationPreferences": {
+        "emailAlerts": true
+      },
+      "preferences": {
+        "currency": "USD"
+      }
     },
     "sessionId": "64f000000000000000000002",
     "tokens": {
@@ -291,7 +305,7 @@ Success response:
   "success": true,
   "data": {
     "delivery": "email",
-    "expiresInMinutes": 1440,
+    "expiresInMinutes": 1,
     "developmentToken": "development-only-token"
   },
   "meta": {
@@ -855,12 +869,10 @@ Success response:
 ```json
 {
   "success": true,
-  "data": [],
+  "data": {
+    "currency": "USD"
+  },
   "meta": {
-    "page": 1,
-    "limit": 20,
-    "total": 0,
-    "totalPages": 1,
     "requestId": "request-id"
   }
 }
@@ -903,12 +915,95 @@ Success response:
 {
   "success": true,
   "data": {
-    "id": "64f000000000000000000001",
-    "resource": "preferences",
-    "status": "active",
-    "data": {
-      "currency": "USD"
-    }
+    "currency": "USD"
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/users/me/dark-mode
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/users/me/dark-mode
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "darkMode": false
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### PATCH /api/v1/users/me/dark-mode
+Auth: Bearer token required (Customer)
+Request:
+```http
+PATCH {{baseUrl}}/api/v1/users/me/dark-mode
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "darkMode": true
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "darkMode": true
   },
   "meta": {
     "requestId": "request-id"
@@ -6348,12 +6443,10 @@ Success response:
 ```json
 {
   "success": true,
-  "data": [],
+  "data": {
+    "emailAlerts": false
+  },
   "meta": {
-    "page": 1,
-    "limit": 20,
-    "total": 0,
-    "totalPages": 1,
     "requestId": "request-id"
   }
 }
@@ -6388,8 +6481,7 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Updated value",
-  "status": "active"
+  "emailAlerts": true
 }
 ```
 Success response:
@@ -6397,13 +6489,7 @@ Success response:
 {
   "success": true,
   "data": {
-    "id": "64f000000000000000000001",
-    "resource": "notification-preferences",
-    "status": "active",
-    "data": {
-      "name": "Updated value",
-      "status": "active"
-    }
+    "emailAlerts": true
   },
   "meta": {
     "requestId": "request-id"

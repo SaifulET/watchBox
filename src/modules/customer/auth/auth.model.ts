@@ -7,6 +7,10 @@ export type CustomerAccount = {
   displayName: string;
   status: AccountStatus;
   emailVerified: boolean;
+  darkMode: boolean;
+  notificationPreferences: {
+    emailAlerts: boolean;
+  };
   phone?: string;
   country?: string;
   avatarKey?: string;
@@ -65,6 +69,10 @@ const customerAccountSchema = new Schema<CustomerAccount>(
     displayName: { type: String, required: true, trim: true },
     status: { type: String, enum: ["active", "suspended", "deleted"], default: "active", index: true },
     emailVerified: { type: Boolean, default: false },
+    darkMode: { type: Boolean, default: false },
+    notificationPreferences: {
+      emailAlerts: { type: Boolean, default: true }
+    },
     phone: { type: String, trim: true },
     country: { type: String, trim: true },
     avatarKey: { type: String, trim: true },
