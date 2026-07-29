@@ -8,7 +8,6 @@ import type {
   ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
-  LogoutInput,
   RefreshInput,
   RegisterInput,
   ResetPasswordInput,
@@ -57,8 +56,7 @@ export class CustomerAuthController {
 
   public logout = async (req: Request, res: Response): Promise<void> => {
     const actor = requireAuth(req);
-    const body = req.body as LogoutInput;
-    const result = await this.service.logout(actor.id, actor.sessionId, body.refreshToken);
+    const result = await this.service.logout(actor.sessionId);
     sendSuccess(res, req.requestId, result);
   };
 
@@ -126,8 +124,7 @@ export class AdminAuthController {
 
   public logout = async (req: Request, res: Response): Promise<void> => {
     const actor = requireAuth(req);
-    const body = req.body as LogoutInput;
-    const result = await this.service.logout(actor.id, actor.sessionId, body.refreshToken);
+    const result = await this.service.logout(actor.sessionId);
     sendSuccess(res, req.requestId, result);
   };
 

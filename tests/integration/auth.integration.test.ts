@@ -123,13 +123,29 @@ describe("auth APIs", () => {
     const loggedIn = login.body as AuthResponse;
 
     await request(app)
-      .post("/api/v1/auth/logout-all")
+      .post("/api/v1/auth/logout")
       .set("Authorization", `Bearer ${loggedIn.data.tokens.accessToken}`)
       .expect(200);
 
     await request(app)
       .get("/api/v1/auth/sessions")
       .set("Authorization", `Bearer ${loggedIn.data.tokens.accessToken}`)
+      .expect(401);
+
+    const secondLogin = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: "buyer@example.com", password: "correct-password" })
+      .expect(200);
+    const loggedInAgain = secondLogin.body as AuthResponse;
+
+    await request(app)
+      .post("/api/v1/auth/logout-all")
+      .set("Authorization", `Bearer ${loggedInAgain.data.tokens.accessToken}`)
+      .expect(200);
+
+    await request(app)
+      .get("/api/v1/auth/sessions")
+      .set("Authorization", `Bearer ${loggedInAgain.data.tokens.accessToken}`)
       .expect(401);
   });
 
@@ -254,6 +270,16 @@ describe("auth APIs", () => {
       .delete("/api/v1/users/me/avatar")
       .set("Authorization", authorization)
       .expect(200);
+
+    await request(app)
+      .delete("/api/v1/users/me")
+      .set("Authorization", authorization)
+      .expect(200);
+
+    await request(app)
+      .get("/api/v1/users/me")
+      .set("Authorization", authorization)
+      .expect(401);
   });
 
   it("authenticates admins and exposes admin auth workflows", async () => {
@@ -298,7 +324,6 @@ describe("auth APIs", () => {
     await request(app)
       .post("/api/v1/admin/auth/logout")
       .set("Authorization", `Bearer ${loggedIn.data.tokens.accessToken}`)
-      .send({ refreshToken: loggedIn.data.tokens.refreshToken })
       .expect(200);
   });
 });

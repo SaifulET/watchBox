@@ -224,15 +224,7 @@ export class CustomerAuthService {
     return this.rotateRefreshToken(input.refreshToken, "customer", verified.sessionId);
   }
 
-  public async logout(actorId: string, sessionId: string, refreshToken?: string): Promise<{ revoked: true }> {
-    if (refreshToken) {
-      const hash = this.tokens.hashRefreshToken(refreshToken);
-      const session = await this.sessions.findActiveByRefreshHash(hash, "customer");
-      if (session && session.accountId.toString() === actorId) {
-        await this.revokeSession(session._id, "customer");
-        return { revoked: true };
-      }
-    }
+  public async logout(sessionId: string): Promise<{ revoked: true }> {
     await this.revokeSession(sessionId, "customer");
     return { revoked: true };
   }
@@ -561,19 +553,7 @@ export class AdminAuthService extends CustomerAuthService {
     return this.rotateRefreshToken(input.refreshToken, "admin", verified.sessionId);
   }
 
-  public override async logout(
-    actorId: string,
-    sessionId: string,
-    refreshToken?: string
-  ): Promise<{ revoked: true }> {
-    if (refreshToken) {
-      const hash = this.tokens.hashRefreshToken(refreshToken);
-      const session = await this.sessions.findActiveByRefreshHash(hash, "admin");
-      if (session && session.accountId.toString() === actorId) {
-        await this.revokeSession(session._id, "admin");
-        return { revoked: true };
-      }
-    }
+  public override async logout(sessionId: string): Promise<{ revoked: true }> {
     await this.revokeSession(sessionId, "admin");
     return { revoked: true };
   }

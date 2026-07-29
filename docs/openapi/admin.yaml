@@ -39,12 +39,6 @@ paths:
       summary: Revoke the current admin session.
       security:
         - bearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LogoutRequest"
       responses:
         "200":
           description: Session revoked.
@@ -227,11 +221,6 @@ components:
     RefreshRequest:
       type: object
       required: [refreshToken]
-      properties:
-        refreshToken:
-          type: string
-    LogoutRequest:
-      type: object
       properties:
         refreshToken:
           type: string

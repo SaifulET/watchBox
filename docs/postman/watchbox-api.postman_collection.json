@@ -273,7 +273,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -316,7 +316,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -326,7 +326,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"logout\",\n    \"status\": \"active\",\n    \"data\": {\n      \"refreshToken\": \"{{refreshToken}}\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"logout\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -15516,7 +15516,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -15560,7 +15560,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -15570,7 +15570,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"logout\",\n    \"status\": \"active\",\n    \"data\": {\n      \"refreshToken\": \"{{refreshToken}}\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"logout\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },

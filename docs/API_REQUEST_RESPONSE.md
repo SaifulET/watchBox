@@ -3,7 +3,7 @@
 Base URL: `http://localhost:4000`
 
 Use `{{accessToken}}` from login/register responses for protected routes.
-Use `{{refreshToken}}` from login/register responses for refresh/logout routes.
+Use `{{refreshToken}}` from login/register responses for refresh routes.
 
 ### POST /api/v1/auth/login
 Auth: No auth
@@ -179,7 +179,8 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "refreshToken": "{{refreshToken}}"
+  "name": "Example",
+  "description": "Example request body"
 }
 ```
 Success response:
@@ -191,7 +192,8 @@ Success response:
     "resource": "logout",
     "status": "active",
     "data": {
-      "refreshToken": "{{refreshToken}}"
+      "name": "Example",
+      "description": "Example request body"
     }
   },
   "meta": {
@@ -9427,7 +9429,8 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "refreshToken": "{{refreshToken}}"
+  "name": "Example",
+  "description": "Example request body"
 }
 ```
 Success response:
@@ -9439,7 +9442,8 @@ Success response:
     "resource": "logout",
     "status": "active",
     "data": {
-      "refreshToken": "{{refreshToken}}"
+      "name": "Example",
+      "description": "Example request body"
     }
   },
   "meta": {

@@ -77,9 +77,6 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   if (endpoint.path.endsWith("/auth/refresh")) {
     return { refreshToken: "{{refreshToken}}" };
   }
-  if (endpoint.path.endsWith("/auth/logout")) {
-    return { refreshToken: "{{refreshToken}}" };
-  }
   if (endpoint.path.includes("verify-email/request") || endpoint.path.includes("forgot-password")) {
     return { email: "customer@example.com" };
   }
@@ -353,7 +350,7 @@ writeFileSync(
     "Base URL: `http://localhost:4000`",
     "",
     "Use `{{accessToken}}` from login/register responses for protected routes.",
-    "Use `{{refreshToken}}` from login/register responses for refresh/logout routes.",
+    "Use `{{refreshToken}}` from login/register responses for refresh routes.",
     "",
     ...requiredApiEndpoints.map(markdownForEndpoint)
   ].join("\n"),

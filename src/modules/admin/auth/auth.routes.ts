@@ -14,7 +14,6 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
-  logoutSchema,
   refreshSchema,
   resetPasswordSchema,
   sessionParamsSchema
@@ -35,12 +34,7 @@ export const createAdminAuthRouter = (dependencies: RouteDependencies = {}): Rou
 
   router.post("/login", validate({ body: loginSchema }), asyncHandler(controller.login));
   router.post("/refresh", validate({ body: refreshSchema }), asyncHandler(controller.refresh));
-  router.post(
-    "/logout",
-    adminAuth,
-    validate({ body: logoutSchema }),
-    asyncHandler(controller.logout)
-  );
+  router.post("/logout", adminAuth, asyncHandler(controller.logout));
   router.post("/logout-all", adminAuth, asyncHandler(controller.logoutAll));
   router.post(
     "/forgot-password",

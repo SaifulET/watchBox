@@ -20,10 +20,6 @@ export const refreshSchema = z.object({
   refreshToken: token
 });
 
-export const logoutSchema = z.object({
-  refreshToken: token.optional()
-});
-
 export const verifyEmailRequestSchema = z.object({
   email
 });
@@ -71,7 +67,6 @@ export const adminVerifyResetCodeSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
-export type LogoutInput = z.infer<typeof logoutSchema>;
 export type VerifyEmailRequestInput = z.infer<typeof verifyEmailRequestSchema>;
 export type VerifyEmailConfirmInput = z.infer<typeof verifyEmailConfirmSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

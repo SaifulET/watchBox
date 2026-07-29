@@ -11,7 +11,6 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
-  logoutSchema,
   refreshSchema,
   registerSchema,
   resetPasswordSchema,
@@ -36,12 +35,7 @@ export const createCustomerAuthRouter = (dependencies: RouteDependencies = {}): 
   router.post("/register", validate({ body: registerSchema }), asyncHandler(controller.register));
   router.post("/login", validate({ body: loginSchema }), asyncHandler(controller.login));
   router.post("/refresh", validate({ body: refreshSchema }), asyncHandler(controller.refresh));
-  router.post(
-    "/logout",
-    customerAuth,
-    validate({ body: logoutSchema }),
-    asyncHandler(controller.logout)
-  );
+  router.post("/logout", customerAuth, asyncHandler(controller.logout));
   router.post("/logout-all", customerAuth, asyncHandler(controller.logoutAll));
   router.post(
     "/verify-email/request",

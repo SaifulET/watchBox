@@ -81,7 +81,18 @@ export class TokenService {
           ? config.adminAccessSecret
           : config.adminRefreshSecret;
 
-    const decoded = jwt.verify(token, secret, { audience });
+    let decoded: string | jwt.JwtPayload;
+    try {
+      decoded = jwt.verify(token, secret, { audience });
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new AuthenticationError("Your session has expired. Please log in again.");
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new AuthenticationError("Invalid authentication token. Please log in again.");
+      }
+      throw error;
+    }
     if (typeof decoded !== "object" || !decoded.sub || typeof decoded.sessionId !== "string") {
       throw new AuthenticationError("Invalid authentication token.");
     }
