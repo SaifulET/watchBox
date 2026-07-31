@@ -1,7 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { ConflictError, ResourceNotFoundError } from "../../common/errors/app-error.js";
 import type { DomainEventPublisher } from "../../common/services/domain-event-publisher.js";
 import type { JobPublisher } from "../../common/services/job-publisher.js";
+import {
+  createPresignedPutUrl,
+  getObjectUrl
+} from "../../infrastructure/storage/s3-storage.js";
 import type { RedisClient } from "../../infrastructure/redis/client.js";
 import { GeneratedApiRepository } from "./generated-api.repository.js";
 import type { GeneratedApiRecordDocument } from "./generated-api.model.js";
@@ -39,6 +43,19 @@ type GeneratedApiDependencies = {
   jobs: JobPublisher;
 };
 
+type ImageContentType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+
+type GeneratedUpload = {
+  key: string;
+  imageUrl: string;
+  uploadUrl: string;
+  method: "PUT";
+  headers: {
+    "Content-Type": ImageContentType;
+  };
+  expiresInSeconds: number;
+};
+
 type ListQuery = {
   page?: unknown;
   limit?: unknown;
@@ -68,6 +85,37 @@ const cacheKey = (definition: GeneratedEndpointDefinition, query: ListQuery, act
   `api-cache:${createHash("sha256")
     .update(JSON.stringify({ path: definition.fullPath, query, actorId: actor.id ?? null }))
     .digest("hex")}`;
+
+const imageExtensions: Record<ImageContentType, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif"
+};
+
+const imageContentTypes = new Set<string>(Object.keys(imageExtensions));
+
+const parseImageContentType = (value: unknown): ImageContentType => {
+  if (typeof value === "undefined") {
+    return "image/jpeg";
+  }
+  if (typeof value === "string" && imageContentTypes.has(value)) {
+    return value as ImageContentType;
+  }
+  throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif uploads are supported.");
+};
+
+const parseUploadCount = (body: Record<string, unknown>): number => {
+  const count = Number(body.count ?? body.fileCount ?? 1);
+  if (!Number.isInteger(count) || count < 1 || count > 10) {
+    throw new ConflictError("Upload URL count must be between 1 and 10.");
+  }
+  return count;
+};
+
+const isRecordArray = (value: unknown): value is Array<Record<string, unknown>> =>
+  Array.isArray(value) &&
+  value.every((item) => typeof item === "object" && item !== null && !Array.isArray(item));
 
 export class GeneratedApiService {
   private readonly repository: GeneratedApiRepository;
@@ -203,6 +251,10 @@ export class GeneratedApiService {
     body: Record<string, unknown>,
     actor: Actor
   ) {
+    if (this.isUploadUrlAction(definition)) {
+      return this.createUploadUrls(definition, params, body, actor);
+    }
+
     const target = await this.findOrCreateActionTarget(definition, params, body, actor);
     const status = this.statusFromAction(definition.action);
     const updated = await this.repository.setStatus(
@@ -219,6 +271,65 @@ export class GeneratedApiService {
     return {
       accepted: true,
       action: definition.action,
+      record: serializeRecord(updated)
+    };
+  }
+
+  private async createUploadUrls(
+    definition: GeneratedEndpointDefinition,
+    params: Record<string, string>,
+    body: Record<string, unknown>,
+    actor: Actor
+  ) {
+    const target = await this.findOrCreateActionTarget(definition, params, body, actor);
+    const expiresInSeconds = 900;
+    const requestedFiles = isRecordArray(body.files)
+      ? body.files
+      : isRecordArray(body.images)
+        ? body.images
+        : undefined;
+    const count = requestedFiles?.length ?? parseUploadCount(body);
+    const uploads: GeneratedUpload[] = [];
+
+    for (let index = 0; index < count; index += 1) {
+      const file = requestedFiles?.[index];
+      const contentType = parseImageContentType(file?.contentType ?? body.contentType);
+      const key = `${this.uploadKeyPrefix(definition, params, actor)}/${randomUUID()}.${
+        imageExtensions[contentType]
+      }`;
+      const uploadUrl = await createPresignedPutUrl({ key, contentType, expiresInSeconds });
+      uploads.push({
+        key,
+        imageUrl: getObjectUrl(key),
+        uploadUrl,
+        method: "PUT",
+        headers: {
+          "Content-Type": contentType
+        },
+        expiresInSeconds
+      });
+    }
+
+    const uploadData = {
+      uploads,
+      latestUpload: uploads[0] ?? null
+    };
+    const status = this.statusFromAction(definition.action);
+    const updated = await this.repository.updateDataAndStatus(
+      target,
+      uploadData,
+      status,
+      definition.action,
+      actor.id,
+      actor.audience
+    );
+    await this.afterMutation(definition, updated._id.toString(), actor, uploadData);
+
+    return {
+      accepted: true,
+      action: definition.action,
+      uploads,
+      upload: uploads[0] ?? null,
       record: serializeRecord(updated)
     };
   }
@@ -328,6 +439,27 @@ export class GeneratedApiService {
       resolve: "resolved"
     };
     return statusMap[terminal] ?? "accepted";
+  }
+
+  private isUploadUrlAction(definition: GeneratedEndpointDefinition): boolean {
+    return (
+      definition.method === "POST" &&
+      (definition.fullPath.endsWith("/upload-url") || definition.fullPath.endsWith("/upload-urls"))
+    );
+  }
+
+  private uploadKeyPrefix(
+    definition: GeneratedEndpointDefinition,
+    params: Record<string, string>,
+    actor: Actor
+  ): string {
+    if (definition.fullPath.includes("/listings/") && params.listingId) {
+      return `listings/${params.listingId}/images`;
+    }
+    if (definition.fullPath.includes("/image-search")) {
+      return `image-search/${actor.id ?? "anonymous"}`;
+    }
+    return `uploads/${definition.resource}/${actor.id ?? "system"}`;
   }
 
   private async afterMutation(

@@ -3,6 +3,7 @@ import { AuthenticationError } from "../../../common/errors/app-error.js";
 import { sendSuccess } from "../../../common/utils/api-response.js";
 import type { UserService } from "./users.service.js";
 import type {
+  AvatarUploadUrlInput,
   ConfirmAvatarInput,
   UpdateDarkModeInput,
   UpdatePreferencesInput,
@@ -68,7 +69,19 @@ export class UserController {
   };
 
   public avatarUploadUrl = async (req: Request, res: Response): Promise<void> => {
-    sendSuccess(res, req.requestId, await this.service.createAvatarUploadUrl(actorId(req)));
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.createAvatarUploadUrl(actorId(req), req.body as AvatarUploadUrlInput)
+    );
+  };
+
+  public uploadAvatar = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.uploadAvatar(actorId(req), req.file));
+  };
+
+  public avatar = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.getAvatar(actorId(req)));
   };
 
   public confirmAvatar = async (req: Request, res: Response): Promise<void> => {

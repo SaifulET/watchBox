@@ -8,6 +8,7 @@ export type CustomerProfile = {
   phone?: string;
   country?: string;
   avatarKey?: string;
+  avatarUrl?: string;
   preferences: {
     currency: string;
   };
@@ -24,4 +25,9 @@ export type CustomerStats = {
 
 export type DarkModePreference = {
   darkMode: boolean;
+};
+
+export type CustomerAvatar = {
+  avatarKey: string | null;
+  avatarUrl: string | null;
 };

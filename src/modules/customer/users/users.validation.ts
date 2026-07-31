@@ -15,6 +15,16 @@ export const updatePreferencesSchema = z
   .strict()
   .refine((value) => Object.keys(value).length > 0, "At least one preference field is required.");
 
+export const avatarUploadUrlSchema = z
+  .object({
+    contentType: z
+      .enum(["image/jpeg", "image/png", "image/webp", "image/gif"])
+      .default("image/jpeg"),
+    fileName: z.string().trim().min(1).max(180).optional()
+  })
+  .strict()
+  .default({});
+
 export const confirmAvatarSchema = z.object({
   avatarKey: z.string().trim().min(8).max(512)
 });
@@ -27,5 +37,6 @@ export const updateDarkModeSchema = z
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
+export type AvatarUploadUrlInput = z.infer<typeof avatarUploadUrlSchema>;
 export type ConfirmAvatarInput = z.infer<typeof confirmAvatarSchema>;
 export type UpdateDarkModeInput = z.infer<typeof updateDarkModeSchema>;

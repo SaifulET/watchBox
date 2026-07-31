@@ -11,6 +11,9 @@ import {
 } from "../../src/modules/customer/auth/auth.model.js";
 import { PasswordService } from "../../src/modules/customer/auth/password.service.js";
 
+process.env.STORAGE_PROVIDER = "local";
+process.env.EMAIL_PROVIDER = "local";
+
 const app = createApp();
 
 type AuthResponse = {
@@ -297,18 +300,47 @@ describe("auth APIs", () => {
       .set("Authorization", authorization)
       .expect(200);
 
+    const emptyAvatar = await request(app)
+      .get("/api/v1/users/me/avatar")
+      .set("Authorization", authorization)
+      .expect(200);
+    const emptyAvatarBody = emptyAvatar.body as DataResponse<{
+      avatarKey: string | null;
+      avatarUrl: string | null;
+    }>;
+    expect(emptyAvatarBody.data.avatarKey).toBeNull();
+    expect(emptyAvatarBody.data.avatarUrl).toBeNull();
+
     const uploadUrl = await request(app)
       .post("/api/v1/users/me/avatar/upload-url")
       .set("Authorization", authorization)
       .expect(200);
-    const uploadUrlBody = uploadUrl.body as DataResponse<{ avatarKey: string; uploadUrl: string }>;
+    const uploadUrlBody = uploadUrl.body as DataResponse<{
+      avatarKey: string;
+      avatarUrl: string;
+      uploadUrl: string;
+    }>;
     expect(uploadUrlBody.data.avatarKey).toContain(registered.data.account.id);
+    expect(uploadUrlBody.data.avatarUrl).toContain(uploadUrlBody.data.avatarKey);
 
-    await request(app)
+    const confirmedAvatar = await request(app)
       .post("/api/v1/users/me/avatar/confirm")
       .set("Authorization", authorization)
       .send({ avatarKey: uploadUrlBody.data.avatarKey })
       .expect(200);
+    const confirmedAvatarBody = confirmedAvatar.body as DataResponse<{ avatarUrl: string }>;
+    expect(confirmedAvatarBody.data.avatarUrl).toBe(uploadUrlBody.data.avatarUrl);
+
+    const savedAvatar = await request(app)
+      .get("/api/v1/users/me/avatar")
+      .set("Authorization", authorization)
+      .expect(200);
+    const savedAvatarBody = savedAvatar.body as DataResponse<{
+      avatarKey: string | null;
+      avatarUrl: string | null;
+    }>;
+    expect(savedAvatarBody.data.avatarKey).toBe(uploadUrlBody.data.avatarKey);
+    expect(savedAvatarBody.data.avatarUrl).toBe(uploadUrlBody.data.avatarUrl);
 
     await request(app)
       .delete("/api/v1/users/me/avatar")

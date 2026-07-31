@@ -14,6 +14,7 @@ export type CustomerAccount = {
   phone?: string;
   country?: string;
   avatarKey?: string;
+  avatarUrl?: string;
   preferences: {
     currency: string;
   };
@@ -76,6 +77,7 @@ const customerAccountSchema = new Schema<CustomerAccount>(
     phone: { type: String, trim: true },
     country: { type: String, trim: true },
     avatarKey: { type: String, trim: true },
+    avatarUrl: { type: String, trim: true },
     preferences: {
       currency: { type: String, default: "USD" }
     },

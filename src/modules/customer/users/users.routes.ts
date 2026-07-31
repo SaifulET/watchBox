@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { authenticate } from "../../../common/auth/authenticate.js";
 import { asyncHandler } from "../../../common/middleware/async-handler.js";
+import { requireSingleImage } from "../../../common/middleware/image-upload.js";
 import { validate } from "../../../common/middleware/validate.js";
 import { DomainEventPublisher } from "../../../common/services/domain-event-publisher.js";
 import type { RouteDependencies } from "../../../routes/index.js";
 import { UserController } from "./users.controller.js";
 import { UserService } from "./users.service.js";
 import {
+  avatarUploadUrlSchema,
   confirmAvatarSchema,
   updateDarkModeSchema,
   updatePreferencesSchema,
@@ -43,7 +45,13 @@ export const createUsersRouter = (dependencies: RouteDependencies = {}): Router 
     validate({ body: updateDarkModeSchema }),
     asyncHandler(controller.updateDarkMode)
   );
-  router.post("/me/avatar/upload-url", asyncHandler(controller.avatarUploadUrl));
+  router.post(
+    "/me/avatar/upload-url",
+    validate({ body: avatarUploadUrlSchema }),
+    asyncHandler(controller.avatarUploadUrl)
+  );
+  router.get("/me/avatar", asyncHandler(controller.avatar));
+  router.post("/me/avatar", requireSingleImage("image"), asyncHandler(controller.uploadAvatar));
   router.post(
     "/me/avatar/confirm",
     validate({ body: confirmAvatarSchema }),

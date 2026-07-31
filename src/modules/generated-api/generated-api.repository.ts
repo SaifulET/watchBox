@@ -178,6 +178,43 @@ export class GeneratedApiRepository {
     return updated ?? record;
   }
 
+  public async updateDataAndStatus(
+    record: GeneratedApiRecordDocument,
+    data: Record<string, unknown>,
+    status: string,
+    action: string,
+    actorId?: string,
+    actorType?: string
+  ): Promise<GeneratedApiRecordDocument> {
+    const history: GeneratedApiRecord["history"][number] = {
+      action,
+      at: new Date(),
+      metadata: data
+    };
+    if (actorId) {
+      history.actorId = actorId;
+    }
+    if (actorType) {
+      history.actorType = actorType;
+    }
+
+    const updated = await GeneratedApiRecordModel.findByIdAndUpdate(
+      record._id,
+      {
+        $set: {
+          data: {
+            ...record.data,
+            ...data
+          },
+          status
+        },
+        $push: { history }
+      },
+      { new: true }
+    );
+    return updated ?? record;
+  }
+
   public async softDelete(
     record: GeneratedApiRecordDocument,
     action: string,

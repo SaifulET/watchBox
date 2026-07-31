@@ -1,18 +1,35 @@
 import { randomUUID } from "node:crypto";
-import { ResourceNotFoundError } from "../../../common/errors/app-error.js";
+import { S3ServiceException } from "@aws-sdk/client-s3";
+import {
+  ConflictError,
+  ExternalServiceError,
+  ResourceNotFoundError
+} from "../../../common/errors/app-error.js";
 import type { DomainEventPublisher } from "../../../common/services/domain-event-publisher.js";
 import { getStorageConfig } from "../../../config/storage.config.js";
+import {
+  assertObjectExists,
+  createPresignedPutUrl,
+  getObjectUrl,
+  uploadObject
+} from "../../../infrastructure/storage/s3-storage.js";
 import type { RedisClient } from "../../../infrastructure/redis/client.js";
 import { CustomerAccountRepository } from "../auth/auth.repository.js";
 import type { CustomerAccountDocument } from "../auth/auth.model.js";
 import type {
+  AvatarUploadUrlInput,
   ConfirmAvatarInput,
   UpdateDarkModeInput,
   UpdatePreferencesInput,
   UpdateProfileInput
 } from "./users.validation.js";
 import { UserRepository } from "./users.repository.js";
-import type { CustomerProfile, CustomerStats, DarkModePreference } from "./users.types.js";
+import type {
+  CustomerAvatar,
+  CustomerProfile,
+  CustomerStats,
+  DarkModePreference
+} from "./users.types.js";
 
 type UserServiceDependencies = {
   events: DomainEventPublisher;
@@ -44,7 +61,24 @@ const serializeProfile = (account: CustomerAccountDocument): CustomerProfile => 
   if (account.avatarKey) {
     profile.avatarKey = account.avatarKey;
   }
+  if (account.avatarUrl) {
+    profile.avatarUrl = account.avatarUrl;
+  }
   return profile;
+};
+
+const imageExtensionByContentType: Record<AvatarUploadUrlInput["contentType"], string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif"
+};
+
+const imageExtensionFromMimeType = (mimeType: string): string => {
+  if (mimeType in imageExtensionByContentType) {
+    return imageExtensionByContentType[mimeType as AvatarUploadUrlInput["contentType"]];
+  }
+  throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif uploads are supported.");
 };
 
 export class UserService {
@@ -154,38 +188,114 @@ export class UserService {
     return { currency: updated.preferences.currency };
   }
 
-  public async createAvatarUploadUrl(userId: string): Promise<{
+  public async createAvatarUploadUrl(userId: string, input: AvatarUploadUrlInput): Promise<{
     avatarKey: string;
     uploadUrl: string;
+    avatarUrl: string;
     method: "PUT";
+    headers: {
+      "Content-Type": string;
+    };
     expiresInSeconds: number;
   }> {
     await this.requireAccount(userId);
     const storage = getStorageConfig();
-    const avatarKey = `avatars/${userId}/${randomUUID()}`;
-    const baseUrl =
+    const expiresInSeconds = 900;
+    const contentType = input.contentType;
+    const avatarKey = `avatars/${userId}/${randomUUID()}.${imageExtensionByContentType[contentType]}`;
+    const uploadUrl =
       storage.provider === "local"
-        ? "http://localhost:4000/internal/uploads"
-        : (storage.endpoint ?? `https://${storage.bucket}.s3.${storage.region}.amazonaws.com`);
+        ? getObjectUrl(avatarKey)
+        : await createPresignedPutUrl({
+            key: avatarKey,
+            contentType,
+            expiresInSeconds
+          });
+
     return {
       avatarKey,
-      uploadUrl: `${baseUrl}/${avatarKey}`,
+      uploadUrl,
+      avatarUrl: getObjectUrl(avatarKey),
       method: "PUT",
-      expiresInSeconds: 900
+      headers: {
+        "Content-Type": contentType
+      },
+      expiresInSeconds
     };
   }
 
-  public async confirmAvatar(userId: string, input: ConfirmAvatarInput): Promise<CustomerProfile> {
-    const updated = await this.customers.updateById(userId, { $set: { avatarKey: input.avatarKey } });
+  public async getAvatar(userId: string): Promise<CustomerAvatar> {
+    const account = await this.requireAccount(userId);
+    return {
+      avatarKey: account.avatarKey ?? null,
+      avatarUrl: account.avatarUrl ?? null
+    };
+  }
+
+  public async uploadAvatar(
+    userId: string,
+    file: Express.Multer.File | undefined
+  ): Promise<CustomerProfile> {
+    await this.requireAccount(userId);
+    if (!file) {
+      throw new ConflictError("Image file is required.");
+    }
+
+    const avatarKey = `avatars/${userId}/${randomUUID()}.${imageExtensionFromMimeType(file.mimetype)}`;
+    let avatarUrl: string;
+    try {
+      avatarUrl = await uploadObject({
+        key: avatarKey,
+        body: file.buffer,
+        contentType: file.mimetype
+      });
+    } catch {
+      throw new ExternalServiceError("Unable to upload the avatar image to object storage.");
+    }
+
+    const updated = await this.customers.updateById(userId, {
+      $set: { avatarKey, avatarUrl }
+    });
     if (!updated) {
       throw new ResourceNotFoundError("User profile not found.");
     }
-    await this.publish("customer.avatar-updated", userId, { avatarKey: input.avatarKey });
+
+    await this.publish("customer.avatar-uploaded", userId, { avatarKey, avatarUrl });
+    return serializeProfile(updated);
+  }
+
+  public async confirmAvatar(userId: string, input: ConfirmAvatarInput): Promise<CustomerProfile> {
+    if (!input.avatarKey.startsWith(`avatars/${userId}/`)) {
+      throw new ConflictError("Avatar key does not belong to the current user.");
+    }
+
+    const storage = getStorageConfig();
+    if (storage.provider !== "local") {
+      try {
+        await assertObjectExists(input.avatarKey);
+      } catch (error) {
+        if (error instanceof S3ServiceException && error.$metadata.httpStatusCode === 404) {
+          throw new ResourceNotFoundError("Uploaded avatar image was not found in object storage.");
+        }
+        throw new ExternalServiceError("Unable to verify the uploaded avatar image in object storage.");
+      }
+    }
+
+    const avatarUrl = getObjectUrl(input.avatarKey);
+    const updated = await this.customers.updateById(userId, {
+      $set: { avatarKey: input.avatarKey, avatarUrl }
+    });
+    if (!updated) {
+      throw new ResourceNotFoundError("User profile not found.");
+    }
+    await this.publish("customer.avatar-updated", userId, { avatarKey: input.avatarKey, avatarUrl });
     return serializeProfile(updated);
   }
 
   public async deleteAvatar(userId: string): Promise<CustomerProfile> {
-    const updated = await this.customers.updateById(userId, { $unset: { avatarKey: "" } });
+    const updated = await this.customers.updateById(userId, {
+      $unset: { avatarKey: "", avatarUrl: "" }
+    });
     if (!updated) {
       throw new ResourceNotFoundError("User profile not found.");
     }
