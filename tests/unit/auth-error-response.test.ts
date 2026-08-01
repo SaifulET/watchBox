@@ -5,6 +5,22 @@ import { createApp } from "../../src/app.js";
 import { getAuthConfig } from "../../src/config/auth.config.js";
 
 describe("auth error responses", () => {
+  it("returns a clear response for malformed JSON bodies", async () => {
+    const response = await request(createApp())
+      .post("/api/v1/ai/search")
+      .set("Content-Type", "application/json")
+      .send('{\r\n  "q": "Rolex",\r\n \r\n}')
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: {
+        code: "INVALID_JSON",
+        message: "Request body contains invalid JSON."
+      }
+    });
+  });
+
   it("returns a clear response for expired bearer tokens", async () => {
     const config = getAuthConfig();
     const expiredToken = jwt.sign(

@@ -7,7 +7,8 @@ export const getMarketplaceConfig = () => {
       clientId: env.EBAY_CLIENT_ID,
       clientSecret: env.EBAY_CLIENT_SECRET,
       redirectUri: env.EBAY_REDIRECT_URI,
-      environment: env.EBAY_ENVIRONMENT
+      environment: env.EBAY_ENVIRONMENT,
+      marketplaceId: env.EBAY_MARKETPLACE_ID
     }
   };
 };

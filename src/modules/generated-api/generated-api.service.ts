@@ -62,12 +62,40 @@ type ListQuery = {
   [key: string]: unknown;
 };
 
+const listingImageUrl = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const url = (value as Record<string, unknown>).url;
+    if (typeof url === "string") {
+      return url;
+    }
+  }
+  return undefined;
+};
+
+const serializeData = (record: GeneratedApiRecordDocument): Record<string, unknown> => {
+  if (record.resource !== "listings") {
+    return record.data;
+  }
+
+  const data = { ...record.data };
+  const imageUrl = Array.isArray(record.data.images)
+    ? record.data.images.map(listingImageUrl).find((url): url is string => Boolean(url))
+    : undefined;
+
+  delete data.images;
+  data.image = imageUrl ?? null;
+  return data;
+};
+
 const serializeRecord = (record: GeneratedApiRecordDocument) => ({
   id: record._id.toString(),
   resource: record.resource,
   ownerId: record.ownerId ?? null,
   scope: record.scope,
-  data: record.data,
+  data: serializeData(record),
   status: record.status,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString()

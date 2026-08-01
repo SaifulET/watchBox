@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { sendSuccess } from "../common/utils/api-response.js";
+import { createAiRouter } from "../modules/customer/ai/ai.routes.js";
 import { createCustomerAuthRouter } from "../modules/customer/auth/auth.routes.js";
+import { createAdminContentRouter, createPublicContentRouter } from "../modules/customer/content/content.routes.js";
+import { createListingImagesRouter } from "../modules/customer/listings/listing-images.routes.js";
+import { createListingsRouter } from "../modules/customer/listings/listings.routes.js";
+import { createMarketplacesRouter } from "../modules/customer/marketplaces/marketplaces.routes.js";
 import { createNotificationPreferencesRouter } from "../modules/customer/notification-preferences/notification-preferences.routes.js";
 import { createUsersRouter } from "../modules/customer/users/users.routes.js";
 import { createGeneratedApiRouter } from "../modules/generated-api/generated-api.routes.js";
@@ -18,6 +23,12 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
 
   router.use("/auth", createCustomerAuthRouter(dependencies));
   router.use("/users", createUsersRouter(dependencies));
+  router.use(createAiRouter());
+  router.use("/content", createPublicContentRouter());
+  router.use("/admin/settings/content/pages", createAdminContentRouter());
+  router.use("/listings", createListingsRouter());
+  router.use("/listings", createListingImagesRouter());
+  router.use("/marketplaces", createMarketplacesRouter());
   router.use("/notification-preferences", createNotificationPreferencesRouter(dependencies));
   router.use(createGeneratedApiRouter(dependencies));
 

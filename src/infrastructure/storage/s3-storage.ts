@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -79,6 +80,10 @@ export const uploadObject = async (input: {
   contentType: string;
 }): Promise<string> => {
   const config = getStorageConfig();
+  if (config.provider === "local") {
+    return getObjectUrl(input.key);
+  }
+
   const client = createObjectStorageClient();
   await client.send(
     new PutObjectCommand({
@@ -89,6 +94,21 @@ export const uploadObject = async (input: {
     })
   );
   return getObjectUrl(input.key);
+};
+
+export const deleteObject = async (key: string): Promise<void> => {
+  const config = getStorageConfig();
+  if (config.provider === "local") {
+    return;
+  }
+
+  const client = createObjectStorageClient();
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: key
+    })
+  );
 };
 
 export const assertObjectExists = async (key: string): Promise<void> => {

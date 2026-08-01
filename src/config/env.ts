@@ -37,6 +37,7 @@ const envSchema = z.object({
   EBAY_CLIENT_SECRET: optionalEnvString,
   EBAY_REDIRECT_URI: optionalEnvUrl,
   EBAY_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  EBAY_MARKETPLACE_ID: z.string().default("EBAY_US"),
   STRIPE_SECRET_KEY: optionalEnvString,
   STRIPE_WEBHOOK_SECRET: optionalEnvString,
   EMAIL_PROVIDER: z.enum(["local", "smtp", "ses", "sendgrid", "mailgun"]).default("local"),
@@ -54,6 +55,8 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(["local", "http"]).default("local"),
   AI_SERVICE_URL: optionalEnvUrl,
   AI_SERVICE_TOKEN: optionalEnvString,
+  AI_MODEL: z.string().default("gpt-5.6"),
+  AI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
   ENCRYPTION_KEY: z.string().min(32).default("dev-encryption-key-32-bytes-minimum")
 });
 

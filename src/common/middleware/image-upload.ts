@@ -26,8 +26,13 @@ export const imageUpload = multer({
   }
 });
 
-export const requireSingleImage = (fieldName = "image"): RequestHandler => {
-  const upload = imageUpload.single(fieldName);
+export const requireSingleImage = (fieldName: string | string[] = "image"): RequestHandler => {
+  const fieldNames = Array.isArray(fieldName) ? fieldName : [fieldName];
+  const primaryFieldName = fieldNames[0] ?? "image";
+  const upload =
+    fieldNames.length === 1
+      ? imageUpload.single(primaryFieldName)
+      : imageUpload.fields(fieldNames.map((name) => ({ name, maxCount: 1 })));
 
   return (req, res, next) => {
     upload(req, res, (error: unknown) => {
@@ -35,7 +40,7 @@ export const requireSingleImage = (fieldName = "image"): RequestHandler => {
         next(
           new ValidationError([
             {
-              path: fieldName,
+              path: primaryFieldName,
               message: error.code === "LIMIT_FILE_SIZE" ? "Image must be 10MB or smaller." : error.message
             }
           ])
@@ -45,6 +50,10 @@ export const requireSingleImage = (fieldName = "image"): RequestHandler => {
       if (error) {
         next(error);
         return;
+      }
+      if (!req.file && req.files && !Array.isArray(req.files)) {
+        const filesByField = req.files as Record<string, Express.Multer.File[]>;
+        req.file = fieldNames.flatMap((name) => filesByField[name] ?? [])[0];
       }
       next();
     });
