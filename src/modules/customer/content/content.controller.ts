@@ -35,6 +35,11 @@ export class ContentController {
     sendSuccess(res, req.requestId, await this.service.getAdminPage(params.slug));
   };
 
+  public uploadImage = async (req: Request, res: Response): Promise<void> => {
+    adminActorId(req);
+    sendSuccess(res, req.requestId, await this.service.uploadInlineImage(req.file), 201);
+  };
+
   public createPage = async (req: Request, res: Response): Promise<void> => {
     const params = this.params(req);
     const body = req.body as ContentUpsertBody;

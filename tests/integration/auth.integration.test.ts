@@ -22,6 +22,8 @@ type AuthResponse = {
     account: {
       id: string;
       email: string;
+      permissions?: string[];
+      roles?: string[];
       notificationPreferences?: {
         emailAlerts: boolean;
       };
@@ -32,6 +34,14 @@ type AuthResponse = {
       refreshToken: string;
       tokenType: "Bearer";
     };
+  };
+};
+
+type ErrorResponse = {
+  success: false;
+  error: {
+    code: string;
+    message: string;
   };
 };
 
@@ -417,6 +427,56 @@ describe("auth APIs", () => {
     await request(app)
       .post("/api/v1/admin/auth/logout")
       .set("Authorization", `Bearer ${loggedIn.data.tokens.accessToken}`)
+      .expect(200);
+  });
+
+  it("registers the first admin and protects later admin registration", async () => {
+    const firstRegister = await request(app)
+      .post("/api/v1/admin/auth/register")
+      .send({
+        email: "owner@example.com",
+        password: "owner-password",
+        displayName: "Owner Admin"
+      })
+      .expect(201);
+    const firstAdmin = firstRegister.body as AuthResponse;
+
+    expect(firstAdmin.success).toBe(true);
+    expect(firstAdmin.data.account.email).toBe("owner@example.com");
+    expect(firstAdmin.data.account.permissions).toEqual(
+      expect.arrayContaining(["admin:dashboard", "admin:settings", "admin:users"])
+    );
+    expect(firstAdmin.data.account.roles).toContain("super-admin");
+
+    const openRegister = await request(app)
+      .post("/api/v1/admin/auth/register")
+      .send({
+        email: "open@example.com",
+        password: "open-password",
+        displayName: "Open Admin"
+      })
+      .expect(401);
+    const openRegisterBody = openRegister.body as ErrorResponse;
+    expect(openRegisterBody.error.code).toBe("AUTHENTICATION_REQUIRED");
+
+    const secondRegister = await request(app)
+      .post("/api/v1/admin/auth/register")
+      .set("Authorization", `Bearer ${firstAdmin.data.tokens.accessToken}`)
+      .send({
+        email: "second@example.com",
+        password: "second-password",
+        displayName: "Second Admin",
+        permissions: ["admin:settings"],
+        roles: ["content-admin"]
+      })
+      .expect(201);
+    const secondAdmin = secondRegister.body as AuthResponse;
+    expect(secondAdmin.data.account.permissions).toEqual(["admin:settings"]);
+    expect(secondAdmin.data.account.roles).toEqual(["content-admin"]);
+
+    await request(app)
+      .post("/api/v1/admin/auth/login")
+      .send({ email: "second@example.com", password: "second-password" })
       .expect(200);
   });
 });

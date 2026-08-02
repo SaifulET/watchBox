@@ -11,6 +11,15 @@ export const registerSchema = z.object({
   displayName: z.string().trim().min(2).max(120)
 });
 
+const adminAccessValue = z.string().trim().min(1).max(120);
+
+export const adminRegisterSchema = registerSchema
+  .extend({
+    permissions: z.array(adminAccessValue).max(100).optional(),
+    roles: z.array(adminAccessValue).max(50).optional()
+  })
+  .strict();
+
 export const loginSchema = z.object({
   email,
   password
@@ -65,6 +74,7 @@ export const adminVerifyResetCodeSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type AdminRegisterInput = z.infer<typeof adminRegisterSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
 export type VerifyEmailRequestInput = z.infer<typeof verifyEmailRequestSchema>;

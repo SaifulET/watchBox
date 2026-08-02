@@ -15,6 +15,7 @@ import type { RedisClient } from "../../../infrastructure/redis/client.js";
 import { PasswordService } from "./password.service.js";
 import { TokenService, type TokenAudience } from "./token.service.js";
 import type {
+  AdminRegisterInput,
   AdminMfaChallengeInput,
   AdminMfaVerifyInput,
   ChangePasswordInput,
@@ -86,6 +87,7 @@ const accessTtlSeconds = 15 * 60;
 const resetTtlMinutes = 15;
 const verificationTtlMilliseconds = 60 * 1000;
 const verificationTtlMinutes = 1;
+const bootstrapAdminPermissions = ["admin:dashboard", "admin:settings", "admin:users"];
 
 const isDuplicateKeyError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -553,6 +555,35 @@ export class CustomerAuthService {
 }
 
 export class AdminAuthService extends CustomerAuthService {
+  public async registerAdmin(
+    input: AdminRegisterInput,
+    fingerprint: RequestFingerprint
+  ): Promise<LoginResult<SerializedAccount>> {
+    const hadExistingAdmin = await this.admins.hasActiveAdmin();
+    try {
+      const passwordHash = await this.passwords.hash(input.password);
+      const account = await this.admins.create({
+        email: input.email,
+        passwordHash,
+        displayName: input.displayName,
+        permissions: input.permissions ?? (hadExistingAdmin ? [] : bootstrapAdminPermissions),
+        roles: input.roles ?? (hadExistingAdmin ? ["admin"] : ["super-admin"])
+      });
+      const auth = await this.createSession(account._id, "admin", fingerprint);
+      await this.publish("admin.registered", account._id, {
+        email: account.email,
+        displayName: account.displayName,
+        bootstrap: !hadExistingAdmin
+      });
+      return { account: serializeAdmin(account), ...auth };
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new ConflictError("An admin account already exists for this email address.");
+      }
+      throw error;
+    }
+  }
+
   public override async login(
     input: LoginInput,
     fingerprint: RequestFingerprint

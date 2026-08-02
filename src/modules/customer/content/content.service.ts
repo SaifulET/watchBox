@@ -26,6 +26,10 @@ type ContentData = {
   imageContentType?: string;
 };
 
+type InlineImageResponse = {
+  image: string;
+};
+
 const titleBySlug: Record<ContentSlug, string> = {
   terms: "Terms and Conditions",
   "privacy-policy": "Privacy Policy",
@@ -102,6 +106,17 @@ export class ContentService {
 
   public async getAdminPage(slug: ContentSlug) {
     return serializeContentPage(await this.requirePage(slug));
+  }
+
+  public async uploadInlineImage(file: Express.Multer.File | undefined): Promise<InlineImageResponse> {
+    if (!file) {
+      throw new ConflictError("Image file is required.");
+    }
+
+    const image = await this.uploadImage("inline", file);
+    return {
+      image: image.url
+    };
   }
 
   public async createPage(
@@ -233,13 +248,13 @@ export class ContentService {
     return record;
   }
 
-  private async uploadImage(slug: ContentSlug, file: Express.Multer.File): Promise<ContentImage> {
+  private async uploadImage(folder: string, file: Express.Multer.File): Promise<ContentImage> {
     const extension = imageExtensionByMimeType[file.mimetype];
     if (!extension) {
       throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif files are supported.");
     }
 
-    const key = `content-pages/${slug}/${randomUUID()}.${extension}`;
+    const key = `content-pages/${folder}/${randomUUID()}.${extension}`;
     const url = await uploadObject({
       key,
       body: file.buffer,

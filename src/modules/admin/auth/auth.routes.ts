@@ -1,13 +1,16 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { authenticate } from "../../../common/auth/authenticate.js";
+import { AuthorizationError } from "../../../common/errors/app-error.js";
 import { asyncHandler } from "../../../common/middleware/async-handler.js";
 import { validate } from "../../../common/middleware/validate.js";
 import { DomainEventPublisher } from "../../../common/services/domain-event-publisher.js";
 import { NodemailerEmailProvider } from "../../../infrastructure/external/email/email-provider.js";
 import type { RouteDependencies } from "../../../routes/index.js";
+import { AdminAccountModel } from "../../customer/auth/auth.model.js";
 import { AdminAuthController } from "../../customer/auth/auth.controller.js";
 import { AdminAuthService } from "../../customer/auth/auth.service.js";
 import {
+  adminRegisterSchema,
   adminMfaChallengeSchema,
   adminMfaVerifySchema,
   adminVerifyResetCodeSchema,
@@ -31,7 +34,14 @@ export const createAdminAuthRouter = (dependencies: RouteDependencies = {}): Rou
   const service = new AdminAuthService(serviceDependencies);
   const controller = new AdminAuthController(service);
   const adminAuth = authenticate("admin");
+  const adminUsersAuth = requireAdminPermissions(adminAuth, "admin:users");
 
+  router.post(
+    "/register",
+    validate({ body: adminRegisterSchema }),
+    bootstrapOrRequireAdminUsers(adminUsersAuth),
+    asyncHandler(controller.register)
+  );
   router.post("/login", validate({ body: loginSchema }), asyncHandler(controller.login));
   router.post("/refresh", validate({ body: refreshSchema }), asyncHandler(controller.refresh));
   router.post("/logout", adminAuth, asyncHandler(controller.logout));
@@ -81,3 +91,33 @@ export const createAdminAuthRouter = (dependencies: RouteDependencies = {}): Rou
 
   return router;
 };
+
+const requireAdminPermissions =
+  (adminAuth: RequestHandler, ...permissions: string[]): RequestHandler =>
+  (req, res, next) => {
+    adminAuth(req, res, (authError) => {
+      if (authError) {
+        next(authError);
+        return;
+      }
+      const hasPermissions = permissions.every((permission) => req.auth?.permissions.includes(permission));
+      if (!hasPermissions) {
+        next(new AuthorizationError());
+        return;
+      }
+      next();
+    });
+  };
+
+const bootstrapOrRequireAdminUsers =
+  (adminUsersAuth: RequestHandler): RequestHandler =>
+  (req, res, next) => {
+    void (async () => {
+      const existingAdmin = await AdminAccountModel.exists({ deletedAt: null });
+      if (!existingAdmin) {
+        next();
+        return;
+      }
+      adminUsersAuth(req, res, next);
+    })().catch(next);
+  };

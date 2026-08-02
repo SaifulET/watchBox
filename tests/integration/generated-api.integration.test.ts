@@ -465,7 +465,7 @@ describe.sequential("generated API routes", () => {
     expect(body.data.errors).toEqual({});
   });
 
-  it("creates, reads, and updates content pages with an optional image", async () => {
+  it("creates, reads, and updates content pages with inline image links", async () => {
     const adminToken = await loginAdmin();
     const authorization = `Bearer ${adminToken}`;
     const png = Buffer.from(
@@ -473,48 +473,56 @@ describe.sequential("generated API routes", () => {
       "base64"
     );
 
+    const inlineImageResponse = await request(app)
+      .post("/api/v1/admin/settings/content/images")
+      .set("Authorization", authorization)
+      .attach("file", png, {
+        filename: "quill-image.png",
+        contentType: "image/png"
+      })
+      .expect(201);
+    const inlineImage = inlineImageResponse.body as DataResponse<{ image: string }>;
+    expect(Object.keys(inlineImage.data)).toEqual(["image"]);
+    expect(inlineImage.data.image).toContain("content-pages/inline/");
+
+    const content = `<p>We connect collectors with trusted watch listings.</p><p><img src="${inlineImage.data.image}"></p>`;
     const createdResponse = await request(app)
       .post("/api/v1/admin/settings/content/pages/about-us")
       .set("Authorization", authorization)
-      .field("title", "About WatchBox")
-      .field("content", "We connect collectors with trusted watch listings.")
-      .field("summary", "About our marketplace")
-      .attach("image", png, {
-        filename: "about.png",
-        contentType: "image/png"
+      .send({
+        title: "About WatchBox",
+        content,
+        summary: "About our marketplace"
       })
       .expect(201);
     const created = createdResponse.body as RecordResponse;
     expect(created.data.data).toMatchObject({
       slug: "about",
       title: "About WatchBox",
-      content: "We connect collectors with trusted watch listings.",
-      summary: "About our marketplace"
+      content,
+      summary: "About our marketplace",
+      image: null
     });
-    expect(created.data.data.image).toContain("content-pages/about/");
-    expect(created.data.data.imageKey).toContain("content-pages/about/");
 
     const publicResponse = await request(app).get("/api/v1/content/about").expect(200);
     const publicPage = publicResponse.body as RecordResponse;
     expect(publicPage.data.data).toMatchObject({
       slug: "about",
       title: "About WatchBox",
-      image: created.data.data.image
+      content
     });
 
+    const updatedContent = `<p>Updated about us content.</p><p><img src="${inlineImage.data.image}"></p>`;
     const updatedResponse = await request(app)
       .patch("/api/v1/admin/settings/content/pages/about")
       .set("Authorization", authorization)
-      .field("content", "Updated about us content.")
-      .attach("file", png, {
-        filename: "about-updated.png",
-        contentType: "image/png"
+      .send({
+        content: updatedContent
       })
       .expect(200);
     const updated = updatedResponse.body as RecordResponse;
-    expect(updated.data.data.content).toBe("Updated about us content.");
-    expect(updated.data.data.image).toContain("content-pages/about/");
-    expect(updated.data.data.image).not.toBe(created.data.data.image);
+    expect(updated.data.data.content).toBe(updatedContent);
+    expect(updated.data.data.image).toBeNull();
 
     const listResponse = await request(app)
       .get("/api/v1/admin/settings/content/pages")

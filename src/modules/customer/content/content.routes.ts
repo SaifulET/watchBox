@@ -22,18 +22,19 @@ export const createAdminContentRouter = (): Router => {
   const adminAuth = [authenticate("admin"), requirePermissions("admin:settings")];
   const imageUpload = requireSingleImage(["image", "file", "photo"]);
 
-  router.get("", ...adminAuth, asyncHandler(controller.listPages));
-  router.get("/", ...adminAuth, asyncHandler(controller.listPages));
-  router.get("/:slug", ...adminAuth, validate({ params: contentParamsSchema }), asyncHandler(controller.getPage));
+  router.get("/pages", ...adminAuth, asyncHandler(controller.listPages));
+  router.get("/pages/", ...adminAuth, asyncHandler(controller.listPages));
+  router.post("/images", ...adminAuth, imageUpload, asyncHandler(controller.uploadImage));
+  router.get("/pages/:slug", ...adminAuth, validate({ params: contentParamsSchema }), asyncHandler(controller.getPage));
   router.post(
-    "/:slug",
+    "/pages/:slug",
     ...adminAuth,
     imageUpload,
     validate({ params: contentParamsSchema, body: contentUpsertBodySchema }),
     asyncHandler(controller.createPage)
   );
   router.patch(
-    "/:slug",
+    "/pages/:slug",
     ...adminAuth,
     imageUpload,
     validate({ params: contentParamsSchema, body: contentUpsertBodySchema }),

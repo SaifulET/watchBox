@@ -4,6 +4,7 @@ import { sendSuccess } from "../../../common/utils/api-response.js";
 import type {
   AdminMfaChallengeInput,
   AdminMfaVerifyInput,
+  AdminRegisterInput,
   AdminVerifyResetCodeInput,
   ChangePasswordInput,
   ForgotPasswordInput,
@@ -121,6 +122,14 @@ export class CustomerAuthController {
 
 export class AdminAuthController {
   public constructor(private readonly service: AdminAuthService) {}
+
+  public register = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.service.registerAdmin(
+      req.body as AdminRegisterInput,
+      fingerprintFromRequest(req)
+    );
+    sendSuccess(res, req.requestId, result, 201);
+  };
 
   public login = async (req: Request, res: Response): Promise<void> => {
     const result = await this.service.login(req.body as LoginInput, fingerprintFromRequest(req));

@@ -25,7 +25,7 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/users", createUsersRouter(dependencies));
   router.use(createAiRouter());
   router.use("/content", createPublicContentRouter());
-  router.use("/admin/settings/content/pages", createAdminContentRouter());
+  router.use("/admin/settings/content", createAdminContentRouter());
   router.use("/listings", createListingsRouter());
   router.use("/listings", createListingImagesRouter());
   router.use("/marketplaces", createMarketplacesRouter());

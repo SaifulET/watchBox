@@ -37,6 +37,17 @@ export class CustomerAccountRepository {
 }
 
 export class AdminAccountRepository {
+  public create(
+    input: Pick<AdminAccount, "email" | "passwordHash" | "displayName" | "permissions" | "roles">
+  ) {
+    return AdminAccountModel.create(input);
+  }
+
+  public async hasActiveAdmin(): Promise<boolean> {
+    const existing = await AdminAccountModel.exists({ deletedAt: null });
+    return Boolean(existing);
+  }
+
   public findByEmail(email: string) {
     return AdminAccountModel.findOne({ email: email.toLowerCase(), deletedAt: null });
   }
