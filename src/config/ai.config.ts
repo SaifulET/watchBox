@@ -10,3 +10,4 @@ export const getAiConfig = () => {
     embeddingModel: env.AI_EMBEDDING_MODEL
   };
 };
+
