@@ -3,6 +3,7 @@ import { getAiConfig } from "../../../config/ai.config.js";
 
 export type ImageAnalysis = {
   containsWatch: boolean;
+  generatedTitle?: string;
   probableBrand?: string;
   probableModel?: string;
   probableReferenceNumber?: string;
@@ -50,6 +51,7 @@ export class LocalAiProvider implements AiProvider {
 
     return Promise.resolve({
       containsWatch: true,
+      generatedTitle: "Rolex Submariner 126610LN",
       probableBrand: "Rolex",
       probableModel: "Submariner",
       probableReferenceNumber: "126610LN",
@@ -94,6 +96,7 @@ const imageAnalysisSchema = {
   additionalProperties: false,
   required: [
     "containsWatch",
+    "generatedTitle",
     "probableBrand",
     "probableModel",
     "probableReferenceNumber",
@@ -101,6 +104,7 @@ const imageAnalysisSchema = {
   ],
   properties: {
     containsWatch: { type: "boolean" },
+    generatedTitle: { type: ["string", "null"] },
     probableBrand: { type: ["string", "null"] },
     probableModel: { type: ["string", "null"] },
     probableReferenceNumber: { type: ["string", "null"] },
@@ -190,6 +194,9 @@ const normalizeAnalysis = (value: unknown, modelVersion: string): ImageAnalysis 
   if (typeof input.probableBrand === "string") {
     analysis.probableBrand = input.probableBrand;
   }
+  if (typeof input.generatedTitle === "string" && input.generatedTitle.trim()) {
+    analysis.generatedTitle = input.generatedTitle.trim();
+  }
   if (typeof input.probableModel === "string") {
     analysis.probableModel = input.probableModel;
   }
@@ -239,6 +246,7 @@ const analysisEmbeddingInput = (analysis: ImageAnalysis): string =>
     probableBrand: analysis.probableBrand ?? null,
     probableModel: analysis.probableModel ?? null,
     probableReferenceNumber: analysis.probableReferenceNumber ?? null,
+    generatedTitle: analysis.generatedTitle ?? null,
     visualAttributes: analysis.visualAttributes
   });
 
@@ -330,7 +338,7 @@ export class HttpAiProvider implements AiProvider {
               {
                 type: "input_text",
                 text:
-                  "Analyze this watch image. Return only structured fields for whether it contains a watch, probable brand, model, reference number, and concise visual attributes."
+                  "Analyze this watch image. Return only structured fields for whether it contains a watch, a concise marketplace search title, probable brand, model, reference number, and concise visual attributes. The generatedTitle should be suitable to paste into eBay search, preferring brand, model, size/variant, and reference number when visible or strongly implied."
               },
               {
                 type: "input_image",

@@ -120,6 +120,19 @@ const similarListing = (item: MarketplaceListing) => ({
   buyingOptions: item.buyingOptions
 });
 
+const sandboxEmptySearchWarning =
+  "eBay sandbox does not include live marketplace inventory. Use EBAY_ENVIRONMENT=production with production eBay Browse API credentials for real eBay results.";
+
+const searchWarnings = (input: {
+  environment: "sandbox" | "production";
+  count: number;
+}): string[] => {
+  if (input.environment === "sandbox" && input.count === 0) {
+    return [sandboxEmptySearchWarning];
+  }
+  return [];
+};
+
 const volatilityLevel = (coefficientOfVariation: number | null): "unknown" | "low" | "medium" | "high" => {
   if (coefficientOfVariation === null) {
     return "unknown";
@@ -169,14 +182,20 @@ export class MarketplaceService {
     }
     const config = getMarketplaceConfig().ebay;
     const normalized = await this.normalizeMarketplaceQuery(query.q);
-    const items = await this.ebay.searchListings(normalized.query, options);
+    const searchResult = await this.ebay.searchListingsWithMetadata(normalized.query, options);
+    const items = searchResult.items;
     return {
       query: query.q,
       ebayQuery: normalized.query,
       queryNormalization: normalized,
       environment: config.environment,
       marketplaceId: query.marketplaceId ?? config.marketplaceId,
+      total: searchResult.total,
       count: items.length,
+      warnings: searchWarnings({
+        environment: config.environment,
+        count: items.length
+      }),
       items
     };
   }

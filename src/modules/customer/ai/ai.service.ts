@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { AppError, ConflictError, ExternalServiceError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
+import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
 import { createAiProvider } from "../../../infrastructure/external/ai/ai-provider.js";
-import type { ImageAnalysis } from "../../../infrastructure/external/ai/ai-provider.js";
+import type { ImageAnalysis, ImageAnalysisRequest } from "../../../infrastructure/external/ai/ai-provider.js";
 import { EbayProvider, type MarketplaceListing } from "../../../infrastructure/external/ebay/ebay-provider.js";
 import { uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import { GeneratedApiRecordModel } from "../../generated-api/generated-api.model.js";
@@ -20,6 +21,20 @@ type SearchInput = AnalyzeInput & {
   search?: string;
   limit: number;
   marketplaceId?: string;
+};
+
+type MarketplaceQueryNormalization = {
+  query: string;
+  source: "ai" | "fallback";
+  confidence: number | null;
+  detectedBrand: string | null;
+  detectedModel: string | null;
+  reasoning: string | null;
+};
+
+type EbaySearchPlan = {
+  normalization: MarketplaceQueryNormalization;
+  queries: string[];
 };
 
 type LocalSearchItem = {
@@ -77,6 +92,9 @@ const aiAnalysisTimeoutMs = 45_000;
 const aiQueryNormalizationTimeoutMs = 3_000;
 const ebaySearchTimeoutMs = 8_000;
 
+const sandboxEmptySearchWarning =
+  "eBay sandbox does not include live marketplace inventory. Use EBAY_ENVIRONMENT=production with production eBay Browse API credentials for real eBay results.";
+
 const withTimeout = async <T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> => {
   let timeout: NodeJS.Timeout | undefined;
   try {
@@ -98,6 +116,7 @@ const fileToDataUrl = (file: Express.Multer.File): string =>
 
 const compactAnalysisData = (analysis: ImageAnalysis): Record<string, unknown> => ({
   containsWatch: analysis.containsWatch,
+  generatedTitle: analysis.generatedTitle ?? null,
   probableBrand: analysis.probableBrand ?? null,
   probableModel: analysis.probableModel ?? null,
   probableReferenceNumber: analysis.probableReferenceNumber ?? null,
@@ -155,6 +174,31 @@ const queryTerms = (query: string): string[] =>
     .filter((term) => term.length > 1);
 
 const uniqueTerms = (terms: string[]): string[] => Array.from(new Set(terms));
+
+const compactSearchPart = (value: string | null | undefined): string | null => {
+  const compacted = value?.trim().replace(/\s+/g, " ");
+  return compacted ? compacted : null;
+};
+
+const uniqueSearchQueries = (queries: string[]): string[] => {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const query of queries) {
+    const compacted = compactSearchPart(query);
+    if (!compacted) {
+      continue;
+    }
+    const key = compacted.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      output.push(compacted);
+    }
+  }
+  return output;
+};
+
+const searchQueryFromParts = (...parts: Array<string | null | undefined>): string =>
+  uniqueSearchQueries(parts.flatMap((part) => (part ? [part] : []))).join(" ");
 
 const normalizedText = (...values: Array<string | null | undefined>): string =>
   values.filter((value): value is string => typeof value === "string" && value.trim().length > 0).join(" ").toLowerCase();
@@ -305,19 +349,44 @@ const rankedSearchItems = (
     .map(({ rawScore: _rawScore, ...item }) => item);
 };
 
-const analysisSearchQuery = (analysis: ImageAnalysis): string =>
-  [
-    analysis.probableBrand,
-    analysis.probableModel,
-    analysis.probableReferenceNumber,
-    ...Object.values(analysis.visualAttributes)
-      .flatMap((value) => (Array.isArray(value) ? value : [value]))
-      .filter((value): value is string => typeof value === "string")
-  ]
-    .map((part) => part?.trim())
-    .filter((part): part is string => Boolean(part))
-    .slice(0, 8)
-    .join(" ");
+const fallbackAnalysisTitleTerms = (analysis: ImageAnalysis): string[] =>
+  Object.values(analysis.visualAttributes)
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .slice(0, 3);
+
+const generatedTitleFromAnalysis = (analysis: ImageAnalysis): string =>
+  compactSearchPart(analysis.generatedTitle) ||
+  searchQueryFromParts(analysis.probableBrand, analysis.probableModel, analysis.probableReferenceNumber) ||
+  searchQueryFromParts(...fallbackAnalysisTitleTerms(analysis));
+
+const ebaySearchPlanFromAnalysis = (analysis: ImageAnalysis, query: string): EbaySearchPlan => {
+  const brand = compactSearchPart(analysis.probableBrand);
+  const model = compactSearchPart(analysis.probableModel);
+  const referenceNumber = compactSearchPart(analysis.probableReferenceNumber);
+  const dialColor = compactSearchPart(analysis.visualAttributes.dialColor);
+
+  const queries = uniqueSearchQueries([
+    searchQueryFromParts(brand, model, referenceNumber),
+    searchQueryFromParts(brand, referenceNumber),
+    searchQueryFromParts(brand, model),
+    searchQueryFromParts(brand, model, dialColor),
+    query
+  ]);
+  const primaryQuery = queries[0] ?? query.trim().replace(/\s+/g, " ");
+
+  return {
+    normalization: {
+      query: primaryQuery,
+      source: "fallback",
+      confidence: analysis.containsWatch ? 1 : null,
+      detectedBrand: brand,
+      detectedModel: model,
+      reasoning: "Built from image-detected watch identifiers for eBay Browse search."
+    },
+    queries: queries.length > 0 ? queries : [primaryQuery]
+  };
+};
 
 const ebayItem = (item: MarketplaceListing): EbaySearchItem => {
   const output: EbaySearchItem = {
@@ -390,15 +459,16 @@ export class AiService {
     const analysis = hasImage && !explicitQuery
       ? await this.analyzeImage({ ...input, includeEmbedding: false })
       : undefined;
-    const detectedQuery = analysis ? analysisSearchQuery(analysis) : "";
-    const query = explicitQuery || detectedQuery;
+    const generatedTitle = analysis ? generatedTitleFromAnalysis(analysis) : null;
+    const query = explicitQuery || generatedTitle || "";
     if (!query) {
       throw new ConflictError("AI could not detect a searchable watch from the image.");
     }
+    const ebaySearchPlan = analysis ? ebaySearchPlanFromAnalysis(analysis, query) : undefined;
 
     const [local, ebayResult] = await Promise.all([
       this.searchLocalListings(query, input.limit),
-      this.searchEbayListings(query, input.limit, input.marketplaceId)
+      this.searchEbayListings(query, input.limit, input.marketplaceId, ebaySearchPlan)
     ]);
     const imageUrl = await imageUrlPromise;
     if (imageUploadError) {
@@ -414,6 +484,7 @@ export class AiService {
       scope: {},
       data: {
         query,
+        generatedTitle,
         imageUrl,
         analysis: analysis ? compactAnalysisData(analysis) : null,
         resultCounts: {
@@ -421,10 +492,20 @@ export class AiService {
           ebay: ebayResult.items.length
         },
         marketplaceQueries: {
+          local: query,
           ebay: ebayResult.query
         },
         queryNormalization: {
           ebay: ebayResult.queryNormalization
+        },
+        marketplaceMetadata: {
+          ebay: {
+            environment: ebayResult.environment,
+            marketplaceId: ebayResult.marketplaceId,
+            total: ebayResult.total,
+            attemptedQueries: ebayResult.attemptedQueries,
+            warnings: ebayResult.warnings
+          }
         }
       },
       status: "completed",
@@ -434,7 +515,7 @@ export class AiService {
           actorId: actor.id,
           actorType: actor.audience,
           at: new Date(),
-          metadata: { query, imageUrl }
+          metadata: { query, generatedTitle, imageUrl }
         }
       ]
     });
@@ -442,6 +523,7 @@ export class AiService {
     return {
       searchId: record._id.toString(),
       query,
+      generatedTitle,
       image: imageUrl ?? null,
       analysis: analysis ?? null,
       results: {
@@ -453,6 +535,14 @@ export class AiService {
         ebayQuery: ebayResult.query,
         queryNormalization: {
           ebay: ebayResult.queryNormalization
+        },
+        ebay: {
+          environment: ebayResult.environment,
+          marketplaceId: ebayResult.marketplaceId,
+          total: ebayResult.total,
+          count: ebayResult.items.length,
+          attemptedQueries: ebayResult.attemptedQueries,
+          warnings: ebayResult.warnings
         }
       },
       errors: ebayResult.error ? { ebay: ebayResult.error } : {},
@@ -568,46 +658,79 @@ export class AiService {
   private async searchEbayListings(
     query: string,
     limit: number,
-    marketplaceId: string | undefined
+    marketplaceId: string | undefined,
+    searchPlan?: EbaySearchPlan
   ): Promise<{
     items: EbaySearchItem[];
     query: string;
-    queryNormalization: Awaited<ReturnType<AiService["normalizeMarketplaceQuery"]>>;
+    queryNormalization: MarketplaceQueryNormalization;
+    environment: "sandbox" | "production";
+    marketplaceId: string;
+    total: number | null;
+    attemptedQueries: string[];
+    warnings: string[];
     error?: string;
   }> {
-    const normalization = await this.normalizeMarketplaceQuery(query);
+    const normalization = searchPlan?.normalization ?? await this.normalizeMarketplaceQuery(query);
+    const config = getMarketplaceConfig().ebay;
+    const resolvedMarketplaceId = marketplaceId ?? config.marketplaceId;
     try {
-      const options: Parameters<EbayProvider["searchListings"]>[1] = { limit };
+      const options: Parameters<EbayProvider["searchListingsWithMetadata"]>[1] = { limit };
       if (marketplaceId) {
         options.marketplaceId = marketplaceId;
       }
-      return {
-        query: normalization.query,
-        queryNormalization: normalization,
-        items: (await withTimeout(
-          this.ebay.searchListings(normalization.query, options),
+      const allQueries = uniqueSearchQueries([normalization.query, ...(searchPlan?.queries ?? [])]);
+      const queries = config.environment === "production" ? allQueries.slice(0, 4) : allQueries.slice(0, 1);
+      const attemptedQueries: string[] = [];
+      let total: number | null = null;
+      let selectedQuery = normalization.query;
+      let items: EbaySearchItem[] = [];
+
+      for (const ebayQuery of queries) {
+        attemptedQueries.push(ebayQuery);
+        const result = await withTimeout(
+          this.ebay.searchListingsWithMetadata(ebayQuery, options),
           ebaySearchTimeoutMs,
           "eBay search timed out."
-        )).map(ebayItem)
+        );
+        total = result.total;
+        items = result.items.map(ebayItem);
+        selectedQuery = ebayQuery;
+        if (items.length > 0) {
+          break;
+        }
+      }
+
+      const warnings = config.environment === "sandbox" && items.length === 0 ? [sandboxEmptySearchWarning] : [];
+      if (selectedQuery !== normalization.query && items.length > 0) {
+        warnings.push(`No eBay results for "${normalization.query}"; used broader query "${selectedQuery}".`);
+      }
+      return {
+        query: selectedQuery,
+        queryNormalization: { ...normalization, query: selectedQuery },
+        environment: config.environment,
+        marketplaceId: resolvedMarketplaceId,
+        total,
+        attemptedQueries,
+        warnings,
+        items
       };
     } catch (error) {
       return {
         query: normalization.query,
         queryNormalization: normalization,
         items: [],
+        environment: config.environment,
+        marketplaceId: resolvedMarketplaceId,
+        total: null,
+        attemptedQueries: [],
+        warnings: [],
         error: error instanceof AppError ? error.message : "eBay search failed."
       };
     }
   }
 
-  private async normalizeMarketplaceQuery(query: string): Promise<{
-    query: string;
-    source: "ai" | "fallback";
-    confidence: number | null;
-    detectedBrand: string | null;
-    detectedModel: string | null;
-    reasoning: string | null;
-  }> {
+  private async normalizeMarketplaceQuery(query: string): Promise<MarketplaceQueryNormalization> {
     const fallbackQuery = query.trim().replace(/\s+/g, " ");
     try {
       const normalized = await withTimeout(
@@ -635,27 +758,31 @@ export class AiService {
     }
   }
 
-  private toAnalysisRequest(input: AnalyzeInput) {
+  private toAnalysisRequest(input: AnalyzeInput): ImageAnalysisRequest {
     if (input.file) {
-      const request = {
+      const request: ImageAnalysisRequest = {
         imageUrl: input.imageUrl ?? "uploaded-image",
         imageDataUrl: fileToDataUrl(input.file)
       };
+      if (typeof input.includeEmbedding === "boolean") {
+        request.includeEmbedding = input.includeEmbedding;
+      }
       if (input.modelVersion) {
-        return { ...request, modelVersion: input.modelVersion };
+        request.modelVersion = input.modelVersion;
       }
       return request;
     }
     if (input.imageUrl) {
-      if (input.modelVersion) {
-        return {
-          imageUrl: input.imageUrl,
-          modelVersion: input.modelVersion
-        };
-      }
-      return {
+      const request: ImageAnalysisRequest = {
         imageUrl: input.imageUrl
       };
+      if (typeof input.includeEmbedding === "boolean") {
+        request.includeEmbedding = input.includeEmbedding;
+      }
+      if (input.modelVersion) {
+        request.modelVersion = input.modelVersion;
+      }
+      return request;
     }
     throw new ConflictError("Provide an image file or imageUrl.");
   }

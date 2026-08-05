@@ -402,7 +402,7 @@ describe.sequential("generated API routes", () => {
     process.env.EBAY_ENVIRONMENT = "sandbox";
     process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
     resetEnvForTests();
-    vi.spyOn(globalThis, "fetch")
+    const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
           status: 200
@@ -439,8 +439,9 @@ describe.sequential("generated API routes", () => {
       .expect(201);
     const body = response.body as DataResponse<{
       query: string;
+      generatedTitle: string | null;
       image: string;
-      analysis: { probableBrand: string; probableModel: string };
+      analysis: { probableBrand: string; probableModel: string; embedding: number[] };
       results: {
         items: Array<{ source: string; title: string; similarityScore: number }>;
         local: Array<{ source: string; title: string }>;
@@ -449,9 +450,13 @@ describe.sequential("generated API routes", () => {
       errors: Record<string, string>;
     }>;
 
-    expect(body.data.query).toContain("Rolex");
-    expect(body.data.query).toContain("Submariner");
+    expect(body.data.generatedTitle).toBe("Rolex Submariner 126610LN");
+    expect(body.data.query).toBe(body.data.generatedTitle);
     expect(body.data.analysis).toMatchObject({ probableBrand: "Rolex", probableModel: "Submariner" });
+    expect(body.data.analysis.embedding).toEqual([]);
+    expect((fetchMock.mock.calls[1]?.[0] as URL).href).toBe(
+      "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+Submariner+126610LN&limit=20"
+    );
     expect(body.data.results.local[0]).toMatchObject({
       source: "local",
       title: "Rolex Submariner 126610LN"

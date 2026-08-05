@@ -175,7 +175,12 @@ describe("local provider adapters", () => {
         source: "ai",
         confidence: 0.91,
         detectedBrand: "Rolex"
-      }
+      },
+      total: null,
+      count: 0,
+      warnings: [
+        "eBay sandbox does not include live marketplace inventory. Use EBAY_ENVIRONMENT=production with production eBay Browse API credentials for real eBay results."
+      ]
     });
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.openai.com/v1/responses");
     expect((fetchMock.mock.calls[2]?.[0] as URL).href).toBe(
