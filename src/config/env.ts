@@ -7,11 +7,17 @@ expand(loadDotenv());
 const optionalEnvString = z.preprocess((value) => (value === "" ? undefined : value), z.string().optional());
 const optionalEnvUrl = z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional());
 const optionalEnvEmail = z.preprocess((value) => (value === "" ? undefined : value), z.string().email().optional());
+const envBoolean = z.preprocess(
+  (value) => (typeof value === "string" ? ["1", "true", "yes"].includes(value.toLowerCase()) : value),
+  z.boolean()
+);
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
+  API_PUBLIC_URL: z.string().url().default("http://localhost:4000"),
   API_PREFIX: z.string().startsWith("/").default("/api/v1"),
+  TRUST_PROXY: envBoolean.default(false),
   MONGODB_URI: z.string().min(1).default("mongodb://localhost:27017/watchbox"),
   MONGODB_DATABASE: z.string().min(1).default("watchbox"),
   REDIS_URL: z.string().url(),

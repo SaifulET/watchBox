@@ -1,10 +1,108 @@
+x-watchbox-env: &watchbox-env
+  NODE_ENV: "production"
+  API_PUBLIC_URL: "${API_PUBLIC_URL:-https://api.mywatchbox.net}"
+  API_PREFIX: "${API_PREFIX:-/api/v1}"
+  TRUST_PROXY: "${TRUST_PROXY:-true}"
+  MONGODB_URI: "mongodb://mongodb:27017/${MONGODB_DATABASE:-watchbox}"
+  MONGODB_DATABASE: "${MONGODB_DATABASE:-watchbox}"
+  REDIS_URL: "redis://default:${REDIS_PASSWORD:-change-me}@redis:6379"
+  RABBITMQ_URL: "amqp://${RABBITMQ_USER:-watchbox}:${RABBITMQ_PASSWORD:-change-me}@rabbitmq:5672/watchbox"
+  RABBITMQ_DOMAIN_EXCHANGE: "${RABBITMQ_DOMAIN_EXCHANGE:-watchbox.domain}"
+  RABBITMQ_JOB_EXCHANGE: "${RABBITMQ_JOB_EXCHANGE:-watchbox.jobs}"
+  RABBITMQ_DEAD_LETTER_EXCHANGE: "${RABBITMQ_DEAD_LETTER_EXCHANGE:-watchbox.dead-letter}"
+  JWT_CUSTOMER_ACCESS_SECRET: "${JWT_CUSTOMER_ACCESS_SECRET:-replace-with-32-byte-customer-access-secret}"
+  JWT_CUSTOMER_REFRESH_SECRET: "${JWT_CUSTOMER_REFRESH_SECRET:-replace-with-32-byte-customer-refresh-secret}"
+  JWT_ADMIN_ACCESS_SECRET: "${JWT_ADMIN_ACCESS_SECRET:-replace-with-32-byte-admin-access-secret}"
+  JWT_ADMIN_REFRESH_SECRET: "${JWT_ADMIN_REFRESH_SECRET:-replace-with-32-byte-admin-refresh-secret}"
+  JWT_ACCESS_TTL: "${JWT_ACCESS_TTL:-15m}"
+  JWT_REFRESH_TTL: "${JWT_REFRESH_TTL:-30d}"
+  STORAGE_PROVIDER: "${STORAGE_PROVIDER:-local}"
+  S3_ENDPOINT: "${S3_ENDPOINT:-}"
+  S3_BUCKET: "${S3_BUCKET:-watchbox-local}"
+  S3_REGION: "${S3_REGION:-us-east-1}"
+  S3_ACCESS_KEY_ID: "${S3_ACCESS_KEY_ID:-watchbox}"
+  S3_SECRET_ACCESS_KEY: "${S3_SECRET_ACCESS_KEY:-watchbox-secret}"
+  ATLAS_SEARCH_INDEX: "${ATLAS_SEARCH_INDEX:-listings_search}"
+  ATLAS_VECTOR_INDEX: "${ATLAS_VECTOR_INDEX:-listing_embeddings_vector}"
+  EBAY_CLIENT_ID: "${EBAY_CLIENT_ID:-}"
+  EBAY_CLIENT_SECRET: "${EBAY_CLIENT_SECRET:-}"
+  EBAY_REDIRECT_URI: "${EBAY_REDIRECT_URI:-https://api.mywatchbox.net/api/v1/admin/marketplaces/ebay/callback}"
+  EBAY_ENVIRONMENT: "${EBAY_ENVIRONMENT:-sandbox}"
+  EBAY_MARKETPLACE_ID: "${EBAY_MARKETPLACE_ID:-EBAY_US}"
+  STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+  STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+  EMAIL_PROVIDER: "${EMAIL_PROVIDER:-local}"
+  EMAIL_FROM: "${EMAIL_FROM:-no-reply@watchbox.local}"
+  EMAIL_API_KEY: "${EMAIL_API_KEY:-}"
+  SMTP_HOST: "${SMTP_HOST:-}"
+  SMTP_PORT: "${SMTP_PORT:-587}"
+  SMTP_SECURE: "${SMTP_SECURE:-false}"
+  SMTP_USER: "${SMTP_USER:-}"
+  SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+  WEB_APP_URL: "${WEB_APP_URL:-http://localhost:3000}"
+  FCM_PROJECT_ID: "${FCM_PROJECT_ID:-}"
+  FCM_CLIENT_EMAIL: "${FCM_CLIENT_EMAIL:-}"
+  FCM_PRIVATE_KEY: "${FCM_PRIVATE_KEY:-}"
+  AI_PROVIDER: "${AI_PROVIDER:-local}"
+  AI_SERVICE_URL: "${AI_SERVICE_URL:-}"
+  AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
+  AI_MODEL: "${AI_MODEL:-gpt-5.6}"
+  AI_EMBEDDING_MODEL: "${AI_EMBEDDING_MODEL:-text-embedding-3-small}"
+  ENCRYPTION_KEY: "${ENCRYPTION_KEY:-replace-with-32-byte-encryption-key}"
+
 services:
+  api:
+    build:
+      context: .
+    image: watchbox-backend:latest
+    container_name: watchbox-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    environment:
+      <<: *watchbox-env
+      PORT: "4000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:4000/health/live').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));\""
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+    image: watchbox-backend:latest
+    container_name: watchbox-worker
+    restart: unless-stopped
+    command: ["node", "dist/src/workers/run.js"]
+    environment:
+      <<: *watchbox-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   mongodb:
     image: mongo:8
     container_name: watchbox-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:${MONGODB_PORT:-27017}:27017"
     volumes:
       - mongodb-data:/data/db
     healthcheck:
@@ -22,9 +120,9 @@ services:
       - --appendonly
       - "yes"
       - --requirepass
-      - ${REDIS_PASSWORD:-change-me}
+      - "${REDIS_PASSWORD:-change-me}"
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -33,21 +131,21 @@ services:
       timeout: 5s
       retries: 5
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-me}
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-change-me}"
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
     container_name: watchbox-rabbitmq
     restart: unless-stopped
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-watchbox}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-change-me}
-      RABBITMQ_DEFAULT_VHOST: watchbox
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:-watchbox}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:-change-me}"
+      RABBITMQ_DEFAULT_VHOST: "watchbox"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s

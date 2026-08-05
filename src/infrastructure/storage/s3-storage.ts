@@ -7,6 +7,7 @@ import {
   type S3ClientConfig
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getEnv } from "../../config/env.js";
 import { getStorageConfig } from "../../config/storage.config.js";
 import type { WatchboxLogger } from "../../common/utils/logger.js";
 
@@ -43,7 +44,7 @@ export const getObjectUrl = (key: string): string => {
   const encodedKey = encodeObjectKey(key);
 
   if (config.provider === "local") {
-    return `http://localhost:4000/internal/uploads/${encodedKey}`;
+    return `${getEnv().API_PUBLIC_URL.replace(/\/+$/, "")}/internal/uploads/${encodedKey}`;
   }
 
   if (config.provider === "minio") {

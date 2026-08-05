@@ -23,6 +23,9 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
   const app = express();
 
   app.disable("x-powered-by");
+  if (env.TRUST_PROXY) {
+    app.set("trust proxy", 1);
+  }
   app.use(
     pinoHttp({
       logger,
