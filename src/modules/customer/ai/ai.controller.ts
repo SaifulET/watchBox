@@ -95,6 +95,12 @@ export class AiController {
     );
   };
 
+  public createProductSearch = async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as AiSearchBody;
+    const result = await this.service.createSearch(actor(req), searchInput(body, req.file));
+    sendSuccess(res, req.requestId, result.results.items, 201);
+  };
+
   public autoDetectListing = async (req: Request, res: Response): Promise<void> => {
     const body = req.body as ImageAnalysisBody;
     sendSuccess(

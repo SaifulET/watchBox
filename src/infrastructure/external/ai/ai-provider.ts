@@ -77,12 +77,20 @@ type OpenAiTextOutput = {
 };
 
 type OpenAiOutputItem = {
+  type?: string;
   content?: OpenAiTextOutput[];
 };
 
 type OpenAiResponsePayload = {
   output_text?: string;
   output?: OpenAiOutputItem[];
+  status?: string;
+  incomplete_details?: {
+    reason?: string;
+  };
+  error?: {
+    message?: string;
+  };
 };
 
 type EmbeddingPayload = {
@@ -154,18 +162,32 @@ type OpenAiErrorPayload = {
   };
 };
 
+const stringValue = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+
 const textFromOpenAiResponse = (payload: OpenAiResponsePayload): string | undefined => {
   if (payload.output_text) {
-    return payload.output_text;
+    return payload.output_text.trim();
   }
   for (const item of payload.output ?? []) {
     for (const content of item.content ?? []) {
-      if (content.type === "output_text" && content.text) {
-        return content.text;
+      if ((content.type === "output_text" || content.type === "text" || !content.type) && stringValue(content.text)) {
+        return content.text?.trim();
       }
     }
   }
   return undefined;
+};
+
+const openAiMissingTextMessage = (payload: OpenAiResponsePayload, fallback: string): string => {
+  if (payload.error?.message) {
+    return `${fallback}: ${payload.error.message}`;
+  }
+  if (payload.status === "incomplete") {
+    return `${fallback}: response incomplete${payload.incomplete_details?.reason ? ` (${payload.incomplete_details.reason})` : ""}.`;
+  }
+  const outputTypes = (payload.output ?? []).map((item) => item.type).filter(Boolean);
+  return outputTypes.length > 0 ? `${fallback}: output types were ${outputTypes.join(", ")}.` : fallback;
 };
 
 const normalizeAnalysis = (value: unknown, modelVersion: string): ImageAnalysis => {
@@ -366,12 +388,22 @@ export class HttpAiProvider implements AiProvider {
       );
     }
 
-    const responseText = textFromOpenAiResponse((await response.json()) as OpenAiResponsePayload);
+    const responsePayload = (await response.json()) as OpenAiResponsePayload;
+    const responseText = textFromOpenAiResponse(responsePayload);
     if (!responseText) {
-      throw new ExternalServiceError("OpenAI image analysis response did not include text output.");
+      throw new ExternalServiceError(
+        openAiMissingTextMessage(responsePayload, "OpenAI image analysis response did not include text output")
+      );
     }
 
-    const analysis = normalizeAnalysis(JSON.parse(responseText), payload.modelVersion ?? config.model);
+    let parsedAnalysis: unknown;
+    try {
+      parsedAnalysis = JSON.parse(responseText);
+    } catch {
+      throw new ExternalServiceError("OpenAI image analysis response was not valid JSON.");
+    }
+
+    const analysis = normalizeAnalysis(parsedAnalysis, payload.modelVersion ?? config.model);
     if (payload.includeEmbedding !== false) {
       analysis.embedding = await this.createEmbedding(serviceUrl, serviceToken, analysisEmbeddingInput(analysis));
     }
@@ -426,12 +458,22 @@ export class HttpAiProvider implements AiProvider {
       );
     }
 
-    const responseText = textFromOpenAiResponse((await response.json()) as OpenAiResponsePayload);
+    const responsePayload = (await response.json()) as OpenAiResponsePayload;
+    const responseText = textFromOpenAiResponse(responsePayload);
     if (!responseText) {
-      throw new ExternalServiceError("OpenAI search query response did not include text output.");
+      throw new ExternalServiceError(
+        openAiMissingTextMessage(responsePayload, "OpenAI search query response did not include text output")
+      );
     }
 
-    return normalizeSearchQueryResponse(JSON.parse(responseText), payload.modelVersion ?? config.model);
+    let parsedNormalization: unknown;
+    try {
+      parsedNormalization = JSON.parse(responseText);
+    } catch {
+      throw new ExternalServiceError("OpenAI search query response was not valid JSON.");
+    }
+
+    return normalizeSearchQueryResponse(parsedNormalization, payload.modelVersion ?? config.model);
   }
 
   private async createEmbedding(serviceUrl: string, serviceToken: string, input: string): Promise<number[]> {

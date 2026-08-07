@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AppError, ConflictError, ExternalServiceError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
+import { getAiConfig } from "../../../config/ai.config.js";
 import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
 import { createAiProvider } from "../../../infrastructure/external/ai/ai-provider.js";
 import type { ImageAnalysis, ImageAnalysisRequest } from "../../../infrastructure/external/ai/ai-provider.js";
@@ -87,10 +88,6 @@ const imageExtensionByMimeType: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif"
 };
-
-const aiAnalysisTimeoutMs = 45_000;
-const aiQueryNormalizationTimeoutMs = 3_000;
-const ebaySearchTimeoutMs = 8_000;
 
 const sandboxEmptySearchWarning =
   "eBay sandbox does not include live marketplace inventory. Use EBAY_ENVIRONMENT=production with production eBay Browse API credentials for real eBay results.";
@@ -360,6 +357,9 @@ const generatedTitleFromAnalysis = (analysis: ImageAnalysis): string =>
   searchQueryFromParts(analysis.probableBrand, analysis.probableModel, analysis.probableReferenceNumber) ||
   searchQueryFromParts(...fallbackAnalysisTitleTerms(analysis));
 
+const appErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof AppError || error instanceof Error ? error.message : fallback;
+
 const ebaySearchPlanFromAnalysis = (analysis: ImageAnalysis, query: string): EbaySearchPlan => {
   const brand = compactSearchPart(analysis.probableBrand);
   const model = compactSearchPart(analysis.probableModel);
@@ -431,7 +431,7 @@ export class AiService {
     try {
       return await withTimeout(
         this.ai.analyzeImage(request),
-        aiAnalysisTimeoutMs,
+        getAiConfig().analysisTimeoutMs,
         "AI image analysis timed out."
       );
     } catch (error) {
@@ -456,11 +456,15 @@ export class AiService {
           return undefined;
         })
       : Promise.resolve<string | undefined>(undefined);
+    let analysisError: string | undefined;
     const analysis = hasImage && !explicitQuery
-      ? await this.analyzeImage({ ...input, includeEmbedding: false })
+      ? await this.analyzeImage({ ...input, includeEmbedding: false }).catch((error: unknown) => {
+          analysisError = appErrorMessage(error, "AI image analysis failed.");
+          return undefined;
+        })
       : undefined;
     const generatedTitle = analysis ? generatedTitleFromAnalysis(analysis) : null;
-    const query = explicitQuery || generatedTitle || "";
+    const query = explicitQuery || generatedTitle || (hasImage && analysisError ? "watch" : "");
     if (!query) {
       throw new ConflictError("AI could not detect a searchable watch from the image.");
     }
@@ -487,6 +491,7 @@ export class AiService {
         generatedTitle,
         imageUrl,
         analysis: analysis ? compactAnalysisData(analysis) : null,
+        analysisError: analysisError ?? null,
         resultCounts: {
           local: local.length,
           ebay: ebayResult.items.length
@@ -545,7 +550,15 @@ export class AiService {
           warnings: ebayResult.warnings
         }
       },
-      errors: ebayResult.error ? { ebay: ebayResult.error } : {},
+      warnings: analysisError ? ["AI image analysis failed; returned broad watch search results."] : [],
+      ...(analysisError || ebayResult.error
+        ? {
+            errors: {
+              ...(analysisError ? { analysis: analysisError } : {}),
+              ...(ebayResult.error ? { ebay: ebayResult.error } : {})
+            }
+          }
+        : {}),
       record: serializeRecord(record)
     };
   }
@@ -690,7 +703,7 @@ export class AiService {
         attemptedQueries.push(ebayQuery);
         const result = await withTimeout(
           this.ebay.searchListingsWithMetadata(ebayQuery, options),
-          ebaySearchTimeoutMs,
+          getAiConfig().ebaySearchTimeoutMs,
           "eBay search timed out."
         );
         total = result.total;
@@ -735,7 +748,7 @@ export class AiService {
     try {
       const normalized = await withTimeout(
         this.ai.normalizeSearchQuery({ query }),
-        aiQueryNormalizationTimeoutMs,
+        getAiConfig().queryNormalizationTimeoutMs,
         "AI search query normalization timed out."
       );
       return {

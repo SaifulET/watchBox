@@ -393,7 +393,7 @@ describe.sequential("generated API routes", () => {
     );
     const rankedLocal = body.data.results.items.find((item) => item.source === "local");
     expect(rankedLocal?.matchReasons).toEqual(expect.arrayContaining(["brand:role"]));
-    expect(body.data.errors).toEqual({});
+    expect(body.data.errors).toBeUndefined();
   });
 
   it("detects a search query from an uploaded image", async () => {
@@ -437,37 +437,19 @@ describe.sequential("generated API routes", () => {
         contentType: "image/png"
       })
       .expect(201);
-    const body = response.body as DataResponse<{
-      query: string;
-      generatedTitle: string | null;
-      image: string;
-      analysis: { probableBrand: string; probableModel: string; embedding: number[] };
-      results: {
-        items: Array<{ source: string; title: string; similarityScore: number }>;
-        local: Array<{ source: string; title: string }>;
-        ebay: unknown[];
-      };
-      errors: Record<string, string>;
-    }>;
+    const body = response.body as DataResponse<Array<{ source: string; title: string; similarityScore: number }>>;
 
-    expect(body.data.generatedTitle).toBe("Rolex Submariner 126610LN");
-    expect(body.data.query).toBe(body.data.generatedTitle);
-    expect(body.data.analysis).toMatchObject({ probableBrand: "Rolex", probableModel: "Submariner" });
-    expect(body.data.analysis.embedding).toEqual([]);
-    expect((fetchMock.mock.calls[1]?.[0] as URL).href).toBe(
+    const searchUrl = fetchMock.mock.calls
+      .map((call) => call[0])
+      .find((value): value is URL => value instanceof URL && value.pathname.includes("/item_summary/search"));
+    expect(searchUrl?.href).toBe(
       "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+Submariner+126610LN&limit=20"
     );
-    expect(body.data.results.local[0]).toMatchObject({
+    expect(body.data[0]).toMatchObject({
       source: "local",
       title: "Rolex Submariner 126610LN"
     });
-    expect(body.data.results.items[0]).toMatchObject({
-      source: "local",
-      title: "Rolex Submariner 126610LN"
-    });
-    expect(body.data.results.items[0]?.similarityScore).toBeGreaterThan(0);
-    expect(body.data.results.ebay).toEqual([]);
-    expect(body.data.errors).toEqual({});
+    expect(body.data[0]?.similarityScore).toBeGreaterThan(0);
   });
 
   it("creates, reads, and updates content pages with inline image links", async () => {
