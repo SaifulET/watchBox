@@ -8,7 +8,10 @@ import { createEbayWebhookRouter } from "../modules/customer/marketplaces/ebay-w
 import { createListingsRouter } from "../modules/customer/listings/listings.routes.js";
 import { createMarketplacesRouter } from "../modules/customer/marketplaces/marketplaces.routes.js";
 import { createNotificationPreferencesRouter } from "../modules/customer/notification-preferences/notification-preferences.routes.js";
+import { createSavedRouter } from "../modules/customer/saved/saved.routes.js";
+import { createSubscriptionsRouter } from "../modules/customer/subscriptions/subscriptions.routes.js";
 import { createUsersRouter } from "../modules/customer/users/users.routes.js";
+import { createWatchAlertsRouter } from "../modules/customer/watch-alerts/watch-alerts.routes.js";
 import { createGeneratedApiRouter } from "../modules/generated-api/generated-api.routes.js";
 import type { RouteDependencies } from "./index.js";
 
@@ -30,6 +33,9 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/listings", createListingsRouter());
   router.use("/listings", createListingImagesRouter());
   router.use("/marketplaces", createMarketplacesRouter());
+  router.use(createSavedRouter());
+  router.use(createSubscriptionsRouter());
+  router.use(createWatchAlertsRouter());
   router.use("/notification-preferences", createNotificationPreferencesRouter(dependencies));
   router.use(createEbayWebhookRouter());
   router.use(createGeneratedApiRouter(dependencies));

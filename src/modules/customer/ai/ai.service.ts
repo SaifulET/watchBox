@@ -719,6 +719,14 @@ const fiveSimilarProducts = (
   return unique.slice(0, 5);
 };
 
+const withoutSimilarProducts = (item: ProductDetails): Omit<ProductDetails, "similarProducts"> => {
+  const { similarProducts: _similarProducts, ...product } = item;
+  return product;
+};
+
+const withoutSimilarProductLists = (items: ProductDetails[]): Array<Omit<ProductDetails, "similarProducts">> =>
+  items.map(withoutSimilarProducts);
+
 const trendDataFromRecord = (value: unknown): Array<{ label: string; averagePrice: number | null; listingCount: number }> => {
   if (!Array.isArray(value)) {
     return [];
@@ -1095,6 +1103,7 @@ export class AiService {
     const comparableItems = rankedSearchItems(query, local, ebayResult.items, Math.max(input.limit, local.length + ebayResult.items.length));
     const listingVolumeAmount = Math.max(ebayResult.total ?? 0, ebayResult.items.length) + local.length;
     const productDetails = await enrichProductDetails(this.ai, query, rankedItems, comparableItems, listingVolumeAmount);
+    const listProductDetails = withoutSimilarProductLists(productDetails);
 
     const record = await GeneratedApiRecordModel.create({
       resource: "image-search",
@@ -1139,6 +1148,12 @@ export class AiService {
         }
       ]
     });
+    this.queueRecommendationBuild(actor, {
+      searchId: record._id.toString(),
+      query,
+      filters,
+      ...(input.marketplaceId ? { marketplaceId: input.marketplaceId } : {})
+    });
 
     return {
       searchId: record._id.toString(),
@@ -1147,7 +1162,7 @@ export class AiService {
       image: imageUrl ?? null,
       analysis: analysis ?? null,
       results: {
-        items: productDetails,
+        items: listProductDetails,
         local,
         ebay: ebayResult.items
       },
@@ -1433,6 +1448,198 @@ export class AiService {
       conditionMatches(item.condition ?? null, filters.condition) &&
       includesLooseText(item.location ?? null, filters.region)
     );
+  }
+
+  private queueRecommendationBuild(
+    actor: Actor,
+    input: {
+      searchId: string;
+      query: string;
+      filters: ProductSearchFilters;
+      marketplaceId?: string;
+    }
+  ): void {
+    setImmediate(() => {
+      void this.markRecommendationProcessing(actor, input)
+        .then(() => this.buildRecommendations(actor, input))
+        .catch((error: unknown) => {
+          void this.markRecommendationFailed(actor, input, error).catch(() => undefined);
+        });
+    });
+  }
+
+  private async markRecommendationProcessing(
+    actor: Actor,
+    input: {
+      searchId: string;
+      query: string;
+    }
+  ): Promise<void> {
+    await this.saveLatestRecommendationRecord(actor, "processing", {
+      searchId: input.searchId,
+      searchQuery: input.query,
+      items: [],
+      local: [],
+      ebay: [],
+      sourceCounts: {
+        local: 0,
+        ebay: 0
+      },
+      message: "Recommendations are being generated.",
+      generatedAt: new Date().toISOString()
+    }, "recommended-products.processing", {
+      searchId: input.searchId,
+      query: input.query
+    });
+  }
+
+  private async markRecommendationFailed(
+    actor: Actor,
+    input: {
+      searchId: string;
+      query: string;
+    },
+    error: unknown
+  ): Promise<void> {
+    await this.saveLatestRecommendationRecord(actor, "failed", {
+      searchId: input.searchId,
+      searchQuery: input.query,
+      items: [],
+      local: [],
+      ebay: [],
+      sourceCounts: {
+        local: 0,
+        ebay: 0
+      },
+      error: appErrorMessage(error, "Recommendation generation failed."),
+      generatedAt: new Date().toISOString()
+    }, "recommended-products.failed", {
+      searchId: input.searchId,
+      query: input.query,
+      error: appErrorMessage(error, "Recommendation generation failed.")
+    });
+  }
+
+  private async buildRecommendations(
+    actor: Actor,
+    input: {
+      searchId: string;
+      query: string;
+      filters: ProductSearchFilters;
+      marketplaceId?: string;
+    }
+  ): Promise<void> {
+    const recommendationQuery = await this.aiRecommendationQuery(input.query);
+    const filters: ProductSearchFilters = {};
+    if (input.filters.brand) {
+      filters.brand = input.filters.brand;
+    }
+    if (input.filters.model) {
+      filters.model = input.filters.model;
+    }
+    const [local, ebayResult] = await Promise.all([
+      this.searchLocalListings(recommendationQuery.query, 8, filters),
+      this.searchEbayListings(recommendationQuery.query, 8, input.marketplaceId, undefined, filters)
+    ]);
+    const rankedItems = rankedSearchItems(recommendationQuery.query, local, ebayResult.items, 10);
+    const comparableItems = rankedSearchItems(recommendationQuery.query, local, ebayResult.items, Math.max(10, local.length + ebayResult.items.length));
+    const listingVolumeAmount = Math.max(ebayResult.total ?? 0, ebayResult.items.length) + local.length;
+    const items = withoutSimilarProductLists(
+      await enrichProductDetails(this.ai, recommendationQuery.query, rankedItems, comparableItems, listingVolumeAmount)
+    );
+    const localItems = items.filter((item) => item.source === "local");
+    const ebayItems = items.filter((item) => item.source === "ebay");
+    await this.saveLatestRecommendationRecord(actor, "completed", {
+      searchId: input.searchId,
+      searchQuery: input.query,
+      recommendationQuery: recommendationQuery.query,
+      queryNormalization: recommendationQuery,
+      items,
+      local: localItems,
+      ebay: ebayItems,
+      sourceCounts: {
+        local: localItems.length,
+        ebay: ebayItems.length
+      },
+      warnings: ebayResult.warnings,
+      generatedAt: new Date().toISOString()
+    }, "recommended-products.generated", {
+      searchId: input.searchId,
+      query: recommendationQuery.query,
+      local: local.length,
+      ebay: ebayResult.items.length
+    });
+  }
+
+  private async saveLatestRecommendationRecord(
+    actor: Actor,
+    status: "processing" | "completed" | "failed",
+    data: Record<string, unknown>,
+    action: string,
+    metadata: Record<string, unknown>
+  ): Promise<void> {
+    const existing = await GeneratedApiRecordModel.findOne({
+      resource: "recommended-products",
+      ownerId: actor.id,
+      "scope.kind": "latest",
+      deletedAt: null
+    });
+    if (existing) {
+      existing.data = data;
+      existing.status = status;
+      existing.history.push({
+        action,
+        actorId: actor.id,
+        actorType: actor.audience,
+        at: new Date(),
+        metadata
+      });
+      await existing.save();
+      return;
+    }
+    await GeneratedApiRecordModel.create({
+      resource: "recommended-products",
+      ownerId: actor.id,
+      scope: { kind: "latest" },
+      data,
+      status,
+      history: [
+        {
+          action,
+          actorId: actor.id,
+          actorType: actor.audience,
+          at: new Date(),
+          metadata
+        },
+      ]
+    });
+  }
+
+  private async aiRecommendationQuery(query: string): Promise<MarketplaceQueryNormalization> {
+    try {
+      const normalized = await withTimeout(
+        this.ai.normalizeSearchQuery({ query: `${query} similar recommended watches` }),
+        getAiConfig().queryNormalizationTimeoutMs,
+        "AI recommendation query normalization timed out."
+      );
+      return {
+        query: normalized.optimizedQuery,
+        source: "ai",
+        confidence: normalized.confidence,
+        detectedBrand: normalized.detectedBrand ?? null,
+        detectedModel: normalized.detectedModel ?? null,
+        reasoning: normalized.reasoning ?? "Built recommendation search query from latest user search."
+      };
+    } catch (error) {
+      return {
+        query,
+        source: "fallback",
+        confidence: null,
+        detectedBrand: null,
+        detectedModel: null,
+        reasoning: error instanceof AppError ? error.message : "Recommendation query used original search text."
+      };
+    }
   }
 
   private async normalizeMarketplaceQuery(query: string): Promise<MarketplaceQueryNormalization> {

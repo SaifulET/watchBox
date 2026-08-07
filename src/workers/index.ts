@@ -4,7 +4,10 @@ import { getDatabaseConfig } from "../config/database.config.js";
 import { getRabbitMqConfig } from "../config/rabbitmq.config.js";
 import { createLogger } from "../common/utils/logger.js";
 import { createRedisClient } from "../infrastructure/redis/client.js";
+import { WatchAlertsService } from "../modules/customer/watch-alerts/watch-alerts.service.js";
 import { workerQueues } from "./consumers/queue-catalogue.js";
+
+const alertCheckIntervalMs = 20 * 60 * 1000;
 
 export const bootstrapWorker = async (): Promise<{ stop: () => Promise<void> }> => {
   const logger = createLogger({ service: "worker" });
@@ -23,9 +26,22 @@ export const bootstrapWorker = async (): Promise<{ stop: () => Promise<void> }> 
   await Promise.all(workerQueues.map((queue) => channel.assertQueue(queue, { durable: true })));
 
   logger.info({ queues: workerQueues.length }, "WatchBox worker started");
+  const alerts = new WatchAlertsService();
+  const runAlertCheck = (): void => {
+    void alerts.checkAllActiveAlerts()
+      .then((result) => {
+        logger.info(result, "Watch alert check completed");
+      })
+      .catch((error: unknown) => {
+        logger.error({ err: error }, "Watch alert check failed");
+      });
+  };
+  const alertInterval = setInterval(runAlertCheck, alertCheckIntervalMs);
+  runAlertCheck();
 
   return {
     stop: async () => {
+      clearInterval(alertInterval);
       await channel.close();
       await rabbit.close();
       await redis.quit();

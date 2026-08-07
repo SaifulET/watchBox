@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request } from "express";
 import { randomUUID } from "node:crypto";
 import { pinoHttp } from "pino-http";
 import { getEnv } from "./config/env.js";
@@ -16,6 +16,14 @@ export type AppDependencies = {
   redis?: RedisClient;
   rabbitMq?: RabbitConnection;
 };
+
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: Buffer;
+    }
+  }
+}
 
 export const createApp = (overrides: Partial<AppDependencies> = {}): Express => {
   const env = getEnv();
@@ -35,7 +43,15 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
   );
   app.use(requestContextMiddleware);
   app.use(createSecurityMiddleware(env));
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({
+    limit: "1mb",
+    verify: (req, _res, buffer) => {
+      const expressReq = req as Request;
+      if (expressReq.originalUrl === `${env.API_PREFIX}/webhooks/stripe`) {
+        expressReq.rawBody = Buffer.from(buffer);
+      }
+    }
+  }));
   app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
   const routeDependencies: RouteDependencies = {};

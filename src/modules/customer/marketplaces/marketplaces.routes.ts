@@ -3,7 +3,11 @@ import { asyncHandler } from "../../../common/middleware/async-handler.js";
 import { validate } from "../../../common/middleware/validate.js";
 import { MarketplaceController } from "./marketplaces.controller.js";
 import { MarketplaceService } from "./marketplaces.service.js";
-import { ebayAnalyticsQuerySchema, ebaySearchQuerySchema } from "./marketplaces.validation.js";
+import {
+  ebayAnalyticsQuerySchema,
+  ebayMarketInsightsQuerySchema,
+  ebaySearchQuerySchema
+} from "./marketplaces.validation.js";
 
 export const createMarketplacesRouter = (): Router => {
   const router = Router();
@@ -14,6 +18,11 @@ export const createMarketplacesRouter = (): Router => {
     "/ebay/analytics",
     validate({ query: ebayAnalyticsQuerySchema }),
     asyncHandler(controller.ebayAnalytics)
+  );
+  router.get(
+    "/ebay/market-insights",
+    validate({ query: ebayMarketInsightsQuerySchema }),
+    asyncHandler(controller.ebayMarketInsights)
   );
   router.get("/ebay/connection", asyncHandler(controller.testEbayConnection));
 

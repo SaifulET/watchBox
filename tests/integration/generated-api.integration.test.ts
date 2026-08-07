@@ -16,6 +16,10 @@ import { GeneratedApiRecordModel } from "../../src/modules/generated-api/generat
 process.env.STORAGE_PROVIDER = "local";
 process.env.EMAIL_PROVIDER = "local";
 process.env.AI_PROVIDER = "local";
+delete process.env.STRIPE_SECRET_KEY;
+delete process.env.STRIPE_WEBHOOK_SECRET;
+delete process.env.STRIPE_ELITE_PRICE_ID;
+resetEnvForTests();
 
 const app = createApp();
 
@@ -111,6 +115,9 @@ describe.sequential("generated API routes", () => {
     delete process.env.EBAY_CLIENT_SECRET;
     delete process.env.EBAY_ENVIRONMENT;
     delete process.env.EBAY_MARKETPLACE_ID;
+    delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_ELITE_PRICE_ID;
     resetEnvForTests();
   });
 
@@ -450,13 +457,17 @@ describe.sequential("generated API routes", () => {
         highestPrice: number | null;
         liquidityScope: string;
         volatility: string;
-        similarProducts: unknown[];
       }>
     >;
 
     const searchUrl = fetchMock.mock.calls
       .map((call) => call[0])
-      .find((value): value is URL => value instanceof URL && value.pathname.includes("/item_summary/search"));
+      .find((value): value is URL =>
+        value instanceof URL &&
+        value.pathname.includes("/item_summary/search") &&
+        value.searchParams.get("q") === "Rolex Submariner 126610LN" &&
+        value.searchParams.get("limit") === "20"
+      );
     expect(searchUrl?.href).toBe(
       "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+Submariner+126610LN&limit=20"
     );
@@ -471,9 +482,8 @@ describe.sequential("generated API routes", () => {
       highestPrice: 12500,
       liquidityScope: "low",
       volatility: "medium",
-      similarProducts: expect.any(Array)
     });
-    expect(body.data[0]?.similarProducts).toHaveLength(5);
+    expect(body.data[0]).not.toHaveProperty("similarProducts");
     expect(body.data[0]?.similarityScore).toBeGreaterThan(0);
   });
 
@@ -595,6 +605,304 @@ describe.sequential("generated API routes", () => {
     });
   });
 
+  it("saves products, saves searches, and reads recommendation records", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+
+    const savedProductResponse = await request(app)
+      .post("/api/v1/saved-products")
+      .set("Authorization", authorization)
+      .send({
+        source: "ebay",
+        id: "v1|saved|0",
+        image: "https://i.ebayimg.test/saved.jpg",
+        title: "Rolex Submariner 126610LN",
+        brand: "Rolex",
+        price: 12500,
+        currency: "USD",
+        region: "United States"
+      })
+      .expect(201);
+    const savedProduct = savedProductResponse.body as RecordResponse;
+    expect(savedProduct.data.data).toMatchObject({
+      source: "ebay",
+      id: "v1|saved|0",
+      productId: "v1|saved|0",
+      image: "https://i.ebayimg.test/saved.jpg",
+      title: "Rolex Submariner 126610LN",
+      region: "United States"
+    });
+
+    const savedProductsResponse = await request(app)
+      .get("/api/v1/saved-products")
+      .set("Authorization", authorization)
+      .expect(200);
+    const savedProducts = savedProductsResponse.body as DataResponse<unknown[]>;
+    expect(savedProducts.data).toHaveLength(1);
+
+    const savedSearchResponse = await request(app)
+      .post("/api/v1/saved-searches")
+      .set("Authorization", authorization)
+      .send({
+        query: "Rolex Submariner",
+        filters: { brand: "Rolex", model: "Submariner" }
+      })
+      .expect(201);
+    const savedSearch = savedSearchResponse.body as RecordResponse;
+    expect(savedSearch.data.data).toMatchObject({
+      query: "Rolex Submariner",
+      filters: { brand: "Rolex", model: "Submariner" }
+    });
+
+    const savedSearchesResponse = await request(app)
+      .get("/api/v1/saved-searches")
+      .set("Authorization", authorization)
+      .expect(200);
+    const savedSearches = savedSearchesResponse.body as DataResponse<unknown[]>;
+    expect(savedSearches.data).toHaveLength(1);
+
+    const recommendationsResponse = await request(app)
+      .get("/api/v1/recommended-products")
+      .set("Authorization", authorization)
+      .expect(200);
+    const recommendations = recommendationsResponse.body as DataResponse<{ items: unknown[]; local: unknown[]; ebay: unknown[]; status: string }>;
+    expect(recommendations.data).toMatchObject({
+      status: "pending",
+      items: [],
+      local: [],
+      ebay: []
+    });
+  });
+
+  it("creates subscription checkout and billing portal sessions", async () => {
+    process.env.STRIPE_ELITE_PRICE_ID = "price_elite_collector";
+    resetEnvForTests();
+
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+
+    const plansResponse = await request(app)
+      .get("/api/v1/subscription/plans")
+      .set("Authorization", authorization)
+      .expect(200);
+    const plans = plansResponse.body as DataResponse<{ plans: Array<{ id: string; price: number }> }>;
+    expect(plans.data.plans).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "standard", price: 0 }),
+      expect.objectContaining({ id: "elite_collector", price: 29.99 })
+    ]));
+
+    const checkoutResponse = await request(app)
+      .post("/api/v1/subscription/checkout")
+      .set("Authorization", authorization)
+      .send({
+        successUrl: "https://mywatchbox.net/subscription/success",
+        cancelUrl: "https://mywatchbox.net/subscription/cancel"
+      })
+      .expect(201);
+    const checkout = checkoutResponse.body as DataResponse<{ checkoutSessionId: string; url: string }>;
+    expect(checkout.data.checkoutSessionId).toContain("local_");
+    expect(checkout.data.url).toBe("https://mywatchbox.net/subscription/success");
+
+    const statusResponse = await request(app)
+      .get("/api/v1/subscription")
+      .set("Authorization", authorization)
+      .expect(200);
+    const status = statusResponse.body as DataResponse<{ plan: string; stripeCustomerId: string }>;
+    expect(status.data).toMatchObject({
+      plan: "standard",
+      stripeCustomerId: expect.stringContaining("local_customer_")
+    });
+
+    const portalResponse = await request(app)
+      .post("/api/v1/subscription/portal")
+      .set("Authorization", authorization)
+      .send({ returnUrl: "https://mywatchbox.net/account/subscription" })
+      .expect(200);
+    const portal = portalResponse.body as DataResponse<{ url: string }>;
+    expect(portal.data.url).toBe("https://mywatchbox.net/account/subscription");
+  });
+
+  it("accepts signed Stripe subscription webhooks and upgrades the customer plan", async () => {
+    const webhookSecret = "whsec_test_secret";
+    process.env.STRIPE_WEBHOOK_SECRET = webhookSecret;
+    resetEnvForTests();
+
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    const account = await CustomerAccountModel.findOne({ email: "generated-customer@example.com" });
+    expect(account).toBeTruthy();
+
+    const payload = {
+      id: "evt_checkout_completed",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_test",
+          customer: "cus_test",
+          subscription: "sub_test",
+          client_reference_id: account?._id.toString(),
+          metadata: {
+            userId: account?._id.toString(),
+            plan: "elite_collector"
+          }
+        }
+      }
+    };
+    const rawBody = JSON.stringify(payload);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = createHmac("sha256", webhookSecret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest("hex");
+
+    await request(app)
+      .post("/api/v1/webhooks/stripe")
+      .set("Content-Type", "application/json")
+      .set("stripe-signature", `t=${timestamp},v1=${signature}`)
+      .send(rawBody)
+      .expect(200);
+
+    const statusResponse = await request(app)
+      .get("/api/v1/subscription")
+      .set("Authorization", authorization)
+      .expect(200);
+    const status = statusResponse.body as DataResponse<{
+      plan: string;
+      stripeCustomerId: string;
+      stripeSubscriptionId: string;
+    }>;
+    expect(status.data).toMatchObject({
+      plan: "elite_collector",
+      stripeCustomerId: "cus_test",
+      stripeSubscriptionId: "sub_test"
+    });
+  });
+
+  it("creates recommended products in the background after a search", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Rolex Submariner 126610LN",
+        brand: "Rolex",
+        model: "Submariner",
+        price: 12500,
+        currency: "USD",
+        condition: "excellent"
+      })
+      .expect(201);
+
+    const searchResponse = await request(app)
+      .post("/api/v1/ai/search")
+      .set("Authorization", authorization)
+      .field("keyword", "Rolex Submariner")
+      .expect(201);
+    const searchBody = searchResponse.body as DataResponse<{ searchId: string }>;
+
+    let recommendationBody: DataResponse<{ searchId?: string; items?: Array<Record<string, unknown>>; local?: unknown[]; ebay?: unknown[] }> | undefined;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await request(app)
+        .get("/api/v1/recommended-products")
+        .set("Authorization", authorization)
+        .expect(200);
+      recommendationBody = response.body as DataResponse<{ searchId?: string; items?: Array<Record<string, unknown>>; local?: unknown[]; ebay?: unknown[] }>;
+      if (recommendationBody.data.searchId === searchBody.data.searchId) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    expect(recommendationBody?.data.searchId).toBe(searchBody.data.searchId);
+    expect(recommendationBody?.data.items).toEqual(expect.any(Array));
+    if (recommendationBody?.data.items?.[0]) {
+      expect(recommendationBody.data.items[0]).not.toHaveProperty("similarProducts");
+    }
+    expect(recommendationBody?.data.local).toEqual(expect.any(Array));
+    expect(recommendationBody?.data.ebay).toEqual(expect.any(Array));
+  });
+
+  it("creates watch alerts and stores automatic alert events with product details", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Rolex Submariner Alert Watch",
+        brand: "Rolex",
+        price: 12000,
+        currency: "USD",
+        region: "United States"
+      })
+      .expect(201);
+
+    const alertResponse = await request(app)
+      .post("/api/v1/watch-alerts")
+      .set("Authorization", authorization)
+      .send({
+        query: "Rolex Submariner Alert",
+        source: "local",
+        eventTypes: ["new_watch", "price_drop", "search_update"],
+        minDropPercentage: 5
+      })
+      .expect(201);
+    const alert = alertResponse.body as RecordResponse;
+    expect(alert.data.data).toMatchObject({
+      query: "Rolex Submariner Alert",
+      source: "local"
+    });
+
+    const runResponse = await request(app)
+      .post("/api/v1/watch-alerts/run")
+      .set("Authorization", authorization)
+      .expect(200);
+    const run = runResponse.body as DataResponse<{ checked: number; eventsCreated: number }>;
+    expect(run.data.checked).toBe(1);
+    expect(run.data.eventsCreated).toBeGreaterThan(0);
+
+    const eventsResponse = await request(app)
+      .get("/api/v1/watch-alert-events")
+      .set("Authorization", authorization)
+      .expect(200);
+    const events = eventsResponse.body as DataResponse<Array<{
+      data: {
+        type: string;
+        alert: { type: string; query: string };
+        product: { title: string; price: number };
+        productDetails: { title: string; price: number; brand: string; region: string };
+      }
+    }>>;
+    expect(events.data[0]?.data).toMatchObject({
+      type: "new_watch",
+      alert: {
+        type: "new_watch",
+        query: "Rolex Submariner Alert"
+      },
+      product: {
+        title: "Rolex Submariner Alert Watch",
+        price: 12000
+      },
+      productDetails: {
+        title: "Rolex Submariner Alert Watch",
+        price: 12000,
+        brand: "Rolex",
+        region: "United States"
+      }
+    });
+
+    await request(app)
+      .delete(`/api/v1/watch-alerts/${alert.data.id}`)
+      .set("Authorization", authorization)
+      .expect(200);
+    const listAfterDeleteResponse = await request(app)
+      .get("/api/v1/watch-alerts")
+      .set("Authorization", authorization)
+      .expect(200);
+    const listAfterDelete = listAfterDeleteResponse.body as DataResponse<unknown[]>;
+    expect(listAfterDelete.data).toHaveLength(0);
+  });
+
   it("returns eBay product details from eBay item aspects by ID", async () => {
     process.env.EBAY_CLIENT_ID = "client-id";
     process.env.EBAY_CLIENT_SECRET = "client-secret";
@@ -696,6 +1004,89 @@ describe.sequential("generated API routes", () => {
     expect(body.data.similarProducts).toHaveLength(5);
     const itemDetailCall = fetchMock.mock.calls.find((call) => String(call[0]).includes("/buy/browse/v1/item/v1%7C987%7C0"));
     expect(itemDetailCall).toBeDefined();
+  });
+
+  it("returns eBay market insights with searched, price-drop, and upward products", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    resetEnvForTests();
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = input instanceof URL ? input.href : String(input);
+      if (url.includes("/identity/v1/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
+      }
+      if (url.includes("/buy/browse/v1/item_summary/search")) {
+        return new Response(
+          JSON.stringify({
+            total: 22,
+            itemSummaries: [
+              {
+                itemId: "v1|drop|0",
+                title: "Rolex Submariner 126610LN Price Drop",
+                price: { value: "10000.00", currency: "USD" },
+                itemWebUrl: "https://www.ebay.com/itm/drop",
+                image: { imageUrl: "https://i.ebayimg.test/drop.jpg" },
+                condition: "Pre-Owned",
+                localizedAspects: [
+                  { name: "Brand", value: "Rolex" },
+                  { name: "Model", value: "Submariner" },
+                  { name: "Reference Number", value: "126610LN" }
+                ],
+                buyingOptions: ["FIXED_PRICE"]
+              },
+              {
+                itemId: "v1|up|0",
+                title: "Rolex Submariner 126610LN Premium",
+                price: { value: "1000000.00", currency: "USD" },
+                itemWebUrl: "https://www.ebay.com/itm/up",
+                image: { imageUrl: "https://i.ebayimg.test/up.jpg" },
+                condition: "Pre-Owned",
+                localizedAspects: [
+                  { name: "Brand", value: "Rolex" },
+                  { name: "Model", value: "Submariner" },
+                  { name: "Reference Number", value: "126610LN" }
+                ],
+                buyingOptions: ["FIXED_PRICE"]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+
+    const response = await request(app)
+      .get("/api/v1/marketplaces/ebay/market-insights?q=Rolex%20Submariner&sampleLimit=10")
+      .expect(200);
+    const body = response.body as DataResponse<{
+      mostSearchedProduct: { brand: string; referenceNumber: string; price: number };
+      biggestPriceDropProduct: { externalId: string; upDownPercentage: number; direction: string };
+      trendingUpwardProduct: { externalId: string; upDownPercentage: number; direction: string };
+    }>;
+
+    expect(body.data.mostSearchedProduct).toMatchObject({
+      brand: "Rolex",
+      referenceNumber: "126610LN",
+      price: 10000
+    });
+    expect(body.data.biggestPriceDropProduct).toMatchObject({
+      externalId: "v1|drop|0",
+      upDownPercentage: -98.02,
+      direction: "down"
+    });
+    expect(body.data.trendingUpwardProduct).toMatchObject({
+      externalId: "v1|up|0",
+      upDownPercentage: 98.02,
+      direction: "up"
+    });
+    expect(body.data.biggestPriceDropProduct.upDownPercentage).toBeGreaterThanOrEqual(-100);
+    expect(body.data.trendingUpwardProduct.upDownPercentage).toBeLessThanOrEqual(100);
   });
 
   it("creates, reads, and updates content pages with inline image links", async () => {

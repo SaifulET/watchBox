@@ -6,7 +6,12 @@ import type {
   MarketplaceListing,
   MarketplaceListingDetails
 } from "../../../infrastructure/external/ebay/ebay-provider.js";
-import type { EbayAnalyticsQuery, EbaySearchQuery } from "./marketplaces.validation.js";
+import { GeneratedApiRecordModel } from "../../generated-api/generated-api.model.js";
+import type {
+  EbayAnalyticsQuery,
+  EbayMarketInsightsQuery,
+  EbaySearchQuery
+} from "./marketplaces.validation.js";
 
 type PriceStats = {
   currency: string | null;
@@ -15,6 +20,22 @@ type PriceStats = {
   lowest: number | null;
   highest: number | null;
   sampleSize: number;
+};
+
+type MarketInsightProduct = {
+  title: string;
+  externalId: string;
+  sourceUrl: string;
+  image: string;
+  price: number;
+  currency: string;
+  brand: string;
+  model: string;
+  referenceNumber: string;
+  upDownPercentage: number;
+  direction: "up" | "down" | "same";
+  marketAveragePrice: number;
+  basis: string;
 };
 
 const aiQueryNormalizationTimeoutMs = 3_000;
@@ -37,8 +58,59 @@ const withTimeout = async <T>(promise: Promise<T>, milliseconds: number, message
 
 const roundMoney = (value: number): number => Number(value.toFixed(2));
 
+const roundPercentage = (value: number): number => Number(value.toFixed(2));
+
+const boundedPercentage = (value: number): number =>
+  roundPercentage(Math.max(-100, Math.min(100, value)));
+
 const average = (values: number[]): number | null =>
   values.length > 0 ? values.reduce((total, value) => total + value, 0) / values.length : null;
+
+const stringValue = (value: unknown): string | null =>
+  typeof value === "string" && value.trim() ? value.trim() : null;
+
+const searchTextFromRecord = (data: Record<string, unknown>): string | null =>
+  stringValue(data.marketplaceQueries && typeof data.marketplaceQueries === "object"
+    ? (data.marketplaceQueries as Record<string, unknown>).ebay
+    : null) ??
+  stringValue(data.query) ??
+  stringValue(data.generatedTitle);
+
+const titleWords = (title: string): string[] => title.split(/\s+/).map((word) => word.trim()).filter(Boolean);
+
+const brandFromListing = (item: MarketplaceListing): string => item.brand ?? titleWords(item.title)[0] ?? "Unknown";
+
+const modelFromListing = (item: MarketplaceListing): string => item.model ?? modelTitleFallback(item.title);
+
+const referenceFromListing = (item: MarketplaceListing): string =>
+  item.referenceNumber ??
+  titleWords(item.title).find((word) => /[A-Z0-9-]{4,}/i.test(word) && /\d/.test(word)) ??
+  "not_available";
+
+const modelTitleFallback = (title: string): string => titleWords(title).slice(1, 4).join(" ") || title;
+
+const marketInsightProduct = (
+  item: MarketplaceListing,
+  marketAveragePrice: number,
+  basis: string
+): MarketInsightProduct => {
+  const delta = marketAveragePrice > 0 ? boundedPercentage(((item.price - marketAveragePrice) / marketAveragePrice) * 100) : 0;
+  return {
+    title: item.title,
+    externalId: item.externalId,
+    sourceUrl: item.sourceUrl,
+    image: item.imageUrl ?? "not_available",
+    price: item.price,
+    currency: item.currency,
+    brand: brandFromListing(item),
+    model: modelFromListing(item),
+    referenceNumber: referenceFromListing(item),
+    upDownPercentage: delta,
+    direction: delta > 0 ? "up" : delta < 0 ? "down" : "same",
+    marketAveragePrice,
+    basis
+  };
+};
 
 const median = (values: number[]): number | null => {
   if (values.length === 0) {
@@ -205,6 +277,77 @@ export class MarketplaceService {
     return { connected: true };
   }
 
+  public async ebayMarketInsights(query: EbayMarketInsightsQuery) {
+    const config = getMarketplaceConfig().ebay;
+    const marketplaceId = query.marketplaceId ?? config.marketplaceId;
+    const insightQuery = await this.marketInsightQuery(query.q);
+    const warnings: string[] = [
+      "eBay Browse API provides active listing samples, not true historical sold-price trend data. Price drop/upward percentages are calculated against the current sampled eBay market average."
+    ];
+    let total = 0;
+    let averagePrice = 0;
+    let allProducts: MarketInsightProduct[] = [];
+    try {
+      const result = await this.ebay.searchListingsWithMetadata(insightQuery.query, {
+        limit: query.sampleLimit,
+        marketplaceId
+      });
+      total = result.total ?? result.items.length;
+      const stats = priceStats(result.items);
+      averagePrice = stats.average ?? 0;
+      allProducts = averagePrice > 0
+        ? result.items.map((item) =>
+            marketInsightProduct(
+              item,
+              averagePrice,
+              `Compared with current active eBay sample average for "${insightQuery.query}".`
+            )
+          )
+        : [];
+    } catch (error) {
+      warnings.push(
+        error instanceof AppError
+          ? `Skipped "${insightQuery.query}": ${error.message}`
+          : `Skipped "${insightQuery.query}": eBay insight search failed.`
+      );
+    }
+    const biggestPriceDropProduct = allProducts
+      .filter((product) => product.direction === "down")
+      .sort((left, right) => left.upDownPercentage - right.upDownPercentage)[0] ?? null;
+    const trendingUpwardProduct = allProducts
+      .filter((product) => product.direction === "up")
+      .sort((left, right) => right.upDownPercentage - left.upDownPercentage)[0] ?? null;
+    const firstProduct = allProducts[0] ?? null;
+
+    return {
+      environment: config.environment,
+      marketplaceId,
+      query: insightQuery.query,
+      searchCount: insightQuery.searchCount,
+      activeListingTotal: total,
+      marketAveragePrice: roundMoney(averagePrice),
+      generatedFrom: "single_active_ebay_browse_listing_sample_and_saved_watchbox_searches",
+      warnings: [
+        ...warnings,
+        ...searchWarnings({
+          environment: config.environment,
+          count: allProducts.length
+        })
+      ],
+      mostSearchedProduct: firstProduct
+        ? {
+            ...firstProduct,
+            searchCount: insightQuery.searchCount,
+            activeListingTotal: total,
+            query: insightQuery.query,
+            basis: `Top WatchBox saved search query count ${insightQuery.searchCount}; current eBay active listing total ${total}.`
+          }
+        : null,
+      biggestPriceDropProduct,
+      trendingUpwardProduct
+    };
+  }
+
   public async ebayAnalytics(query: EbayAnalyticsQuery) {
     const options: Parameters<EbayProvider["searchListingsWithMetadata"]>[1] = {
       limit: query.limit
@@ -346,5 +489,31 @@ export class MarketplaceService {
         reasoning: error instanceof AppError ? error.message : null
       };
     }
+  }
+
+  private async marketInsightQuery(query: string | undefined): Promise<{ query: string; searchCount: number }> {
+    if (query?.trim()) {
+      return { query: query.trim(), searchCount: 1 };
+    }
+    const records = await GeneratedApiRecordModel.find({
+      resource: "image-search",
+      deletedAt: null
+    })
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+    const counts = new Map<string, number>();
+    for (const record of records) {
+      const text = searchTextFromRecord(record.data);
+      if (!text) {
+        continue;
+      }
+      const normalized = text.trim().replace(/\s+/g, " ");
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+    }
+    const savedQueries = Array.from(counts.entries())
+      .map(([savedQuery, searchCount]) => ({ query: savedQuery, searchCount }))
+      .sort((left, right) => right.searchCount - left.searchCount || left.query.localeCompare(right.query))
+    return savedQueries[0] ?? { query: "Rolex Submariner", searchCount: 0 };
   }
 }

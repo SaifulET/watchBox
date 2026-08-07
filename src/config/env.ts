@@ -47,6 +47,7 @@ const envSchema = z.object({
   EBAY_MARKETPLACE_DELETION_VERIFICATION_TOKEN: optionalEnvString,
   STRIPE_SECRET_KEY: optionalEnvString,
   STRIPE_WEBHOOK_SECRET: optionalEnvString,
+  STRIPE_ELITE_PRICE_ID: optionalEnvString,
   EMAIL_PROVIDER: z.enum(["local", "smtp", "ses", "sendgrid", "mailgun"]).default("local"),
   EMAIL_FROM: z.string().email().default("no-reply@watchbox.local"),
   EMAIL_API_KEY: optionalEnvString,
