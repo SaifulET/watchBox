@@ -18,6 +18,7 @@ export const createAiRouter = (): Router => {
   router.post("/ai/analyze-image", ...imageInput, asyncHandler(controller.analyzeImage));
   router.post("/ai/search", ...searchInput, asyncHandler(controller.createSearch));
   router.post("/image-search", ...searchInput, asyncHandler(controller.createProductSearch));
+  router.get("/products/:source/:productId/details", customerAuth, asyncHandler(controller.getProductDetails));
   router.get("/image-search/recent", customerAuth, asyncHandler(controller.recentImageSearches));
   router.get("/image-search/:searchId", customerAuth, asyncHandler(controller.getImageSearch));
   router.get("/image-search/:searchId/results", customerAuth, asyncHandler(controller.getImageSearch));

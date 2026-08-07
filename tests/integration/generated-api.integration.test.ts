@@ -437,7 +437,22 @@ describe.sequential("generated API routes", () => {
         contentType: "image/png"
       })
       .expect(201);
-    const body = response.body as DataResponse<Array<{ source: string; title: string; similarityScore: number }>>;
+    const body = response.body as DataResponse<
+      Array<{
+        source: string;
+        title: string;
+        similarityScore: number;
+        currentPrice: number | null;
+        marketAveragePrice: number | null;
+        marketStatus: string;
+        salesAmount: number | null;
+        lowestPrice: number | null;
+        highestPrice: number | null;
+        liquidityScope: string;
+        volatility: string;
+        similarProducts: unknown[];
+      }>
+    >;
 
     const searchUrl = fetchMock.mock.calls
       .map((call) => call[0])
@@ -447,9 +462,240 @@ describe.sequential("generated API routes", () => {
     );
     expect(body.data[0]).toMatchObject({
       source: "local",
-      title: "Rolex Submariner 126610LN"
+      title: "Rolex Submariner 126610LN",
+      currentPrice: 12500,
+      marketAveragePrice: 12500,
+      marketStatus: "stable",
+      salesAmount: 0,
+      lowestPrice: 12500,
+      highestPrice: 12500,
+      liquidityScope: "low",
+      volatility: "medium",
+      similarProducts: expect.any(Array)
     });
+    expect(body.data[0]?.similarProducts).toHaveLength(5);
     expect(body.data[0]?.similarityScore).toBeGreaterThan(0);
+  });
+
+  it("returns enriched details for one local product by ID", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    const listingResponse = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Rolex Submariner 126610LN",
+        brand: "Rolex",
+        model: "Submariner",
+        referenceNumber: "126610LN",
+        price: 12500,
+        currency: "USD",
+        condition: "excellent",
+        movement: "automatic",
+        scope: "full set",
+        productionYear: 2021,
+        description: "Rolex Submariner full set in excellent condition."
+      })
+      .expect(201);
+    const listingBody = listingResponse.body as DataResponse<{ id: string }>;
+
+    const response = await request(app)
+      .get(`/api/v1/products/local/${listingBody.data.id}/details`)
+      .set("Authorization", authorization)
+      .expect(200);
+    const body = response.body as DataResponse<{
+      id: string;
+      title: string;
+      brand: string;
+      model: string;
+      referenceNumber: string;
+      currentPrice: number;
+      productionYear: number;
+      movement: string;
+      scope: string;
+      image: string;
+      sourceUrl: string;
+      similarProducts: Array<{ title: string; price: number; condition: string }>;
+    }>;
+
+    expect(body.data).toMatchObject({
+      id: listingBody.data.id,
+      title: "Rolex Submariner 126610LN",
+      brand: "Rolex",
+      model: "Submariner",
+      referenceNumber: "126610LN",
+      currentPrice: 12500,
+      productionYear: 2021,
+      movement: "automatic",
+      scope: "full set"
+    });
+    expect(body.data.image).not.toBe("");
+    expect(body.data.sourceUrl).toBe(`/api/v1/listings/${listingBody.data.id}`);
+    expect(body.data.similarProducts).toHaveLength(5);
+    expect(body.data.similarProducts[0]).toMatchObject({
+      title: expect.any(String),
+      price: expect.any(Number),
+      condition: expect.any(String)
+    });
+  });
+
+  it("filters product search by keyword, brand, model, price, status, condition, and region", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Rolex Submariner 126610LN",
+        brand: "Rolex",
+        model: "Submariner",
+        price: 12500,
+        currency: "USD",
+        condition: "very good",
+        region: "United States",
+        listingStatus: "active"
+      })
+      .expect(201);
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Omega Seamaster",
+        brand: "Omega",
+        model: "Seamaster",
+        price: 6200,
+        currency: "USD",
+        condition: "new",
+        region: "United Kingdom",
+        listingStatus: "active"
+      })
+      .expect(201);
+
+    const response = await request(app)
+      .post("/api/v1/image-search")
+      .set("Authorization", authorization)
+      .field("keyword", "Submariner")
+      .field("brand", "Rolex")
+      .field("model", "Submariner")
+      .field("minPrice", "10000")
+      .field("maxPrice", "14000")
+      .field("listingStatus", "active")
+      .field("condition", "very_good")
+      .field("region", "United States")
+      .expect(201);
+    const body = response.body as DataResponse<Array<{ title: string; brand: string; model: string; currentPrice: number; condition: string }>>;
+
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
+      title: "Rolex Submariner 126610LN",
+      brand: "Rolex",
+      model: "Submariner",
+      currentPrice: 12500,
+      condition: "very good"
+    });
+  });
+
+  it("returns eBay product details from eBay item aspects by ID", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    resetEnvForTests();
+
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = input instanceof URL ? input.href : String(input);
+      if (url.includes("/identity/v1/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
+      }
+      if (url.includes("/buy/browse/v1/item/")) {
+        return new Response(
+          JSON.stringify({
+            itemId: "v1|987|0",
+            title: "Rolex Submariner Date 126610LN",
+            price: { value: "13250.00", currency: "USD" },
+            itemWebUrl: "https://www.ebay.com/itm/987",
+            image: { imageUrl: "https://i.ebayimg.test/987.jpg" },
+            description: "Authentic Rolex Submariner Date with full set.",
+            condition: "Pre-Owned",
+            localizedAspects: [
+              { name: "Brand", value: "Rolex" },
+              { name: "Model", value: "Rolex Submariner" },
+              { name: "Reference Number", value: "126610LN" },
+              { name: "Movement", value: "Automatic" },
+              { name: "Year Manufactured", value: "2022" },
+              { name: "With Original Box/Packaging", value: "Yes" },
+              { name: "With Papers", value: "Yes" }
+            ],
+            seller: { username: "watch-seller", feedbackScore: 2400, feedbackPercentage: "99.8" },
+            buyingOptions: ["FIXED_PRICE"]
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.includes("/buy/browse/v1/item_summary/search")) {
+        return new Response(
+          JSON.stringify({
+            total: 3,
+            itemSummaries: [
+              {
+                itemId: "v1|654|0",
+                title: "Rolex Submariner Date 126610LN Full Set",
+                price: { value: "12900.00", currency: "USD" },
+                itemWebUrl: "https://www.ebay.com/itm/654",
+                image: { imageUrl: "https://i.ebayimg.test/654.jpg" },
+                condition: "Pre-Owned",
+                localizedAspects: [
+                  { name: "Brand", value: "Rolex" },
+                  { name: "Model", value: "Rolex Submariner" },
+                  { name: "Reference Number", value: "126610LN" }
+                ],
+                buyingOptions: ["FIXED_PRICE"]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+
+    const response = await request(app)
+      .get("/api/v1/products/ebay/v1%7C987%7C0/details?marketplaceId=EBAY_US")
+      .set("Authorization", authorization);
+    expect(response.status).toBe(200);
+    const body = response.body as DataResponse<{
+      source: string;
+      id: string;
+      brand: string;
+      model: string;
+      referenceNumber: string;
+      productionYear: number;
+      movement: string;
+      scope: string;
+      image: string;
+      sourceUrl: string;
+      similarProducts: unknown[];
+    }>;
+
+    expect(body.data).toMatchObject({
+      source: "ebay",
+      id: "v1|987|0",
+      brand: "Rolex",
+      model: "Rolex Submariner",
+      referenceNumber: "126610LN",
+      productionYear: 2022,
+      movement: "Automatic",
+      scope: "full set",
+      image: "https://i.ebayimg.test/987.jpg",
+      sourceUrl: "https://www.ebay.com/itm/987"
+    });
+    expect(body.data.similarProducts).toHaveLength(5);
+    const itemDetailCall = fetchMock.mock.calls.find((call) => String(call[0]).includes("/buy/browse/v1/item/v1%7C987%7C0"));
+    expect(itemDetailCall).toBeDefined();
   });
 
   it("creates, reads, and updates content pages with inline image links", async () => {

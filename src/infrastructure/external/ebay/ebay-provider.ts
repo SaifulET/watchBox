@@ -4,11 +4,18 @@ import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
 export type MarketplaceListing = {
   externalId: string;
   title: string;
+  brand?: string;
+  model?: string;
+  referenceNumber?: string;
   price: number;
   currency: string;
   sourceUrl: string;
   imageUrl?: string;
   condition?: string;
+  productionYear?: number;
+  movement?: string;
+  scope?: string;
+  aspects?: Record<string, string>;
   sellerUsername?: string;
   sellerFeedbackScore?: number;
   sellerFeedbackPercentage?: string;
@@ -36,6 +43,9 @@ export interface MarketplaceProvider {
 export type MarketplaceSearchOptions = {
   limit?: number;
   marketplaceId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  priceCurrency?: string;
 };
 
 type EbayTokenResponse = {
@@ -66,6 +76,14 @@ type EbayItemSummary = {
     imageUrl?: string;
   };
   condition?: string;
+  localizedAspects?: Array<{
+    name?: string;
+    value?: string;
+  }>;
+  itemSpecifics?: Array<{
+    name?: string;
+    value?: string;
+  }>;
   seller?: {
     username?: string;
     feedbackScore?: number;
@@ -108,6 +126,63 @@ const compactLocation = (location: EbayItemSummary["itemLocation"]): string | un
   return [location.city, location.stateOrProvince, location.country].filter(Boolean).join(", ") || undefined;
 };
 
+const normalizeAspectName = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const ebayAspects = (item: EbayItemSummary): Record<string, string> => {
+  const entries = [...(item.localizedAspects ?? []), ...(item.itemSpecifics ?? [])];
+  return Object.fromEntries(
+    entries.flatMap((aspect) => {
+      if (!aspect.name?.trim() || !aspect.value?.trim()) {
+        return [];
+      }
+      return [[normalizeAspectName(aspect.name), aspect.value.trim()]];
+    })
+  );
+};
+
+const firstAspect = (aspects: Record<string, string>, names: string[]): string | undefined => {
+  for (const name of names) {
+    const value = aspects[normalizeAspectName(name)];
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const productionYearFromAspects = (aspects: Record<string, string>): number | undefined => {
+  const value = firstAspect(aspects, ["Year Manufactured", "Production Year", "Year", "Manufacture Year"]);
+  const match = value?.match(/\b(19|20)\d{2}\b/);
+  if (!match) {
+    return undefined;
+  }
+  const parsed = Number(match[0]);
+  return Number.isInteger(parsed) ? parsed : undefined;
+};
+
+const scopeFromAspects = (aspects: Record<string, string>): string | undefined => {
+  const box = firstAspect(aspects, ["With Original Box/Packaging", "With Original Box", "Box"]);
+  const papers = firstAspect(aspects, ["With Papers", "Papers"]);
+  const hasBox = box ? /yes|with|included/i.test(box) : false;
+  const hasPapers = papers ? /yes|with|included/i.test(papers) : false;
+  if (hasBox && hasPapers) {
+    return "full set";
+  }
+  if (hasBox) {
+    return "box only";
+  }
+  if (hasPapers) {
+    return "papers only";
+  }
+  return firstAspect(aspects, ["Scope", "Included", "Set Includes"]);
+};
+
 export class EbayProvider implements MarketplaceProvider {
   public readonly code = "EBAY" as const;
   private cachedToken?: CachedToken;
@@ -134,6 +209,14 @@ export class EbayProvider implements MarketplaceProvider {
     const url = new URL(`${baseUrl}/buy/browse/v1/item_summary/search`);
     url.searchParams.set("q", trimmedQuery);
     url.searchParams.set("limit", parseLimit(options.limit).toString());
+    const filters: string[] = [];
+    if (typeof options.minPrice === "number" || typeof options.maxPrice === "number") {
+      filters.push(`price:[${options.minPrice ?? ""}..${options.maxPrice ?? ""}]`);
+      filters.push(`priceCurrency:${options.priceCurrency ?? "USD"}`);
+    }
+    if (filters.length > 0) {
+      url.searchParams.set("filter", filters.join(","));
+    }
 
     const response = await fetch(url, {
       headers: {
@@ -258,6 +341,7 @@ const toMarketplaceListing = (item: EbayItemSummary): MarketplaceListing[] => {
   if (!item.itemId || !item.title || !Number.isFinite(price)) {
     return [];
   }
+  const aspects = ebayAspects(item);
   const listing: MarketplaceListing = {
     externalId: item.itemId,
     title: item.title,
@@ -266,6 +350,33 @@ const toMarketplaceListing = (item: EbayItemSummary): MarketplaceListing[] => {
     sourceUrl: item.itemWebUrl ?? `https://www.ebay.com/itm/${encodeURIComponent(item.itemId)}`,
     buyingOptions: item.buyingOptions ?? []
   };
+  if (Object.keys(aspects).length > 0) {
+    listing.aspects = aspects;
+  }
+  const brand = firstAspect(aspects, ["Brand"]);
+  if (brand) {
+    listing.brand = brand;
+  }
+  const model = firstAspect(aspects, ["Model"]);
+  if (model) {
+    listing.model = model;
+  }
+  const referenceNumber = firstAspect(aspects, ["Reference Number", "Reference", "MPN"]);
+  if (referenceNumber) {
+    listing.referenceNumber = referenceNumber;
+  }
+  const productionYear = productionYearFromAspects(aspects);
+  if (productionYear) {
+    listing.productionYear = productionYear;
+  }
+  const movement = firstAspect(aspects, ["Movement"]);
+  if (movement) {
+    listing.movement = movement;
+  }
+  const scope = scopeFromAspects(aspects);
+  if (scope) {
+    listing.scope = scope;
+  }
   if (item.image?.imageUrl) {
     listing.imageUrl = item.image.imageUrl;
   }

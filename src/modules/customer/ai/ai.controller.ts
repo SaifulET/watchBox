@@ -14,6 +14,13 @@ type ControllerSearchInput = ControllerImageInput & {
   keyword?: string;
   query?: string;
   search?: string;
+  brand?: string;
+  model?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  listingStatus?: "active" | "historical_sold";
+  condition?: "new" | "unworn" | "very_good" | "vintage";
+  region?: string;
   limit: number;
   marketplaceId?: string;
 };
@@ -58,6 +65,32 @@ const searchInput = (body: AiSearchBody, file: Express.Multer.File | undefined):
   if (body.search) {
     input.search = body.search;
   }
+  if (body.brand) {
+    input.brand = body.brand;
+  }
+  if (body.model) {
+    input.model = body.model;
+  }
+  const minPrice = body.minPrice ?? body.priceMin;
+  const maxPrice = body.maxPrice ?? body.priceMax;
+  if (typeof minPrice === "number") {
+    input.minPrice = minPrice;
+  }
+  if (typeof maxPrice === "number") {
+    input.maxPrice = maxPrice;
+  }
+  if (body.listingStatus) {
+    input.listingStatus = body.listingStatus === "active" ? "active" : "historical_sold";
+  }
+  if (body.condition) {
+    const condition = body.condition.replace(" ", "_");
+    if (condition === "new" || condition === "unworn" || condition === "very_good" || condition === "vintage") {
+      input.condition = condition;
+    }
+  }
+  if (body.region) {
+    input.region = body.region;
+  }
   if (body.imageUrl) {
     input.imageUrl = body.imageUrl;
   }
@@ -99,6 +132,20 @@ export class AiController {
     const body = req.body as AiSearchBody;
     const result = await this.service.createSearch(actor(req), searchInput(body, req.file));
     sendSuccess(res, req.requestId, result.results.items, 201);
+  };
+
+  public getProductDetails = async (req: Request, res: Response): Promise<void> => {
+    const source = req.params.source === "ebay" ? "ebay" : "local";
+    const marketplaceId = typeof req.query.marketplaceId === "string" ? req.query.marketplaceId : undefined;
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.getProductDetailsById({
+        source,
+        productId: req.params.productId ?? "",
+        ...(marketplaceId ? { marketplaceId } : {})
+      })
+    );
   };
 
   public autoDetectListing = async (req: Request, res: Response): Promise<void> => {
