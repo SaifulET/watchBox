@@ -44,6 +44,7 @@ const envSchema = z.object({
   EBAY_REDIRECT_URI: optionalEnvUrl,
   EBAY_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
   EBAY_MARKETPLACE_ID: z.string().default("EBAY_US"),
+  EBAY_MARKETPLACE_DELETION_VERIFICATION_TOKEN: optionalEnvString,
   STRIPE_SECRET_KEY: optionalEnvString,
   STRIPE_WEBHOOK_SECRET: optionalEnvString,
   EMAIL_PROVIDER: z.enum(["local", "smtp", "ses", "sendgrid", "mailgun"]).default("local"),
