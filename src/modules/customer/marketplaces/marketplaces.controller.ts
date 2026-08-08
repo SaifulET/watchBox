@@ -15,6 +15,10 @@ export class MarketplaceController {
     sendSuccess(res, req.requestId, await this.service.searchEbay(query));
   };
 
+  public searchEbayByLocation = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.searchEbayByLocation(req.body));
+  };
+
   public ebayAnalytics = async (req: Request, res: Response): Promise<void> => {
     const query = ebayAnalyticsQuerySchema.parse(req.query);
     sendSuccess(res, req.requestId, await this.service.ebayAnalytics(query));

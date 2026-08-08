@@ -5,6 +5,7 @@ import { MarketplaceController } from "./marketplaces.controller.js";
 import { MarketplaceService } from "./marketplaces.service.js";
 import {
   ebayAnalyticsQuerySchema,
+  ebayLocationSearchSchema,
   ebayMarketInsightsQuerySchema,
   ebaySearchQuerySchema
 } from "./marketplaces.validation.js";
@@ -14,6 +15,11 @@ export const createMarketplacesRouter = (): Router => {
   const controller = new MarketplaceController(new MarketplaceService());
 
   router.get("/ebay/search", validate({ query: ebaySearchQuerySchema }), asyncHandler(controller.searchEbay));
+  router.post(
+    "/ebay/search-by-location",
+    validate({ body: ebayLocationSearchSchema }),
+    asyncHandler(controller.searchEbayByLocation)
+  );
   router.get(
     "/ebay/analytics",
     validate({ query: ebayAnalyticsQuerySchema }),

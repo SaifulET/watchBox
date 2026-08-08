@@ -2,13 +2,16 @@ import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
 import { AppError, ExternalServiceError } from "../../../common/errors/app-error.js";
 import { createAiProvider } from "../../../infrastructure/external/ai/ai-provider.js";
 import { EbayProvider } from "../../../infrastructure/external/ebay/ebay-provider.js";
+import { NominatimGeocodingProvider } from "../../../infrastructure/external/geocoding/geocoding-provider.js";
 import type {
   MarketplaceListing,
-  MarketplaceListingDetails
+  MarketplaceListingDetails,
+  MarketplaceSearchOptions
 } from "../../../infrastructure/external/ebay/ebay-provider.js";
 import { GeneratedApiRecordModel } from "../../generated-api/generated-api.model.js";
 import type {
   EbayAnalyticsQuery,
+  EbayLocationSearchInput,
   EbayMarketInsightsQuery,
   EbaySearchQuery
 } from "./marketplaces.validation.js";
@@ -244,6 +247,7 @@ const liquidityScore = (input: {
 export class MarketplaceService {
   private readonly ebay = new EbayProvider();
   private readonly ai = createAiProvider();
+  private readonly geocoding = new NominatimGeocodingProvider();
 
   public async searchEbay(query: EbaySearchQuery) {
     const options: Parameters<EbayProvider["searchListings"]>[1] = {
@@ -270,6 +274,36 @@ export class MarketplaceService {
       }),
       items
     };
+  }
+
+  public async searchEbayByLocation(input: EbayLocationSearchInput) {
+    const config = getMarketplaceConfig().ebay;
+    const marketplaceId = input.marketplaceId ?? config.marketplaceId;
+    void this.ebay.checkConnectivity().catch(() => undefined);
+    const location = await this.geocoding.reversePostalCode(input.latitude, input.longitude);
+    const options: MarketplaceSearchOptions = {
+      limit: input.limit,
+      marketplaceId,
+      priceCurrency: input.priceCurrency,
+      timeoutMs: 3_000
+    };
+    if (typeof input.minPrice === "number") {
+      options.minPrice = input.minPrice;
+    }
+    if (typeof input.maxPrice === "number") {
+      options.maxPrice = input.maxPrice;
+    }
+    if (input.searchMode === "pickup") {
+      options.pickupPostalCode = location.postalCode;
+      options.pickupCountry = location.countryCode;
+      options.pickupRadius = input.pickupRadius;
+      options.pickupRadiusUnit = input.pickupRadiusUnit;
+    } else {
+      options.deliveryPostalCode = location.postalCode;
+      options.deliveryCountry = location.countryCode;
+    }
+    const result = await this.ebay.searchListingsWithMetadata(input.q, options);
+    return result.items;
   }
 
   public async testEbayConnection(): Promise<{ connected: true }> {

@@ -605,6 +605,149 @@ describe.sequential("generated API routes", () => {
     });
   });
 
+  it("searches eBay by latitude and longitude after resolving a postal code", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    resetEnvForTests();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = input instanceof URL ? input.href : String(input);
+      if (url.includes("nominatim.openstreetmap.org/reverse")) {
+        return new Response(
+          JSON.stringify({
+            display_name: "New York, NY 10007, United States",
+            address: {
+              postcode: "10007",
+              country_code: "us",
+              city: "New York",
+              state: "New York"
+            }
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.includes("/identity/v1/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
+      }
+      if (url.includes("/buy/browse/v1/item_summary/search")) {
+        return new Response(
+          JSON.stringify({
+            total: 1,
+            itemSummaries: [
+              {
+                itemId: "v1|loc|0",
+                title: "Rolex Submariner New York",
+                price: { value: "12500.00", currency: "USD" },
+                itemWebUrl: "https://www.ebay.com/itm/loc",
+                condition: "Pre-Owned",
+                itemLocation: {
+                  city: "New York",
+                  stateOrProvince: "NY",
+                  postalCode: "10007",
+                  country: "US"
+                },
+                buyingOptions: ["FIXED_PRICE"]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+
+    const response = await request(app)
+      .post("/api/v1/marketplaces/ebay/search-by-location")
+      .send({
+        q: "Rolex Submariner",
+        latitude: 40.7128,
+        longitude: -74.006,
+        limit: 5
+      })
+      .expect(200);
+    const body = response.body as DataResponse<Array<{ externalId: string; location: string }>>;
+
+    expect(body.data[0]).toMatchObject({
+      externalId: "v1|loc|0",
+      location: "New York, NY, 10007, US"
+    });
+    const ebaySearchCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/item_summary/search") &&
+      String(call[0]).includes("deliveryPostalCode")
+    );
+    expect((ebaySearchCall?.[0] as URL).href).toBe(
+      "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+Submariner&limit=5&filter=deliveryPostalCode%3A10007%2CdeliveryCountry%3AUS"
+    );
+    expect(ebaySearchCall?.[1]).toMatchObject({
+      headers: expect.objectContaining({
+        "X-EBAY-C-ENDUSERCTX": "contextualLocation=country=US,zip=10007"
+      })
+    });
+  });
+
+  it("searches eBay by coordinates only with a default watch query", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    resetEnvForTests();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = input instanceof URL ? input.href : String(input);
+      if (url.includes("nominatim.openstreetmap.org/reverse")) {
+        return new Response(
+          JSON.stringify({
+            address: {
+              postcode: "90012",
+              country_code: "us"
+            }
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.includes("/identity/v1/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
+      }
+      if (url.includes("/buy/browse/v1/item_summary/search")) {
+        return new Response(JSON.stringify({ total: 0, itemSummaries: [] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+
+    const response = await request(app)
+      .post("/api/v1/marketplaces/ebay/search-by-location")
+      .send({
+        lat: 34.0522,
+        lan: -118.2437
+      })
+      .expect(200);
+    await request(app)
+      .post("/api/v1/marketplaces/ebay/search-by-location")
+      .send({
+        lat: 34.0522,
+        lan: -118.2437
+      })
+      .expect(200);
+    const body = response.body as DataResponse<unknown[]>;
+    expect(body.data).toEqual([]);
+    const reverseGeocodeCalls = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes("nominatim.openstreetmap.org/reverse")
+    );
+    expect(reverseGeocodeCalls).toHaveLength(1);
+    const ebaySearchCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/item_summary/search") &&
+      String(call[0]).includes("deliveryPostalCode")
+    );
+    expect((ebaySearchCall?.[0] as URL).searchParams.get("q")).toBe("watch");
+    expect((ebaySearchCall?.[0] as URL).searchParams.get("limit")).toBe("10");
+  });
+
   it("saves products, saves searches, and reads recommendation records", async () => {
     const accessToken = await registerCustomer();
     const authorization = `Bearer ${accessToken}`;

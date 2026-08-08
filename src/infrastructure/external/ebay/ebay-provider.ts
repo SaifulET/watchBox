@@ -46,6 +46,13 @@ export type MarketplaceSearchOptions = {
   minPrice?: number;
   maxPrice?: number;
   priceCurrency?: string;
+  deliveryPostalCode?: string;
+  deliveryCountry?: string;
+  pickupPostalCode?: string;
+  pickupCountry?: string;
+  pickupRadius?: number;
+  pickupRadiusUnit?: "mi" | "km";
+  timeoutMs?: number;
 };
 
 type EbayTokenResponse = {
@@ -92,6 +99,7 @@ type EbayItemSummary = {
   itemLocation?: {
     city?: string;
     stateOrProvince?: string;
+    postalCode?: string;
     country?: string;
   };
   buyingOptions?: string[];
@@ -108,6 +116,25 @@ const endpointBaseByEnvironment = {
 } as const;
 
 const defaultScope = "https://api.ebay.com/oauth/api_scope";
+const ebayTokenTimeoutMs = 2_500;
+
+const fetchWithTimeout = async (url: URL | string, init: RequestInit, timeoutMs: number, message: string): Promise<Response> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ExternalServiceError(message);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 const parseLimit = (limit: number | undefined): number => {
   if (typeof limit === "undefined") {
@@ -123,7 +150,7 @@ const compactLocation = (location: EbayItemSummary["itemLocation"]): string | un
   if (!location) {
     return undefined;
   }
-  return [location.city, location.stateOrProvince, location.country].filter(Boolean).join(", ") || undefined;
+  return [location.city, location.stateOrProvince, location.postalCode, location.country].filter(Boolean).join(", ") || undefined;
 };
 
 const normalizeAspectName = (value: string): string =>
@@ -214,16 +241,37 @@ export class EbayProvider implements MarketplaceProvider {
       filters.push(`price:[${options.minPrice ?? ""}..${options.maxPrice ?? ""}]`);
       filters.push(`priceCurrency:${options.priceCurrency ?? "USD"}`);
     }
+    if (options.deliveryPostalCode && options.deliveryCountry) {
+      filters.push(`deliveryPostalCode:${options.deliveryPostalCode}`);
+      filters.push(`deliveryCountry:${options.deliveryCountry}`);
+    }
+    if (options.pickupPostalCode && options.pickupCountry && options.pickupRadius && options.pickupRadiusUnit) {
+      filters.push("deliveryOptions:{SELLER_ARRANGED_LOCAL_PICKUP}");
+      filters.push(`pickupCountry:${options.pickupCountry}`);
+      filters.push(`pickupPostalCode:${options.pickupPostalCode}`);
+      filters.push(`pickupRadius:${options.pickupRadius}`);
+      filters.push(`pickupRadiusUnit:${options.pickupRadiusUnit}`);
+    }
     if (filters.length > 0) {
       url.searchParams.set("filter", filters.join(","));
     }
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${await this.getApplicationAccessToken()}`,
+      "X-EBAY-C-MARKETPLACE-ID": options.marketplaceId ?? config.marketplaceId
+    };
+    const contextualCountry = options.deliveryCountry ?? options.pickupCountry;
+    const contextualPostalCode = options.deliveryPostalCode ?? options.pickupPostalCode;
+    if (contextualCountry && contextualPostalCode) {
+      headers["X-EBAY-C-ENDUSERCTX"] =
+        `contextualLocation=country=${contextualCountry},zip=${encodeURIComponent(contextualPostalCode)}`;
+    }
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${await this.getApplicationAccessToken()}`,
-        "X-EBAY-C-MARKETPLACE-ID": options.marketplaceId ?? config.marketplaceId
-      }
-    });
+    const response = await fetchWithTimeout(
+      url,
+      { headers },
+      options.timeoutMs ?? config.searchTimeoutMs,
+      "eBay search timed out."
+    );
 
     if (!response.ok) {
       throw new ExternalServiceError(`eBay search failed with status ${response.status}.`);
@@ -248,14 +296,16 @@ export class EbayProvider implements MarketplaceProvider {
 
     const config = getMarketplaceConfig().ebay;
     const baseUrl = endpointBaseByEnvironment[config.environment];
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${baseUrl}/buy/browse/v1/item/${encodeURIComponent(trimmedItemId)}`,
       {
         headers: {
           Authorization: `Bearer ${await this.getApplicationAccessToken()}`,
           "X-EBAY-C-MARKETPLACE-ID": options.marketplaceId ?? config.marketplaceId
         }
-      }
+      },
+      config.searchTimeoutMs,
+      "eBay item detail request timed out."
     );
 
     if (!response.ok) {
@@ -307,17 +357,22 @@ export class EbayProvider implements MarketplaceProvider {
     }
 
     const baseUrl = endpointBaseByEnvironment[config.environment];
-    const response = await fetch(`${baseUrl}/identity/v1/oauth2/token`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded"
+    const response = await fetchWithTimeout(
+      `${baseUrl}/identity/v1/oauth2/token`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          scope: defaultScope
+        })
       },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        scope: defaultScope
-      })
-    });
+      Math.min(config.searchTimeoutMs, ebayTokenTimeoutMs),
+      "eBay token request timed out."
+    );
 
     if (!response.ok) {
       throw new ExternalServiceError(`eBay token request failed with status ${response.status}.`);
