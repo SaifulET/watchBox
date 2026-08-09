@@ -1,19 +1,30 @@
 import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
-import { AppError, ExternalServiceError } from "../../../common/errors/app-error.js";
+import {
+  AppError,
+  ConflictError,
+  ExternalServiceError,
+  ResourceNotFoundError
+} from "../../../common/errors/app-error.js";
 import { createAiProvider } from "../../../infrastructure/external/ai/ai-provider.js";
 import { EbayProvider } from "../../../infrastructure/external/ebay/ebay-provider.js";
 import { NominatimGeocodingProvider } from "../../../infrastructure/external/geocoding/geocoding-provider.js";
 import type {
+  EbayInventoryItemInput,
+  EbayPublishInventoryListingResult,
   MarketplaceListing,
   MarketplaceListingDetails,
   MarketplaceSearchOptions
 } from "../../../infrastructure/external/ebay/ebay-provider.js";
-import { GeneratedApiRecordModel } from "../../generated-api/generated-api.model.js";
+import {
+  GeneratedApiRecordModel,
+  type GeneratedApiRecordDocument
+} from "../../generated-api/generated-api.model.js";
 import type {
   EbayAnalyticsQuery,
   EbayLocationSearchInput,
   EbayMarketInsightsQuery,
-  EbaySearchQuery
+  EbaySearchQuery,
+  EbayShareListingInput
 } from "./marketplaces.validation.js";
 
 type PriceStats = {
@@ -78,6 +89,102 @@ const searchTextFromRecord = (data: Record<string, unknown>): string | null =>
     : null) ??
   stringValue(data.query) ??
   stringValue(data.generatedTitle);
+
+const numericValue = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const truncate = (value: string, maxLength: number): string =>
+  value.length <= maxLength ? value : value.slice(0, maxLength).trim();
+
+const firstString = (data: Record<string, unknown>, keys: string[]): string | null => {
+  for (const key of keys) {
+    const value = stringValue(data[key]);
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+};
+
+const firstPrice = (data: Record<string, unknown>): number | null => {
+  for (const key of ["price", "amount", "listingPrice", "salePrice"]) {
+    const value = numericValue(data[key]);
+    if (value !== null && value > 0) {
+      return value;
+    }
+  }
+  return null;
+};
+
+const imageUrlFromValue = (value: unknown): string | null => {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return firstString(value as Record<string, unknown>, ["url", "imageUrl", "src"]);
+  }
+  return null;
+};
+
+const listingImageUrls = (data: Record<string, unknown>): string[] => {
+  const urls = new Set<string>();
+  for (const key of ["image", "imageUrl", "thumbnailUrl"]) {
+    const url = imageUrlFromValue(data[key]);
+    if (url) {
+      urls.add(url);
+    }
+  }
+  if (Array.isArray(data.images)) {
+    for (const image of data.images) {
+      const url = imageUrlFromValue(image);
+      if (url) {
+        urls.add(url);
+      }
+    }
+  }
+  return Array.from(urls).slice(0, 12);
+};
+
+const addAspect = (aspects: Record<string, string[]>, name: string, value: string | null): void => {
+  if (value) {
+    aspects[name] = [value];
+  }
+};
+
+const listingAspects = (data: Record<string, unknown>): Record<string, string[]> => {
+  const aspects: Record<string, string[]> = {};
+  addAspect(aspects, "Brand", firstString(data, ["brand", "manufacturer"]));
+  addAspect(aspects, "Model", firstString(data, ["model", "watchModel"]));
+  addAspect(aspects, "Reference Number", firstString(data, ["referenceNumber", "reference", "mpn"]));
+  addAspect(aspects, "Movement", firstString(data, ["movement"]));
+  addAspect(aspects, "Year Manufactured", firstString(data, ["productionYear", "year"]));
+  return aspects;
+};
+
+const defaultEbaySku = (listingId: string): string => `watchbox-${listingId}`.slice(0, 80);
+
+const ebayShareHistoryMetadata = (
+  result: EbayPublishInventoryListingResult,
+  environment: "sandbox" | "production"
+) => ({
+  marketplace: "ebay",
+  environment,
+  marketplaceId: result.marketplaceId,
+  sku: result.sku,
+  offerId: result.offerId,
+  listingId: result.listingId,
+  listingUrl: result.listingUrl,
+  published: result.published,
+  sharedAt: new Date().toISOString()
+});
 
 const titleWords = (title: string): string[] => title.split(/\s+/).map((word) => word.trim()).filter(Boolean);
 
@@ -311,6 +418,56 @@ export class MarketplaceService {
     return { connected: true };
   }
 
+  public async shareListingToEbay(
+    userId: string,
+    listingId: string,
+    input: EbayShareListingInput
+  ) {
+    const listing = await this.requireOwnedListing(userId, listingId);
+    const ebayItem = this.ebayInventoryItemFromListing(listing, input);
+    const result = await this.ebay.publishInventoryListing(ebayItem, {
+      sellerAccessToken: input.sellerAccessToken,
+      publish: input.publish
+    });
+    const metadata = ebayShareHistoryMetadata(result, getMarketplaceConfig().ebay.environment);
+    const marketplaceShares =
+      typeof listing.data.marketplaceShares === "object" &&
+      listing.data.marketplaceShares !== null &&
+      !Array.isArray(listing.data.marketplaceShares)
+        ? (listing.data.marketplaceShares as Record<string, unknown>)
+        : {};
+
+    await GeneratedApiRecordModel.findByIdAndUpdate(listing._id, {
+      $set: {
+        "data.marketplaceShares": {
+          ...marketplaceShares,
+          ebay: metadata
+        }
+      },
+      $push: {
+        history: {
+          action: result.published ? "listings.ebay.published" : "listings.ebay.offer-created",
+          actorId: userId,
+          actorType: "customer",
+          at: new Date(),
+          metadata
+        }
+      }
+    });
+
+    return {
+      listingId,
+      marketplace: "ebay",
+      environment: metadata.environment,
+      marketplaceId: result.marketplaceId,
+      sku: result.sku,
+      offerId: result.offerId,
+      ebayListingId: result.listingId,
+      ebayListingUrl: result.listingUrl,
+      published: result.published
+    };
+  }
+
   public async ebayMarketInsights(query: EbayMarketInsightsQuery) {
     const config = getMarketplaceConfig().ebay;
     const marketplaceId = query.marketplaceId ?? config.marketplaceId;
@@ -523,6 +680,64 @@ export class MarketplaceService {
         reasoning: error instanceof AppError ? error.message : null
       };
     }
+  }
+
+  private async requireOwnedListing(
+    userId: string,
+    listingId: string
+  ): Promise<GeneratedApiRecordDocument> {
+    const listing = await GeneratedApiRecordModel.findOne({
+      _id: listingId,
+      resource: "listings",
+      ownerId: userId,
+      deletedAt: null
+    });
+    if (!listing) {
+      throw new ResourceNotFoundError("Listing not found.");
+    }
+    return listing;
+  }
+
+  private ebayInventoryItemFromListing(
+    listing: GeneratedApiRecordDocument,
+    input: EbayShareListingInput
+  ): EbayInventoryItemInput {
+    const title = firstString(listing.data, ["title", "name", "generatedTitle"]);
+    if (!title) {
+      throw new ConflictError("Listing title is required before sharing to eBay.");
+    }
+    const price = input.price ?? firstPrice(listing.data);
+    if (price === null || price <= 0) {
+      throw new ConflictError("Listing price is required before sharing to eBay.");
+    }
+
+    const description =
+      firstString(listing.data, ["description", "details", "summary"]) ??
+      `${title} listed from WatchBox.`;
+    const item: EbayInventoryItemInput = {
+      sku: input.sku ?? defaultEbaySku(listing._id.toString()),
+      title: truncate(title, 80),
+      description,
+      price,
+      currency: input.currency,
+      quantity: input.quantity,
+      condition: input.condition,
+      categoryId: input.categoryId,
+      merchantLocationKey: input.merchantLocationKey,
+      fulfillmentPolicyId: input.fulfillmentPolicyId,
+      paymentPolicyId: input.paymentPolicyId,
+      returnPolicyId: input.returnPolicyId,
+      format: input.format,
+      imageUrls: listingImageUrls(listing.data),
+      aspects: listingAspects(listing.data)
+    };
+    if (input.marketplaceId) {
+      item.marketplaceId = input.marketplaceId;
+    }
+    if (input.listingDuration) {
+      item.listingDuration = input.listingDuration;
+    }
+    return item;
   }
 
   private async marketInsightQuery(query: string | undefined): Promise<{ query: string; searchCount: number }> {

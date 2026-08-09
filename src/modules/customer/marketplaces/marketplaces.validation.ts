@@ -88,3 +88,30 @@ export const ebayMarketInsightsQuerySchema = z.object({
 });
 
 export type EbayMarketInsightsQuery = z.infer<typeof ebayMarketInsightsQuerySchema>;
+
+export const ebayShareListingParamsSchema = z.object({
+  listingId: z.string().trim().min(1).max(120)
+});
+
+export const ebayShareListingBodySchema = z
+  .object({
+    sellerAccessToken: z.string().trim().min(1),
+    sku: z.string().trim().min(1).max(80).optional(),
+    categoryId: z.string().trim().min(1).max(32),
+    merchantLocationKey: z.string().trim().min(1).max(64),
+    fulfillmentPolicyId: z.string().trim().min(1).max(64),
+    paymentPolicyId: z.string().trim().min(1).max(64),
+    returnPolicyId: z.string().trim().min(1).max(64),
+    marketplaceId: z.string().trim().min(3).max(32).optional(),
+    condition: z.string().trim().min(1).max(64).default("USED_EXCELLENT"),
+    quantity: z.coerce.number().int().min(1).max(999).default(1),
+    price: z.coerce.number().positive().optional(),
+    currency: z.string().trim().length(3).default("USD"),
+    publish: z.boolean().default(true),
+    listingDuration: z.string().trim().min(1).max(32).optional(),
+    format: z.enum(["FIXED_PRICE", "AUCTION"]).default("FIXED_PRICE")
+  })
+  .strict();
+
+export type EbayShareListingParams = z.infer<typeof ebayShareListingParamsSchema>;
+export type EbayShareListingInput = z.infer<typeof ebayShareListingBodySchema>;

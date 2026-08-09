@@ -10,6 +10,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete process.env.EBAY_CLIENT_ID;
   delete process.env.EBAY_CLIENT_SECRET;
+  delete process.env.EBAY_API_BASE_URL;
+  delete process.env.EBAY_RUNAME;
   delete process.env.EBAY_ENVIRONMENT;
   delete process.env.EBAY_MARKETPLACE_ID;
   delete process.env.AI_PROVIDER;
@@ -20,6 +22,16 @@ afterEach(() => {
   delete process.env.EMAIL_PROVIDER;
   resetEnvForTests();
 });
+
+const configureSandboxEbay = (): void => {
+  process.env.EBAY_CLIENT_ID = "client-id";
+  process.env.EBAY_CLIENT_SECRET = "client-secret";
+  process.env.EBAY_API_BASE_URL = "https://api.sandbox.ebay.com";
+  process.env.EBAY_RUNAME = "Watchbox-Watchbox-SBX-runame";
+  process.env.EBAY_ENVIRONMENT = "sandbox";
+  process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+  resetEnvForTests();
+};
 
 describe("local provider adapters", () => {
   it("analyzes watch images deterministically", async () => {
@@ -57,11 +69,7 @@ describe("local provider adapters", () => {
   });
 
   it("searches eBay listings with an application token", async () => {
-    process.env.EBAY_CLIENT_ID = "client-id";
-    process.env.EBAY_CLIENT_SECRET = "client-secret";
-    process.env.EBAY_ENVIRONMENT = "sandbox";
-    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
-    resetEnvForTests();
+    configureSandboxEbay();
 
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -131,15 +139,131 @@ describe("local provider adapters", () => {
     });
   });
 
+  it("creates and publishes an eBay inventory listing with a seller token", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ offerId: "offer-123" }), {
+          status: 201
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ listingId: "9876543210" }), {
+          status: 200
+        })
+      );
+
+    const provider = new EbayProvider();
+    const result = await provider.publishInventoryListing(
+      {
+        sku: "watchbox-listing-1",
+        title: "Rolex Submariner",
+        description: "Pre-owned Rolex Submariner",
+        price: 12500,
+        currency: "USD",
+        quantity: 1,
+        condition: "USED_EXCELLENT",
+        categoryId: "31387",
+        merchantLocationKey: "warehouse-1",
+        fulfillmentPolicyId: "fulfillment-policy",
+        paymentPolicyId: "payment-policy",
+        returnPolicyId: "return-policy",
+        imageUrls: ["https://cdn.example.test/watch.jpg"],
+        aspects: {
+          Brand: ["Rolex"],
+          Model: ["Submariner"]
+        }
+      },
+      {
+        sellerAccessToken: "seller-token"
+      }
+    );
+
+    expect(result).toEqual({
+      sku: "watchbox-listing-1",
+      marketplaceId: "EBAY_US",
+      offerId: "offer-123",
+      listingId: "9876543210",
+      listingUrl: "https://www.ebay.com/itm/9876543210",
+      published: true
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.sandbox.ebay.com/sell/inventory/v1/inventory_item/watchbox-listing-1"
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "PUT",
+      headers: {
+        Authorization: "Bearer seller-token",
+        "Content-Type": "application/json",
+        "Content-Language": "en-US"
+      }
+    });
+    const rawOfferBody = fetchMock.mock.calls[1]?.[1]?.body;
+    const offerBody = JSON.parse(typeof rawOfferBody === "string" ? rawOfferBody : "{}") as Record<string, unknown>;
+    expect(offerBody).toMatchObject({
+      sku: "watchbox-listing-1",
+      marketplaceId: "EBAY_US",
+      categoryId: "31387",
+      pricingSummary: {
+        price: {
+          value: "12500.00",
+          currency: "USD"
+        }
+      },
+      listingPolicies: {
+        fulfillmentPolicyId: "fulfillment-policy",
+        paymentPolicyId: "payment-policy",
+        returnPolicyId: "return-policy"
+      }
+    });
+    expect(fetchMock.mock.calls[2]?.[0]).toBe(
+      "https://api.sandbox.ebay.com/sell/inventory/v1/offer/offer-123/publish"
+    );
+  });
+
+  it("builds eBay seller OAuth URLs and exchanges authorization codes", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          access_token: "seller-access-token",
+          expires_in: 7200,
+          refresh_token: "seller-refresh-token",
+          refresh_token_expires_in: 47304000
+        }),
+        { status: 200 }
+      )
+    );
+
+    const provider = new EbayProvider();
+    const consentUrl = new URL(provider.oauthConsentUrl("signed-state"));
+    expect(consentUrl.origin).toBe("https://auth.sandbox.ebay.com");
+    expect(consentUrl.searchParams.get("redirect_uri")).toBe("Watchbox-Watchbox-SBX-runame");
+    expect(consentUrl.searchParams.get("scope")).toContain("sell.inventory");
+
+    const tokenSet = await provider.exchangeAuthorizationCode("authorization-code");
+
+    expect(tokenSet).toMatchObject({
+      accessToken: "seller-access-token",
+      refreshToken: "seller-refresh-token"
+    });
+    const tokenRequestBody = fetchMock.mock.calls[0]?.[1]?.body;
+    expect(tokenRequestBody).toBeInstanceOf(URLSearchParams);
+    expect((tokenRequestBody as URLSearchParams).get("grant_type")).toBe("authorization_code");
+    expect((tokenRequestBody as URLSearchParams).get("redirect_uri")).toBe("Watchbox-Watchbox-SBX-runame");
+  });
+
   it("normalizes short watch queries for direct eBay marketplace search through AI", async () => {
+    configureSandboxEbay();
     process.env.AI_PROVIDER = "http";
     process.env.AI_SERVICE_URL = "https://api.openai.com/v1";
     process.env.AI_SERVICE_TOKEN = "ai-token";
     process.env.AI_MODEL = "vision-model";
-    process.env.EBAY_CLIENT_ID = "client-id";
-    process.env.EBAY_CLIENT_SECRET = "client-secret";
-    process.env.EBAY_ENVIRONMENT = "sandbox";
-    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
     resetEnvForTests();
 
     const fetchMock = vi
@@ -189,11 +313,7 @@ describe("local provider adapters", () => {
   });
 
   it("builds eBay market analytics from active listing samples", async () => {
-    process.env.EBAY_CLIENT_ID = "client-id";
-    process.env.EBAY_CLIENT_SECRET = "client-secret";
-    process.env.EBAY_ENVIRONMENT = "sandbox";
-    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
-    resetEnvForTests();
+    configureSandboxEbay();
 
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
