@@ -15,7 +15,7 @@ export type RouteDependencies = HealthRouteDependencies & {
 export const registerRoutes = (app: Express, dependencies: RouteDependencies = {}): void => {
   const env = getEnv();
   app.use("/health", createHealthRouter(dependencies));
-  app.use(env.API_PREFIX, createCustomerRouter(dependencies));
   app.use(`${env.API_PREFIX}/admin`, createAdminRouter(dependencies));
+  app.use(env.API_PREFIX, createCustomerRouter(dependencies));
   app.use("/internal", createInternalRouter());
 };

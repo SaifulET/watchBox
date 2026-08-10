@@ -32,6 +32,8 @@ export type AdminAccount = {
   permissions: string[];
   roles: string[];
   mfaEnabled: boolean;
+  avatarKey?: string;
+  avatarUrl?: string;
   lastLoginAt?: Date;
   deletedAt?: Date;
   createdAt: Date;
@@ -103,6 +105,8 @@ const adminAccountSchema = new Schema<AdminAccount>(
     permissions: { type: [String], default: [] },
     roles: { type: [String], default: [] },
     mfaEnabled: { type: Boolean, default: false },
+    avatarKey: { type: String, trim: true },
+    avatarUrl: { type: String, trim: true },
     lastLoginAt: Date,
     deletedAt: Date
   },

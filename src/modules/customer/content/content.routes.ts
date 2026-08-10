@@ -1,8 +1,10 @@
 import { Router } from "express";
-import { authenticate, requirePermissions } from "../../../common/auth/authenticate.js";
+import { authenticate } from "../../../common/auth/authenticate.js";
+import { AuthorizationError } from "../../../common/errors/app-error.js";
 import { asyncHandler } from "../../../common/middleware/async-handler.js";
 import { requireSingleImage } from "../../../common/middleware/image-upload.js";
 import { validate } from "../../../common/middleware/validate.js";
+import type { RequestHandler } from "express";
 import { ContentController } from "./content.controller.js";
 import { ContentService } from "./content.service.js";
 import { contentParamsSchema, contentUpsertBodySchema } from "./content.validation.js";
@@ -19,23 +21,30 @@ export const createPublicContentRouter = (): Router => {
 export const createAdminContentRouter = (): Router => {
   const router = Router();
   const controller = new ContentController(new ContentService());
-  const adminAuth = [authenticate("admin"), requirePermissions("admin:settings")];
+  const adminReadAuth = [
+    authenticate("admin"),
+    requireAnyPermission("admin:settings", "settings.read", "settings.update", "legal.update")
+  ];
+  const adminWriteAuth = [
+    authenticate("admin"),
+    requireAnyPermission("admin:settings", "settings.update", "legal.update")
+  ];
   const imageUpload = requireSingleImage(["image", "file", "photo"]);
 
-  router.get("/pages", ...adminAuth, asyncHandler(controller.listPages));
-  router.get("/pages/", ...adminAuth, asyncHandler(controller.listPages));
-  router.post("/images", ...adminAuth, imageUpload, asyncHandler(controller.uploadImage));
-  router.get("/pages/:slug", ...adminAuth, validate({ params: contentParamsSchema }), asyncHandler(controller.getPage));
+  router.get("/pages", ...adminReadAuth, asyncHandler(controller.listPages));
+  router.get("/pages/", ...adminReadAuth, asyncHandler(controller.listPages));
+  router.post("/images", ...adminWriteAuth, imageUpload, asyncHandler(controller.uploadImage));
+  router.get("/pages/:slug", ...adminReadAuth, validate({ params: contentParamsSchema }), asyncHandler(controller.getPage));
   router.post(
     "/pages/:slug",
-    ...adminAuth,
+    ...adminWriteAuth,
     imageUpload,
     validate({ params: contentParamsSchema, body: contentUpsertBodySchema }),
     asyncHandler(controller.createPage)
   );
   router.patch(
     "/pages/:slug",
-    ...adminAuth,
+    ...adminWriteAuth,
     imageUpload,
     validate({ params: contentParamsSchema, body: contentUpsertBodySchema }),
     asyncHandler(controller.updatePage)
@@ -43,3 +52,14 @@ export const createAdminContentRouter = (): Router => {
 
   return router;
 };
+
+const requireAnyPermission =
+  (...permissions: string[]): RequestHandler =>
+  (req, _res, next) => {
+    const hasPermission = permissions.some((permission) => req.auth?.permissions.includes(permission));
+    if (!hasPermission) {
+      next(new AuthorizationError());
+      return;
+    }
+    next();
+  };

@@ -7,6 +7,12 @@ export type EmailMessage = {
   subject: string;
   html: string;
   text?: string;
+  attachments?: Array<{
+    filename: string;
+    content?: Buffer;
+    contentType?: string;
+    cid?: string;
+  }>;
 };
 
 export interface EmailProvider {
@@ -48,7 +54,8 @@ export class NodemailerEmailProvider implements EmailProvider {
       to: message.to,
       subject: message.subject,
       html: message.html,
-      text: message.text
+      text: message.text,
+      attachments: message.attachments
     })) as unknown;
     const result = rawResult as { messageId?: string };
 

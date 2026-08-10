@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { sendSuccess } from "../common/utils/api-response.js";
+import { createAdministratorsRouter } from "../modules/admin/administrators/administrators.routes.js";
 import { createAdminAuthRouter } from "../modules/admin/auth/auth.routes.js";
+import { createBulkEmailRouter } from "../modules/admin/bulk-email/bulk-email.routes.js";
+import { createAdminUsersRouter } from "../modules/admin/users/admin-users.routes.js";
 import type { RouteDependencies } from "./index.js";
 
 export const createAdminRouter = (dependencies: RouteDependencies = {}): Router => {
@@ -14,6 +17,9 @@ export const createAdminRouter = (dependencies: RouteDependencies = {}): Router 
   });
 
   router.use("/auth", createAdminAuthRouter(dependencies));
+  router.use("/administrators", createAdministratorsRouter(dependencies));
+  router.use("/bulk-email", createBulkEmailRouter(dependencies));
+  router.use("/users", createAdminUsersRouter(dependencies));
 
   return router;
 };
