@@ -1,10 +1,21 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { AuthenticationError, ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
+import {
+  AuthenticationError,
+  ConflictError,
+  ResourceNotFoundError
+} from "../../../common/errors/app-error.js";
 import { getEnv } from "../../../config/env.js";
 import { getPaymentConfig } from "../../../config/payment.config.js";
-import { LocalPaymentProvider, StripePaymentProvider, type PaymentProvider } from "../../../infrastructure/external/stripe/stripe-provider.js";
+import {
+  LocalPaymentProvider,
+  StripePaymentProvider,
+  type PaymentProvider
+} from "../../../infrastructure/external/stripe/stripe-provider.js";
 import { CustomerAccountModel } from "../auth/auth.model.js";
-import { GeneratedApiRecordModel, type GeneratedApiRecordDocument } from "../../generated-api/generated-api.model.js";
+import {
+  GeneratedApiRecordModel,
+  type GeneratedApiRecordDocument
+} from "../../generated-api/generated-api.model.js";
 import type { CheckoutInput, PortalInput } from "./subscriptions.validation.js";
 
 type StripeEvent = {
@@ -37,10 +48,7 @@ const standardPlan = {
   price: 0,
   currency: "USD",
   interval: "forever",
-  features: [
-    "5 Monthly Reference Searches",
-    "3 Months Historical Indexing"
-  ]
+  features: ["5 Monthly Reference Searches", "3 Months Historical Indexing"]
 };
 
 const stringValue = (value: unknown): string | undefined =>
@@ -64,7 +72,11 @@ export class SubscriptionsService {
   private readonly payments: PaymentProvider;
 
   public constructor(paymentProvider?: PaymentProvider) {
-    this.payments = paymentProvider ?? (getPaymentConfig().stripeSecretKey ? new StripePaymentProvider() : new LocalPaymentProvider());
+    this.payments =
+      paymentProvider ??
+      (getPaymentConfig().stripeSecretKey
+        ? new StripePaymentProvider()
+        : new LocalPaymentProvider());
   }
 
   public plans() {
@@ -90,16 +102,24 @@ export class SubscriptionsService {
       throw new ResourceNotFoundError("User not found.");
     }
     const subscription = await this.subscriptionForUser(userId);
-    const stripeCustomerId = stringValue(subscription?.data.stripeCustomerId) ??
-      (await this.payments.createCustomer({
-        email: account.email,
-        name: account.displayName,
-        metadata: { userId }
-      })).id;
-    await this.upsertSubscription(userId, {
-      plan: subscription?.data.plan ?? "standard",
-      stripeCustomerId
-    }, "customer-subscriptions.customer-linked", "active");
+    const stripeCustomerId =
+      stringValue(subscription?.data.stripeCustomerId) ??
+      (
+        await this.payments.createCustomer({
+          email: account.email,
+          name: account.displayName,
+          metadata: { userId }
+        })
+      ).id;
+    await this.upsertSubscription(
+      userId,
+      {
+        plan: subscription?.data.plan ?? "standard",
+        stripeCustomerId
+      },
+      "customer-subscriptions.customer-linked",
+      "active"
+    );
     const session = await this.payments.createCheckoutSession({
       customerId: stripeCustomerId,
       priceId: config.stripeElitePriceId,
@@ -131,7 +151,11 @@ export class SubscriptionsService {
     });
   }
 
-  public async handleStripeWebhook(rawBody: Buffer | undefined, signature: string | undefined, parsedBody: unknown) {
+  public async handleStripeWebhook(
+    rawBody: Buffer | undefined,
+    signature: string | undefined,
+    parsedBody: unknown
+  ) {
     const event = this.verifyStripeEvent(rawBody, signature, parsedBody);
     const existingEvent = await GeneratedApiRecordModel.findOne({
       resource: "stripe-events",
@@ -159,10 +183,18 @@ export class SubscriptionsService {
     return { received: true, duplicate: false, eventId: event.id, type: event.type };
   }
 
-  private verifyStripeEvent(rawBody: Buffer | undefined, signature: string | undefined, parsedBody: unknown): StripeEvent {
+  private verifyStripeEvent(
+    rawBody: Buffer | undefined,
+    signature: string | undefined,
+    parsedBody: unknown
+  ): StripeEvent {
     const config = getPaymentConfig();
     if (!config.stripeWebhookSecret) {
-      if (getEnv().NODE_ENV !== "production" && typeof parsedBody === "object" && parsedBody !== null) {
+      if (
+        getEnv().NODE_ENV !== "production" &&
+        typeof parsedBody === "object" &&
+        parsedBody !== null
+      ) {
         return parsedBody as StripeEvent;
       }
       throw new AuthenticationError("Stripe webhook secret is required.");
@@ -170,8 +202,14 @@ export class SubscriptionsService {
     if (!rawBody || !signature) {
       throw new AuthenticationError("Stripe webhook signature is required.");
     }
-    const timestamp = signature.split(",").find((part) => part.startsWith("t="))?.slice(2);
-    const signatureValue = signature.split(",").find((part) => part.startsWith("v1="))?.slice(3);
+    const timestamp = signature
+      .split(",")
+      .find((part) => part.startsWith("t="))
+      ?.slice(2);
+    const signatureValue = signature
+      .split(",")
+      .find((part) => part.startsWith("v1="))
+      ?.slice(3);
     if (!timestamp || !signatureValue) {
       throw new AuthenticationError("Stripe webhook signature is invalid.");
     }
@@ -180,7 +218,10 @@ export class SubscriptionsService {
       .digest("hex");
     const expectedBuffer = Buffer.from(expected, "hex");
     const actualBuffer = Buffer.from(signatureValue, "hex");
-    if (expectedBuffer.length !== actualBuffer.length || !timingSafeEqual(expectedBuffer, actualBuffer)) {
+    if (
+      expectedBuffer.length !== actualBuffer.length ||
+      !timingSafeEqual(expectedBuffer, actualBuffer)
+    ) {
       throw new AuthenticationError("Stripe webhook signature is invalid.");
     }
     return JSON.parse(rawBody.toString("utf8")) as StripeEvent;
@@ -205,29 +246,41 @@ export class SubscriptionsService {
     if (!userId) {
       return;
     }
-    await this.upsertSubscription(userId, {
-      plan: "elite_collector",
-      stripeCustomerId: stringValue(object.customer),
-      stripeSubscriptionId: stringValue(object.subscription),
-      checkoutSessionId: stringValue(object.id)
-    }, "customer-subscriptions.checkout-completed", "active");
+    await this.upsertSubscription(
+      userId,
+      {
+        plan: "elite_collector",
+        stripeCustomerId: stringValue(object.customer),
+        stripeSubscriptionId: stringValue(object.subscription),
+        checkoutSessionId: stringValue(object.id)
+      },
+      "customer-subscriptions.checkout-completed",
+      "active"
+    );
   }
 
   private async applySubscription(object: Record<string, unknown>, type: string): Promise<void> {
-    const userId = this.metadataValue(object, "userId") ?? await this.userIdFromStripeCustomer(stringValue(object.customer));
+    const userId =
+      this.metadataValue(object, "userId") ??
+      (await this.userIdFromStripeCustomer(stringValue(object.customer)));
     if (!userId) {
       return;
     }
     const status = stringValue(object.status) ?? "active";
     const deleted = type === "customer.subscription.deleted";
-    await this.upsertSubscription(userId, {
-      plan: deleted ? "standard" : "elite_collector",
-      stripeCustomerId: stringValue(object.customer),
-      stripeSubscriptionId: stringValue(object.id),
-      stripeStatus: status,
-      currentPeriodEnd: this.stripeTimestamp(object.current_period_end),
-      cancelAtPeriodEnd: Boolean(object.cancel_at_period_end)
-    }, `customer-subscriptions.${type}`, deleted ? "active" : status);
+    await this.upsertSubscription(
+      userId,
+      {
+        plan: deleted ? "standard" : "elite_collector",
+        stripeCustomerId: stringValue(object.customer),
+        stripeSubscriptionId: stringValue(object.id),
+        stripeStatus: status,
+        currentPeriodEnd: this.stripeTimestamp(object.current_period_end),
+        cancelAtPeriodEnd: Boolean(object.cancel_at_period_end)
+      },
+      `customer-subscriptions.${type}`,
+      deleted ? "active" : status
+    );
   }
 
   private async applyInvoice(object: Record<string, unknown>, type: string): Promise<void> {
@@ -244,14 +297,26 @@ export class SubscriptionsService {
       return;
     }
     const paid = type === "invoice.paid";
-    await this.upsertSubscription(record.ownerId, {
-      plan: paid ? "elite_collector" : record.data.plan,
-      stripeCustomerId: stringValue(object.customer),
-      stripeSubscriptionId: subscriptionId,
-      lastInvoiceId: stringValue(object.id),
-      lastInvoiceStatus: stringValue(object.status),
-      lastPaymentAt: paid ? new Date().toISOString() : record.data.lastPaymentAt
-    }, `customer-subscriptions.${type}`, paid ? "active" : "past_due");
+    await this.upsertSubscription(
+      record.ownerId,
+      {
+        plan: paid ? "elite_collector" : record.data.plan,
+        stripeCustomerId: stringValue(object.customer),
+        stripeSubscriptionId: subscriptionId,
+        lastInvoiceId: stringValue(object.id),
+        lastInvoiceStatus: stringValue(object.status),
+        lastInvoiceAmount:
+          numberValue(object.amount_paid) ??
+          numberValue(object.amount_due) ??
+          numberValue(object.total) ??
+          record.data.lastInvoiceAmount,
+        lastPaymentIntentId: stringValue(object.payment_intent),
+        currency: stringValue(object.currency)?.toUpperCase() ?? record.data.currency,
+        lastPaymentAt: paid ? new Date().toISOString() : record.data.lastPaymentAt
+      },
+      `customer-subscriptions.${type}`,
+      paid ? "active" : "past_due"
+    );
   }
 
   private metadataValue(object: Record<string, unknown>, key: string): string | undefined {
@@ -266,7 +331,9 @@ export class SubscriptionsService {
     return timestamp ? new Date(timestamp * 1000).toISOString() : undefined;
   }
 
-  private async userIdFromStripeCustomer(stripeCustomerId: string | undefined): Promise<string | undefined> {
+  private async userIdFromStripeCustomer(
+    stripeCustomerId: string | undefined
+  ): Promise<string | undefined> {
     if (!stripeCustomerId) {
       return undefined;
     }
@@ -287,7 +354,12 @@ export class SubscriptionsService {
     });
   }
 
-  private async upsertSubscription(userId: string, data: Record<string, unknown>, action: string, status: string): Promise<void> {
+  private async upsertSubscription(
+    userId: string,
+    data: Record<string, unknown>,
+    action: string,
+    status: string
+  ): Promise<void> {
     const existing = await this.subscriptionForUser(userId);
     const nextData = {
       ...(existing?.data ?? {}),

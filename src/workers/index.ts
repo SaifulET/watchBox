@@ -4,8 +4,10 @@ import { getDatabaseConfig } from "../config/database.config.js";
 import { getRabbitMqConfig } from "../config/rabbitmq.config.js";
 import { createLogger } from "../common/utils/logger.js";
 import { createRedisClient } from "../infrastructure/redis/client.js";
+import { bulkEmailCampaignQueue } from "../modules/admin/bulk-email/bulk-email.service.js";
 import { WatchAlertsService } from "../modules/customer/watch-alerts/watch-alerts.service.js";
 import { workerQueues } from "./consumers/queue-catalogue.js";
+import { registerBulkEmailCampaignConsumer } from "./jobs/bulk-email-campaign.consumer.js";
 
 const alertCheckIntervalMs = 20 * 60 * 1000;
 
@@ -23,12 +25,18 @@ export const bootstrapWorker = async (): Promise<{ stop: () => Promise<void> }> 
   await channel.assertExchange(rabbitConfig.domainExchange, "topic", { durable: true });
   await channel.assertExchange(rabbitConfig.jobExchange, "topic", { durable: true });
   await channel.assertExchange(rabbitConfig.deadLetterExchange, "topic", { durable: true });
-  await Promise.all(workerQueues.map((queue) => channel.assertQueue(queue, { durable: true })));
+  await Promise.all(
+    workerQueues
+      .filter((queue) => queue !== bulkEmailCampaignQueue)
+      .map((queue) => channel.assertQueue(queue, { durable: true }))
+  );
+  await registerBulkEmailCampaignConsumer(channel, rabbit, logger);
 
   logger.info({ queues: workerQueues.length }, "WatchBox worker started");
   const alerts = new WatchAlertsService();
   const runAlertCheck = (): void => {
-    void alerts.checkAllActiveAlerts()
+    void alerts
+      .checkAllActiveAlerts()
       .then((result) => {
         logger.info(result, "Watch alert check completed");
       })

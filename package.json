@@ -13,6 +13,7 @@
   "scripts": {
     "predev": "tsx scripts/ensure-local-env.ts",
     "dev": "tsx watch src/server.ts",
+    "dev:worker": "tsx watch src/workers/run.ts",
     "dev:deps": "docker compose -f docker-compose.dev.yml up -d",
     "dev:deps:down": "docker compose -f docker-compose.dev.yml down",
     "dev:deps:logs": "docker compose -f docker-compose.dev.yml logs -f",

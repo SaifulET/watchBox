@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
 import type { DomainEventPublisher } from "../../../common/services/domain-event-publisher.js";
+import type { JobPublisher } from "../../../common/services/job-publisher.js";
 import type { EmailProvider } from "../../../infrastructure/external/email/email-provider.js";
 import { uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import { AdminAccountModel, CustomerAccountModel } from "../../customer/auth/auth.model.js";
@@ -17,6 +18,7 @@ import type {
 type BulkEmailServiceDependencies = {
   events: DomainEventPublisher;
   email: EmailProvider;
+  jobs?: JobPublisher;
 };
 
 type RecipientSnapshot = {
@@ -36,6 +38,9 @@ type ParsedRecipientId = {
   accountType: "customer" | "admin";
   id: string;
 };
+
+export const bulkEmailCampaignSendJobType = "bulk-email.campaign.send";
+export const bulkEmailCampaignQueue = "watchbox.bulk-email.campaigns";
 
 const defaultTemplates = [
   {
@@ -153,7 +158,10 @@ export class BulkEmailService {
         id: recipientPublicId("customer", customer._id.toString()),
         name: customer.displayName,
         email: customer.email,
-        status: customer.status === "active" && !customer.emailVerified ? "TRIAL" : customer.status.toUpperCase(),
+        status:
+          customer.status === "active" && !customer.emailVerified
+            ? "TRIAL"
+            : customer.status.toUpperCase(),
         role: "User",
         accountType: "customer" as const,
         createdAt: customer.createdAt
@@ -254,6 +262,74 @@ export class BulkEmailService {
     if (campaign.status === "sent") {
       throw new ConflictError("This campaign has already been sent.");
     }
+    if (campaign.status === "queued" || campaign.status === "sending") {
+      throw new ConflictError("This campaign is already queued for sending.");
+    }
+    if (!this.dependencies.jobs?.isAvailable()) {
+      throw new ConflictError("Email worker queue is unavailable.");
+    }
+
+    const recipients = Array.isArray(campaign.data.recipients)
+      ? campaign.data.recipients.filter(isRecipientSnapshot)
+      : [];
+    if (recipients.length === 0) {
+      throw new ConflictError("Campaign has no recipients.");
+    }
+
+    const queuedAt = new Date();
+    campaign.status = "queued";
+    campaign.data = {
+      ...campaign.data,
+      queuedAt: queuedAt.toISOString(),
+      queuedBy: actorId,
+      recipientCount: recipients.length
+    };
+    campaign.history.push({
+      action: "bulk-email.campaign-queued",
+      actorId,
+      actorType: "admin",
+      at: queuedAt,
+      metadata: { recipientCount: recipients.length }
+    });
+    await campaign.save();
+
+    await this.dependencies.jobs.publish({
+      type: bulkEmailCampaignSendJobType,
+      idempotencyKey: `${bulkEmailCampaignSendJobType}:${campaign._id.toString()}`,
+      queue: {
+        name: bulkEmailCampaignQueue,
+        deadLetter: true
+      },
+      payload: {
+        campaignId: campaign._id.toString(),
+        actorId
+      }
+    });
+
+    await this.dependencies.events.publish({
+      type: "bulk-email.campaign-queued",
+      aggregateId: campaign._id.toString(),
+      payload: { actorId, recipientCount: recipients.length }
+    });
+
+    return serializeCampaign(campaign);
+  }
+
+  public async processQueuedCampaign(actorId: string, campaignId: string) {
+    const campaign = await GeneratedApiRecordModel.findOne({
+      _id: campaignId,
+      resource: "bulk-email-campaigns",
+      deletedAt: null
+    });
+    if (!campaign) {
+      throw new ResourceNotFoundError("Bulk email campaign not found.");
+    }
+    if (campaign.status === "sent" || campaign.status === "failed") {
+      return serializeCampaign(campaign);
+    }
+    if (campaign.status !== "queued" && campaign.status !== "draft") {
+      throw new ConflictError("This campaign is not ready to be sent.");
+    }
 
     const recipients = Array.isArray(campaign.data.recipients)
       ? campaign.data.recipients.filter(isRecipientSnapshot)
@@ -264,9 +340,26 @@ export class BulkEmailService {
 
     const subject = stringValue(campaign.data.subject);
     const body = stringValue(campaign.data.body);
-    const preparedEmail = this.prepareHtmlForEmail(this.withAttachmentLinks(body, campaign.data.attachments));
+    const preparedEmail = this.prepareHtmlForEmail(
+      this.withAttachmentLinks(body, campaign.data.attachments)
+    );
     const sent: Array<{ recipientId: string; providerMessageId: string }> = [];
     const failed: Array<{ recipientId: string; email: string; reason: string }> = [];
+    const startedAt = new Date();
+
+    campaign.status = "sending";
+    campaign.data = {
+      ...campaign.data,
+      startedAt: startedAt.toISOString()
+    };
+    campaign.history.push({
+      action: "bulk-email.campaign-send-started",
+      actorId,
+      actorType: "admin",
+      at: startedAt,
+      metadata: { recipientCount: recipients.length }
+    });
+    await campaign.save();
 
     for (const recipient of recipients) {
       try {
@@ -314,6 +407,24 @@ export class BulkEmailService {
     return serializeCampaign(campaign);
   }
 
+  public async recoverQueuedCampaigns(limit = 50) {
+    const campaigns = await GeneratedApiRecordModel.find({
+      resource: "bulk-email-campaigns",
+      status: "queued",
+      deletedAt: null
+    })
+      .sort({ updatedAt: 1 })
+      .limit(limit)
+      .select("_id data");
+
+    for (const campaign of campaigns) {
+      const actorId = stringValue(campaign.data.queuedBy, "worker");
+      await this.processQueuedCampaign(actorId, campaign._id.toString());
+    }
+
+    return { recoveredCount: campaigns.length };
+  }
+
   private async resolveRecipients(recipientIds: string[]): Promise<RecipientSnapshot[]> {
     const parsedIds = recipientIds.map(parseRecipientId);
     const customerIds = parsedIds
@@ -345,7 +456,10 @@ export class BulkEmailService {
         id: recipientPublicId("customer", customer._id.toString()),
         name: customer.displayName,
         email: customer.email,
-        status: customer.status === "active" && !customer.emailVerified ? "TRIAL" : customer.status.toUpperCase(),
+        status:
+          customer.status === "active" && !customer.emailVerified
+            ? "TRIAL"
+            : customer.status.toUpperCase(),
         role: "User",
         accountType: "customer" as const
       })),
@@ -384,13 +498,19 @@ export class BulkEmailService {
     html: string;
     attachments?: Array<{ filename: string; content: Buffer; contentType: string; cid: string }>;
   } {
-    const attachments: Array<{ filename: string; content: Buffer; contentType: string; cid: string }> = [];
+    const attachments: Array<{
+      filename: string;
+      content: Buffer;
+      contentType: string;
+      cid: string;
+    }> = [];
     let imageIndex = 0;
     const html = body.replace(
       /src=(["'])data:(image\/(?:gif|jpe?g|png|webp));base64,([^"']+)\1/gi,
       (_match: string, quote: string, contentType: string, base64Content: string) => {
         const lowerContentType = contentType.toLowerCase();
-        const normalizedContentType = lowerContentType === "image/jpg" ? "image/jpeg" : lowerContentType;
+        const normalizedContentType =
+          lowerContentType === "image/jpg" ? "image/jpeg" : lowerContentType;
         const cid = `bulk-email-inline-${randomUUID()}@modevin`;
         imageIndex += 1;
         attachments.push({
@@ -421,11 +541,12 @@ export class BulkEmailService {
       return body;
     }
     const links = attachments
-      .filter((attachment): attachment is { filename: string; url: string } =>
-        typeof attachment === "object" &&
-        attachment !== null &&
-        typeof (attachment as { filename?: unknown }).filename === "string" &&
-        typeof (attachment as { url?: unknown }).url === "string"
+      .filter(
+        (attachment): attachment is { filename: string; url: string } =>
+          typeof attachment === "object" &&
+          attachment !== null &&
+          typeof (attachment as { filename?: unknown }).filename === "string" &&
+          typeof (attachment as { url?: unknown }).url === "string"
       )
       .map((attachment) => `<li><a href="${attachment.url}">${attachment.filename}</a></li>`)
       .join("");
