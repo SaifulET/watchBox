@@ -74,6 +74,8 @@ const envSchema = z.object({
   AI_ANALYSIS_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
   AI_QUERY_NORMALIZATION_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   EBAY_SEARCH_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+  SCRAPINGBEE_API_KEY: z.string().default("R0IQ21IRREC2228O51IK34QGVZOPVQNQ9DNYKA6UE3IXAP2EQ3FZXKXD86I4A84VFGQHI2CK0HU76R47"),
+  CHRONO24_SEARCH_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
   ENCRYPTION_KEY: z.string().min(32).default("dev-encryption-key-32-bytes-minimum")
 });
 

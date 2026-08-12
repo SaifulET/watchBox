@@ -115,3 +115,17 @@ export const ebayShareListingBodySchema = z
 
 export type EbayShareListingParams = z.infer<typeof ebayShareListingParamsSchema>;
 export type EbayShareListingInput = z.infer<typeof ebayShareListingBodySchema>;
+
+export const chrono24SearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(160),
+  limit: z.coerce.number().int().min(1).max(200).default(20)
+});
+
+export type Chrono24SearchQuery = z.infer<typeof chrono24SearchQuerySchema>;
+
+export const chrono24MarketInsightsQuerySchema = z.object({
+  q: z.string().trim().min(1).max(160).optional(),
+  sampleLimit: z.coerce.number().int().min(5).max(50).default(20)
+});
+
+export type Chrono24MarketInsightsQuery = z.infer<typeof chrono24MarketInsightsQuerySchema>;
