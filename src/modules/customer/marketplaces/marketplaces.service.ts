@@ -6,6 +6,7 @@ import {
   ResourceNotFoundError
 } from "../../../common/errors/app-error.js";
 import { createAiProvider } from "../../../infrastructure/external/ai/ai-provider.js";
+import { Chrono24Provider } from "../../../infrastructure/external/chrono24/chrono24-provider.js";
 import { EbayProvider } from "../../../infrastructure/external/ebay/ebay-provider.js";
 import { NominatimGeocodingProvider } from "../../../infrastructure/external/geocoding/geocoding-provider.js";
 import type {
@@ -20,6 +21,8 @@ import {
   type GeneratedApiRecordDocument
 } from "../../generated-api/generated-api.model.js";
 import type {
+  Chrono24MarketInsightsQuery,
+  Chrono24SearchQuery,
   EbayAnalyticsQuery,
   EbayLocationSearchInput,
   EbayMarketInsightsQuery,
@@ -353,8 +356,80 @@ const liquidityScore = (input: {
 
 export class MarketplaceService {
   private readonly ebay = new EbayProvider();
+  private readonly chrono24 = new Chrono24Provider();
   private readonly ai = createAiProvider();
   private readonly geocoding = new NominatimGeocodingProvider();
+
+  public async searchChrono24(query: Chrono24SearchQuery) {
+    const normalized = await this.normalizeMarketplaceQuery(query.q);
+    const searchResult = await this.chrono24.searchListingsWithMetadata(normalized.query, { limit: query.limit });
+    const items = searchResult.items;
+    return {
+      query: query.q,
+      chrono24Query: normalized.query,
+      queryNormalization: normalized,
+      marketplace: "CHRONO24",
+      total: searchResult.total,
+      count: items.length,
+      items
+    };
+  }
+
+  public async chrono24MarketInsights(query: Chrono24MarketInsightsQuery) {
+    const insightQuery = await this.marketInsightQuery(query.q);
+    const result = await this.chrono24.searchListingsWithMetadata(insightQuery.query, { limit: query.sampleLimit });
+    const items = result.items;
+    const stats = priceStats(items);
+    const averagePrice = stats.average ?? 0;
+
+    const allProducts: MarketInsightProduct[] = averagePrice > 0
+      ? items.map((item) =>
+          marketInsightProduct(
+            item,
+            averagePrice,
+            `Compared with current sampled active Chrono24 market average for "${insightQuery.query}".`
+          )
+        )
+      : [];
+
+    const biggestPriceDropProduct = allProducts
+      .filter((product) => product.direction === "down")
+      .sort((left, right) => left.upDownPercentage - right.upDownPercentage)[0] ?? null;
+
+    const trendingUpwardProduct = allProducts
+      .filter((product) => product.direction === "up")
+      .sort((left, right) => right.upDownPercentage - left.upDownPercentage)[0] ?? null;
+
+    const firstProduct = allProducts[0] ?? null;
+
+    return {
+      marketplace: "CHRONO24",
+      query: insightQuery.query,
+      activeListingTotal: result.total ?? items.length,
+      marketAveragePrice: roundMoney(averagePrice),
+      medianPrice: stats.median,
+      lowestPrice: stats.lowest,
+      highestPrice: stats.highest,
+      sampleSize: stats.sampleSize,
+      mostSearchedProduct: firstProduct
+        ? {
+            ...firstProduct,
+            searchCount: insightQuery.searchCount,
+            activeListingTotal: result.total ?? items.length,
+            query: insightQuery.query,
+            basis: `WatchBox query "${insightQuery.query}" sampled on Chrono24.`
+          }
+        : null,
+      biggestPriceDropProduct,
+      trendingUpwardProduct,
+      items
+    };
+  }
+
+  public async testChrono24Connection(): Promise<{ connected: boolean }> {
+    const connected = await this.chrono24.checkConnectivity();
+    return { connected };
+  }
 
   public async searchEbay(query: EbaySearchQuery) {
     const options: Parameters<EbayProvider["searchListings"]>[1] = {

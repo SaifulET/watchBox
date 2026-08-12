@@ -5,6 +5,8 @@ import { validate } from "../../../common/middleware/validate.js";
 import { MarketplaceController } from "./marketplaces.controller.js";
 import { MarketplaceService } from "./marketplaces.service.js";
 import {
+  chrono24MarketInsightsQuerySchema,
+  chrono24SearchQuerySchema,
   ebayAnalyticsQuerySchema,
   ebayLocationSearchSchema,
   ebayMarketInsightsQuerySchema,
@@ -17,6 +19,14 @@ export const createMarketplacesRouter = (): Router => {
   const router = Router();
   const controller = new MarketplaceController(new MarketplaceService());
   const customerAuth = authenticate("customer");
+
+  router.get("/chrono24/search", validate({ query: chrono24SearchQuerySchema }), asyncHandler(controller.searchChrono24));
+  router.get(
+    "/chrono24/market-insights",
+    validate({ query: chrono24MarketInsightsQuerySchema }),
+    asyncHandler(controller.chrono24MarketInsights)
+  );
+  router.get("/chrono24/connection", asyncHandler(controller.testChrono24Connection));
 
   router.get("/ebay/search", validate({ query: ebaySearchQuerySchema }), asyncHandler(controller.searchEbay));
   router.post(

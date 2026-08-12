@@ -18,6 +18,11 @@ export const getMarketplaceConfig = () => {
         postalCode: env.EBAY_DEFAULT_LOCATION_POSTAL_CODE,
         country: env.EBAY_DEFAULT_LOCATION_COUNTRY
       }
+    },
+    chrono24: {
+      scrapingbeeApiKey: env.SCRAPINGBEE_API_KEY,
+      searchTimeoutMs: env.CHRONO24_SEARCH_TIMEOUT_MS,
+      baseUrl: "https://www.chrono24.com"
     }
   };
 };
