@@ -247,6 +247,11 @@ const endpointBaseByEnvironment = {
   production: "https://api.ebay.com"
 } as const;
 
+const identityEndpointBaseByEnvironment = {
+  sandbox: "https://apiz.sandbox.ebay.com",
+  production: "https://apiz.ebay.com"
+} as const;
+
 const authorizationBaseByEnvironment = {
   sandbox: "https://auth.sandbox.ebay.com",
   production: "https://auth.ebay.com"
@@ -293,6 +298,11 @@ const parseLimit = (limit: number | undefined): number => {
 const endpointBase = (): string => {
   const config = getMarketplaceConfig().ebay;
   return config.apiBaseUrl ?? endpointBaseByEnvironment[config.environment];
+};
+
+const identityEndpointBase = (): string => {
+  const config = getMarketplaceConfig().ebay;
+  return identityEndpointBaseByEnvironment[config.environment];
 };
 
 const oauthCredentials = (): string => {
@@ -507,7 +517,7 @@ export class EbayProvider implements MarketplaceProvider {
 
   public async getSellerUser(accessToken: string): Promise<EbaySellerUser> {
     const response = await fetchWithTimeout(
-      `${endpointBase()}/commerce/identity/v1/user`,
+      `${identityEndpointBase()}/commerce/identity/v1/user`,
       {
         headers: this.userHeaders(accessToken)
       },

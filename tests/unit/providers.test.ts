@@ -258,6 +258,34 @@ describe("local provider adapters", () => {
     expect((tokenRequestBody as URLSearchParams).get("redirect_uri")).toBe("Watchbox-Watchbox-SBX-runame");
   });
 
+  it("retrieves eBay seller identity from the identity API host", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          userId: "seller-user-id",
+          username: "watch-seller"
+        }),
+        { status: 200 }
+      )
+    );
+
+    const provider = new EbayProvider();
+    const seller = await provider.getSellerUser("seller-access-token");
+
+    expect(seller).toEqual({
+      ebayUserId: "seller-user-id",
+      username: "watch-seller"
+    });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://apiz.sandbox.ebay.com/commerce/identity/v1/user");
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: {
+        Authorization: "Bearer seller-access-token"
+      }
+    });
+  });
+
   it("includes OAuth token error payloads in eBay authorization code exchange errors", async () => {
     configureSandboxEbay();
 
