@@ -2,7 +2,7 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import mongoose from "mongoose";
 import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
 import { getEnv } from "../../../config/env.js";
-import { ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
+import { AppError, ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
 import { decryptString, encryptString } from "../../../common/utils/encryption.js";
 import { createLogger, type WatchboxLogger } from "../../../common/utils/logger.js";
 import {
@@ -208,6 +208,11 @@ const serializeConnection = (connection: EbayConnectionDocument) => ({
   lastSetupAt: connection.lastSetupAt?.toISOString() ?? null
 });
 
+const isBusinessPolicyEligibilityError = (error: unknown): boolean =>
+  error instanceof AppError &&
+  error.code === "EBAY_API_ERROR" &&
+  /Business Policy/i.test(error.message);
+
 export class EbayService {
   private readonly ebay = new EbayProvider();
   private readonly logger: WatchboxLogger;
@@ -271,6 +276,25 @@ export class EbayService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "eBay seller setup failed.";
+      if (isBusinessPolicyEligibilityError(error)) {
+        const updated = await EbayConnectionModel.findByIdAndUpdate(
+          connection._id,
+          {
+            $set: {
+              status: "setup_required",
+              lastError: message
+            }
+          },
+          { new: true }
+        ) ?? connection;
+        this.logger.warn({ err: error, dealerId: payload.dealerId }, "eBay seller business policy setup required");
+        return {
+          connected: true,
+          setupRequired: true,
+          message: "eBay account connected. Enable eBay Business Policies before publishing listings.",
+          connection: serializeConnection(updated)
+        };
+      }
       await EbayConnectionModel.findByIdAndUpdate(connection._id, {
         $set: {
           status: "error",
