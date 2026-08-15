@@ -16,6 +16,7 @@ const bootstrap = async (): Promise<void> => {
 
   const app = createApp({ logger, redis, rabbitMq });
   const server = app.listen(env.PORT, () => {
+    
     logger.info({ port: env.PORT }, "WatchBox API listening");
   });
 
