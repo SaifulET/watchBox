@@ -258,6 +258,34 @@ describe("local provider adapters", () => {
     expect((tokenRequestBody as URLSearchParams).get("redirect_uri")).toBe("Watchbox-Watchbox-SBX-runame");
   });
 
+  it("includes OAuth token error payloads in eBay authorization code exchange errors", async () => {
+    configureSandboxEbay();
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "invalid_grant",
+          error_description: "the provided authorization grant code is invalid or was issued to another client"
+        }),
+        { status: 400 }
+      )
+    );
+
+    const provider = new EbayProvider();
+
+    await expect(provider.exchangeAuthorizationCode("authorization-code")).rejects.toMatchObject({
+      code: "EBAY_API_ERROR",
+      message:
+        "eBay authorization code exchange failed with status 400: invalid_grant: the provided authorization grant code is invalid or was issued to another client",
+      details: [
+        {
+          error: "invalid_grant",
+          error_description: "the provided authorization grant code is invalid or was issued to another client"
+        }
+      ]
+    });
+  });
+
   it("normalizes short watch queries for direct eBay marketplace search through AI", async () => {
     configureSandboxEbay();
     process.env.AI_PROVIDER = "http";

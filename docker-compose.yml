@@ -26,7 +26,7 @@ x-watchbox-env: &watchbox-env
   ATLAS_VECTOR_INDEX: "${ATLAS_VECTOR_INDEX:-listing_embeddings_vector}"
   EBAY_CLIENT_ID: "${EBAY_CLIENT_ID:-}"
   EBAY_CLIENT_SECRET: "${EBAY_CLIENT_SECRET:-}"
-  EBAY_REDIRECT_URI: "${EBAY_REDIRECT_URI:-https://api.mywatchbox.net/api/v1/admin/marketplaces/ebay/callback}"
+  EBAY_REDIRECT_URI: "${EBAY_REDIRECT_URI:-https://api.mywatchbox.net/api/v1/ebay/oauth/callback}"
   EBAY_ENVIRONMENT: "${EBAY_ENVIRONMENT:-sandbox}"
   EBAY_MARKETPLACE_ID: "${EBAY_MARKETPLACE_ID:-EBAY_US}"
   STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"

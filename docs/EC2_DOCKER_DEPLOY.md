@@ -69,7 +69,7 @@ Important production values:
 ```text
 API_PUBLIC_URL=https://api.mywatchbox.net
 TRUST_PROXY=true
-EBAY_REDIRECT_URI=https://api.mywatchbox.net/api/v1/admin/marketplaces/ebay/callback
+EBAY_REDIRECT_URI=https://api.mywatchbox.net/api/v1/ebay/oauth/callback
 ```
 
 ## 4. Start The Backend

@@ -379,13 +379,24 @@ const requireSuccessfulEbayResponse = async (response: Response, action: string)
   try {
     const payload = (await response.json()) as {
       errors?: Array<{ errorId?: number; domain?: string; category?: string; message?: string; longMessage?: string }>;
+      error?: string;
+      error_description?: string;
     };
-    details = payload.errors ?? [];
-    message =
-      payload.errors
-        ?.map((error) => error.longMessage ?? error.message)
+    if (payload.errors?.length) {
+      details = payload.errors;
+      message = payload.errors
+        .map((error) => error.longMessage ?? error.message)
         .filter((value): value is string => Boolean(value))
-        .join(" ") ?? "";
+        .join(" ");
+    } else if (payload.error || payload.error_description) {
+      details = [
+        {
+          error: payload.error,
+          error_description: payload.error_description
+        }
+      ];
+      message = [payload.error, payload.error_description].filter(Boolean).join(": ");
+    }
   } catch {
     message = "";
   }
