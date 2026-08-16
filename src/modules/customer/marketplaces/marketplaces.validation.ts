@@ -81,6 +81,26 @@ export const ebayAnalyticsQuerySchema = z.object({
 
 export type EbayAnalyticsQuery = z.infer<typeof ebayAnalyticsQuerySchema>;
 
+export const ebaySellerVerificationQuerySchema = z
+  .object({
+    itemId: z.string().trim().min(1).max(120).optional(),
+    sellerUsername: z.string().trim().min(1).max(64).optional(),
+    q: z.string().trim().min(1).max(160).default("watch"),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    marketplaceId: z.string().trim().min(3).max(32).optional()
+  })
+  .superRefine((value, context) => {
+    if (!value.itemId && !value.sellerUsername) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["itemId"],
+        message: "Either itemId or sellerUsername is required."
+      });
+    }
+  });
+
+export type EbaySellerVerificationQuery = z.infer<typeof ebaySellerVerificationQuerySchema>;
+
 export const ebayMarketInsightsQuerySchema = z.object({
   q: z.string().trim().min(1).max(160).optional(),
   sampleLimit: z.coerce.number().int().min(5).max(50).default(20),

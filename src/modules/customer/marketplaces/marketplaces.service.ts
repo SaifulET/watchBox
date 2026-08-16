@@ -23,6 +23,7 @@ import type {
   EbayAnalyticsQuery,
   EbayLocationSearchInput,
   EbayMarketInsightsQuery,
+  EbaySellerVerificationQuery,
   EbaySearchQuery,
   EbayShareListingInput
 } from "./marketplaces.validation.js";
@@ -51,6 +52,8 @@ type MarketInsightProduct = {
   marketAveragePrice: number;
   basis: string;
 };
+
+type SellerVerificationLevel = "trusted" | "acceptable" | "risky" | "unknown";
 
 const aiQueryNormalizationTimeoutMs = 3_000;
 
@@ -283,6 +286,118 @@ const sellerFeedbackPercentage = (value: string | undefined): number | undefined
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const usernameMatches = (expected: string | undefined, actual: string | undefined): boolean =>
+  Boolean(expected && actual && expected.toLowerCase() === actual.toLowerCase());
+
+const sellerVerificationScore = (input: {
+  feedbackScore: number | null;
+  feedbackPercentage: number | null;
+  hasLiveListingEvidence: boolean;
+  matchedRequestedSeller: boolean | null;
+}): number => {
+  let score = 0;
+  if (input.feedbackPercentage !== null) {
+    if (input.feedbackPercentage >= 99.5) {
+      score += 45;
+    } else if (input.feedbackPercentage >= 98.5) {
+      score += 38;
+    } else if (input.feedbackPercentage >= 97) {
+      score += 28;
+    } else if (input.feedbackPercentage >= 95) {
+      score += 16;
+    } else {
+      score += 4;
+    }
+  }
+  if (input.feedbackScore !== null) {
+    if (input.feedbackScore >= 1000) {
+      score += 35;
+    } else if (input.feedbackScore >= 100) {
+      score += 27;
+    } else if (input.feedbackScore >= 25) {
+      score += 18;
+    } else if (input.feedbackScore >= 10) {
+      score += 10;
+    } else {
+      score += 3;
+    }
+  }
+  if (input.hasLiveListingEvidence) {
+    score += 10;
+  }
+  if (input.matchedRequestedSeller === true) {
+    score += 10;
+  }
+  if (input.matchedRequestedSeller === false) {
+    score -= 35;
+  }
+  return Math.max(0, Math.min(100, score));
+};
+
+const sellerVerificationLevel = (input: {
+  trustScore: number;
+  feedbackScore: number | null;
+  feedbackPercentage: number | null;
+  matchedRequestedSeller: boolean | null;
+}): SellerVerificationLevel => {
+  if (input.matchedRequestedSeller === false) {
+    return "risky";
+  }
+  if (input.feedbackScore === null && input.feedbackPercentage === null) {
+    return "unknown";
+  }
+  if (
+    (input.feedbackPercentage !== null && input.feedbackPercentage < 95) ||
+    (input.feedbackScore !== null && input.feedbackScore < 10)
+  ) {
+    return "risky";
+  }
+  if (
+    input.trustScore >= 80 &&
+    (input.feedbackPercentage ?? 0) >= 98.5 &&
+    (input.feedbackScore ?? 0) >= 100
+  ) {
+    return "trusted";
+  }
+  if (
+    input.trustScore >= 55 &&
+    (input.feedbackPercentage ?? 0) >= 97 &&
+    (input.feedbackScore ?? 0) >= 25
+  ) {
+    return "acceptable";
+  }
+  return "unknown";
+};
+
+const sellerVerificationReasons = (input: {
+  level: SellerVerificationLevel;
+  feedbackScore: number | null;
+  feedbackPercentage: number | null;
+  matchedRequestedSeller: boolean | null;
+  activeListingsSampled: number;
+}): string[] => {
+  const reasons: string[] = [];
+  if (input.matchedRequestedSeller === true) {
+    reasons.push("Seller username matches the requested seller.");
+  }
+  if (input.matchedRequestedSeller === false) {
+    reasons.push("Seller username does not match the requested seller.");
+  }
+  if (input.feedbackPercentage !== null) {
+    reasons.push(`Positive feedback is ${input.feedbackPercentage}%.`);
+  }
+  if (input.feedbackScore !== null) {
+    reasons.push(`Feedback score is ${input.feedbackScore}.`);
+  }
+  if (input.activeListingsSampled > 0) {
+    reasons.push(`Found ${input.activeListingsSampled} active eBay listing sample${input.activeListingsSampled === 1 ? "" : "s"}.`);
+  }
+  if (input.level === "unknown") {
+    reasons.push("Available eBay data is not enough for a confident reputation verdict.");
+  }
+  return reasons;
+};
+
 const similarListing = (item: MarketplaceListing) => ({
   source: "ebay" as const,
   externalId: item.externalId,
@@ -296,7 +411,8 @@ const similarListing = (item: MarketplaceListing) => ({
     ? {
         username: item.sellerUsername,
         feedbackScore: item.sellerFeedbackScore ?? null,
-        feedbackPercentage: item.sellerFeedbackPercentage ?? null
+        feedbackPercentage: item.sellerFeedbackPercentage ?? null,
+        accountType: item.sellerAccountType ?? null
       }
     : null,
   buyingOptions: item.buyingOptions
@@ -416,6 +532,98 @@ export class MarketplaceService {
   public async testEbayConnection(): Promise<{ connected: true }> {
     await this.ebay.checkConnectivity();
     return { connected: true };
+  }
+
+  public async verifyEbaySeller(query: EbaySellerVerificationQuery) {
+    const config = getMarketplaceConfig().ebay;
+    const marketplaceId = query.marketplaceId ?? config.marketplaceId;
+    const warnings = [
+      "This is a reputation verification based on public eBay marketplace signals. It does not prove the seller's legal identity."
+    ];
+    let items: MarketplaceListing[] = [];
+    let total: number | null = null;
+    let source: "item_detail" | "seller_listing_sample" = "seller_listing_sample";
+
+    if (query.itemId) {
+      const item = await this.ebay.getListingDetails(query.itemId, { marketplaceId });
+      items = [item];
+      total = 1;
+      source = "item_detail";
+    } else if (query.sellerUsername) {
+      const result = await this.ebay.searchListingsWithMetadata(query.q, {
+        limit: query.limit,
+        marketplaceId,
+        sellerUsername: query.sellerUsername
+      });
+      items = result.items;
+      total = result.total;
+      if (items.length === 0) {
+        warnings.push("No active eBay listings were found for this seller and query sample.");
+      }
+    }
+
+    const sellerItem =
+      items.find((item) => item.sellerUsername || item.sellerFeedbackScore || item.sellerFeedbackPercentage) ?? items[0];
+    const actualUsername = sellerItem?.sellerUsername ?? null;
+    const feedbackScore =
+      typeof sellerItem?.sellerFeedbackScore === "number" ? sellerItem.sellerFeedbackScore : null;
+    const feedbackPercentage = sellerFeedbackPercentage(sellerItem?.sellerFeedbackPercentage) ?? null;
+    const matchedRequestedSeller = query.sellerUsername
+      ? usernameMatches(query.sellerUsername, actualUsername ?? undefined)
+      : null;
+    const trustScore = sellerVerificationScore({
+      feedbackScore,
+      feedbackPercentage,
+      hasLiveListingEvidence: items.length > 0,
+      matchedRequestedSeller
+    });
+    const level = sellerVerificationLevel({
+      trustScore,
+      feedbackScore,
+      feedbackPercentage,
+      matchedRequestedSeller
+    });
+
+    return {
+      source,
+      environment: config.environment,
+      marketplaceId,
+      requested: {
+        itemId: query.itemId ?? null,
+        sellerUsername: query.sellerUsername ?? null,
+        q: query.itemId ? null : query.q
+      },
+      seller: {
+        username: actualUsername,
+        feedbackScore,
+        feedbackPercentage,
+        accountType: sellerItem?.sellerAccountType ?? null
+      },
+      verification: {
+        verified: level === "trusted" || level === "acceptable",
+        level,
+        trustScore,
+        reasons: sellerVerificationReasons({
+          level,
+          feedbackScore,
+          feedbackPercentage,
+          matchedRequestedSeller,
+          activeListingsSampled: items.length
+        })
+      },
+      evidence: {
+        activeListingsTotal: total,
+        sampledListings: items.length,
+        sampleListings: items.slice(0, 5).map(similarListing)
+      },
+      warnings: [
+        ...warnings,
+        ...searchWarnings({
+          environment: config.environment,
+          count: items.length
+        })
+      ]
+    };
   }
 
   public async shareListingToEbay(

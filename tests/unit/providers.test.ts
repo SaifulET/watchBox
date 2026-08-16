@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HttpAiProvider, LocalAiProvider } from "../../src/infrastructure/external/ai/ai-provider.js";
 import { EbayProvider } from "../../src/infrastructure/external/ebay/ebay-provider.js";
+import { EbayConnectionModel } from "../../src/modules/customer/ebay/ebay-connection.model.js";
+import { EbayService } from "../../src/modules/customer/ebay/ebay.service.js";
 import { LocalEmailProvider } from "../../src/infrastructure/external/email/email-provider.js";
 import { LocalPaymentProvider } from "../../src/infrastructure/external/stripe/stripe-provider.js";
 import { MarketplaceService } from "../../src/modules/customer/marketplaces/marketplaces.service.js";
@@ -137,6 +139,29 @@ describe("local provider adapters", () => {
         "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
       }
     });
+  });
+
+  it("filters eBay marketplace search by seller username", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        })
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ itemSummaries: [] }), { status: 200 }));
+
+    const provider = new EbayProvider();
+    await provider.searchListingsWithMetadata("watch", {
+      limit: 20,
+      sellerUsername: "watch-seller"
+    });
+
+    expect((fetchMock.mock.calls[1]?.[0] as URL).href).toBe(
+      "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=watch&limit=20&filter=sellers%3A%7Bwatch-seller%7D"
+    );
   });
 
   it("creates and publishes an eBay inventory listing with a seller token", async () => {
@@ -282,6 +307,67 @@ describe("local provider adapters", () => {
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       headers: {
         Authorization: "Bearer seller-access-token"
+      }
+    });
+  });
+
+  it("returns not connected for a customer without an eBay seller connection", async () => {
+    configureSandboxEbay();
+    vi.spyOn(EbayConnectionModel, "findOne").mockResolvedValueOnce(null);
+
+    const service = new EbayService();
+    const status = await service.connectionStatus("dealer-1");
+
+    expect(status).toEqual({
+      connected: false,
+      oauthConnected: false,
+      canPublish: false,
+      setupRequired: false,
+      status: "not_connected",
+      marketplaceId: "EBAY_US",
+      connection: null
+    });
+  });
+
+  it("returns the current eBay seller connection status for a customer", async () => {
+    configureSandboxEbay();
+    const connectedAt = new Date("2026-08-16T10:00:00.000Z");
+    const lastSetupAt = new Date("2026-08-16T10:01:00.000Z");
+    vi.spyOn(EbayConnectionModel, "findOne").mockResolvedValueOnce({
+      _id: { toString: () => "connection-1" },
+      userId: "dealer-1",
+      dealerId: "dealer-1",
+      ebayUserId: "ebay-user-1",
+      marketplaceId: "EBAY_US",
+      merchantLocationKey: "watchbox-dealer-1",
+      fulfillmentPolicyId: "fulfillment-policy",
+      paymentPolicyId: "payment-policy",
+      returnPolicyId: "return-policy",
+      status: "connected",
+      connectedAt,
+      lastSetupAt
+    });
+
+    const service = new EbayService();
+    const status = await service.connectionStatus("dealer-1");
+
+    expect(status).toMatchObject({
+      connected: true,
+      oauthConnected: true,
+      canPublish: true,
+      setupRequired: false,
+      status: "connected",
+      marketplaceId: "EBAY_US",
+      connection: {
+        id: "connection-1",
+        userId: "dealer-1",
+        dealerId: "dealer-1",
+        ebayUserId: "ebay-user-1",
+        marketplaceId: "EBAY_US",
+        status: "connected",
+        connectedAt: "2026-08-16T10:00:00.000Z",
+        lastSetupAt: "2026-08-16T10:01:00.000Z",
+        lastError: null
       }
     });
   });
@@ -449,6 +535,61 @@ describe("local provider adapters", () => {
     });
     expect(analytics.sales.totalSales).toBeNull();
     expect(analytics.similarListings).toHaveLength(2);
+  });
+
+  it("verifies an eBay seller from item detail reputation signals", async () => {
+    configureSandboxEbay();
+
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            itemId: "v1|123|0",
+            title: "Rolex Submariner 126610LN",
+            price: { value: "12000.00", currency: "USD" },
+            itemWebUrl: "https://www.ebay.com/itm/123",
+            condition: "Pre-Owned",
+            seller: {
+              username: "watch-seller",
+              feedbackScore: 1240,
+              feedbackPercentage: "99.8",
+              sellerAccountType: "BUSINESS"
+            },
+            buyingOptions: ["FIXED_PRICE"]
+          }),
+          { status: 200 }
+        )
+      );
+
+    const service = new MarketplaceService();
+    const verification = await service.verifyEbaySeller({
+      itemId: "v1|123|0",
+      q: "watch",
+      limit: 20
+    });
+
+    expect(verification).toMatchObject({
+      source: "item_detail",
+      seller: {
+        username: "watch-seller",
+        feedbackScore: 1240,
+        feedbackPercentage: 99.8,
+        accountType: "BUSINESS"
+      },
+      verification: {
+        verified: true,
+        level: "trusted"
+      },
+      evidence: {
+        activeListingsTotal: 1,
+        sampledListings: 1
+      }
+    });
   });
 
   it("analyzes images through OpenAI-compatible HTTP credentials", async () => {

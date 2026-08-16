@@ -8,6 +8,7 @@ import {
   ebayAnalyticsQuerySchema,
   ebayLocationSearchSchema,
   ebayMarketInsightsQuerySchema,
+  ebaySellerVerificationQuerySchema,
   ebaySearchQuerySchema,
   ebayShareListingBodySchema,
   ebayShareListingParamsSchema
@@ -28,6 +29,11 @@ export const createMarketplacesRouter = (): Router => {
     "/ebay/analytics",
     validate({ query: ebayAnalyticsQuerySchema }),
     asyncHandler(controller.ebayAnalytics)
+  );
+  router.get(
+    "/ebay/seller-verification",
+    validate({ query: ebaySellerVerificationQuerySchema }),
+    asyncHandler(controller.verifyEbaySeller)
   );
   router.get(
     "/ebay/market-insights",

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ZodError } from "zod";
+import { ZodError } from "zod";
 import { buildMeta } from "../utils/api-response.js";
 import { AppError, ValidationError } from "./app-error.js";
 
@@ -30,6 +30,9 @@ const isBodyParserSyntaxError = (error: Error): error is BodyParserSyntaxError =
 const normalizeError = (error: Error): AppError => {
   if (error instanceof AppError) {
     return error;
+  }
+  if (error instanceof ZodError) {
+    return fromZodError(error);
   }
   if (isBodyParserSyntaxError(error)) {
     return new AppError("INVALID_JSON", "Request body contains invalid JSON.", 400, [

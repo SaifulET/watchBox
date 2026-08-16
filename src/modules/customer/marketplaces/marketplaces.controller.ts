@@ -6,6 +6,7 @@ import {
   ebayAnalyticsQuerySchema,
   ebayLocationSearchSchema,
   ebayMarketInsightsQuerySchema,
+  ebaySellerVerificationQuerySchema,
   ebaySearchQuerySchema,
   ebayShareListingBodySchema,
   ebayShareListingParamsSchema
@@ -34,6 +35,11 @@ export class MarketplaceController {
   public ebayAnalytics = async (req: Request, res: Response): Promise<void> => {
     const query = ebayAnalyticsQuerySchema.parse(req.query);
     sendSuccess(res, req.requestId, await this.service.ebayAnalytics(query));
+  };
+
+  public verifyEbaySeller = async (req: Request, res: Response): Promise<void> => {
+    const query = ebaySellerVerificationQuerySchema.parse(req.query);
+    sendSuccess(res, req.requestId, await this.service.verifyEbaySeller(query));
   };
 
   public ebayMarketInsights = async (req: Request, res: Response): Promise<void> => {

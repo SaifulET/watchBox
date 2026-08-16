@@ -19,6 +19,7 @@ export type MarketplaceListing = {
   sellerUsername?: string;
   sellerFeedbackScore?: number;
   sellerFeedbackPercentage?: string;
+  sellerAccountType?: string;
   location?: string;
   buyingOptions: string[];
 };
@@ -128,6 +129,7 @@ export type MarketplaceSearchOptions = {
   pickupCountry?: string;
   pickupRadius?: number;
   pickupRadiusUnit?: "mi" | "km";
+  sellerUsername?: string;
   timeoutMs?: number;
 };
 
@@ -173,6 +175,7 @@ type EbayItemSummary = {
     username?: string;
     feedbackScore?: number;
     feedbackPercentage?: string;
+    sellerAccountType?: string;
   };
   itemLocation?: {
     city?: string;
@@ -588,6 +591,9 @@ export class EbayProvider implements MarketplaceProvider {
       filters.push(`pickupPostalCode:${options.pickupPostalCode}`);
       filters.push(`pickupRadius:${options.pickupRadius}`);
       filters.push(`pickupRadiusUnit:${options.pickupRadiusUnit}`);
+    }
+    if (options.sellerUsername) {
+      filters.push(`sellers:{${options.sellerUsername}}`);
     }
     if (filters.length > 0) {
       url.searchParams.set("filter", filters.join(","));
@@ -1303,6 +1309,9 @@ const toMarketplaceListing = (item: EbayItemSummary): MarketplaceListing[] => {
   }
   if (item.seller?.feedbackPercentage) {
     listing.sellerFeedbackPercentage = item.seller.feedbackPercentage;
+  }
+  if (item.seller?.sellerAccountType) {
+    listing.sellerAccountType = item.seller.sellerAccountType;
   }
   const location = compactLocation(item.itemLocation);
   if (location) {

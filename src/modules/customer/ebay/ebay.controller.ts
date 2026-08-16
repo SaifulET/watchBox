@@ -4,8 +4,8 @@ import { sendSuccess } from "../../../common/utils/api-response.js";
 import type { EbayService } from "./ebay.service.js";
 import {
   ebayConnectQuerySchema,
-  ebayOAuthCallbackQuerySchema,
   ebayOAuthDeclinedQuerySchema,
+  parseEbayOAuthCallbackQuery,
   publishToEbayBodySchema,
   publishToEbayParamsSchema
 } from "./ebay.validation.js";
@@ -30,8 +30,12 @@ export class EbayController {
     res.redirect(authorizationUrl);
   };
 
+  public status = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.connectionStatus(dealerId(req)));
+  };
+
   public oauthCallback = async (req: Request, res: Response): Promise<void> => {
-    const query = ebayOAuthCallbackQuerySchema.parse(req.query);
+    const query = parseEbayOAuthCallbackQuery(req.query);
     sendSuccess(res, req.requestId, await this.service.handleOAuthCallback(query.code, query.state));
   };
 

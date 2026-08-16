@@ -9,6 +9,7 @@ export const createEbayRouter = (): Router => {
   const controller = new EbayController(new EbayService());
 
   router.get("/connect", authenticate("customer"), controller.connect);
+  router.get("/status", authenticate("customer"), asyncHandler(controller.status));
   router.get("/oauth/callback", asyncHandler(controller.oauthCallback));
   router.get("/oauth/declined", controller.oauthDeclined);
 

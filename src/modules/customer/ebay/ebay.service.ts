@@ -205,7 +205,8 @@ const serializeConnection = (connection: EbayConnectionDocument) => ({
   returnPolicyId: connection.returnPolicyId ?? null,
   status: connection.status,
   connectedAt: connection.connectedAt?.toISOString() ?? null,
-  lastSetupAt: connection.lastSetupAt?.toISOString() ?? null
+  lastSetupAt: connection.lastSetupAt?.toISOString() ?? null,
+  lastError: connection.lastError ?? null
 });
 
 const isBusinessPolicyEligibilityError = (error: unknown): boolean =>
@@ -312,6 +313,35 @@ export class EbayService {
       connected: false,
       dealerId: payload?.dealerId ?? null,
       status: "declined"
+    };
+  }
+
+  public async connectionStatus(dealerId: string) {
+    const marketplaceId = getMarketplaceConfig().ebay.marketplaceId;
+    const connection = await EbayConnectionModel.findOne({
+      dealerId,
+      marketplaceId
+    });
+    if (!connection || connection.status === "revoked") {
+      return {
+        connected: false,
+        oauthConnected: false,
+        canPublish: false,
+        setupRequired: false,
+        status: "not_connected",
+        marketplaceId,
+        connection: null
+      };
+    }
+
+    return {
+      connected: connection.status === "connected",
+      oauthConnected: true,
+      canPublish: connection.status === "connected",
+      setupRequired: connection.status === "setup_required",
+      status: connection.status,
+      marketplaceId,
+      connection: serializeConnection(connection)
     };
   }
 
