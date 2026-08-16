@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HttpAiProvider, LocalAiProvider } from "../../src/infrastructure/external/ai/ai-provider.js";
 import { EbayProvider } from "../../src/infrastructure/external/ebay/ebay-provider.js";
+import { encryptString } from "../../src/common/utils/encryption.js";
 import { EbayConnectionModel } from "../../src/modules/customer/ebay/ebay-connection.model.js";
 import { EbayService } from "../../src/modules/customer/ebay/ebay.service.js";
 import { LocalEmailProvider } from "../../src/infrastructure/external/email/email-provider.js";
@@ -311,6 +312,28 @@ describe("local provider adapters", () => {
     });
   });
 
+  it("revokes an eBay user refresh token", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const provider = new EbayProvider();
+    await provider.revokeUserRefreshToken("refresh-token");
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.sandbox.ebay.com/identity/v1/oauth2/token/revoke");
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      headers: {
+        Authorization: "Basic Y2xpZW50LWlkOmNsaWVudC1zZWNyZXQ=",
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+    const body = fetchMock.mock.calls[0]?.[1]?.body;
+    expect(body).toBeInstanceOf(URLSearchParams);
+    expect((body as URLSearchParams).get("token")).toBe("refresh-token");
+    expect((body as URLSearchParams).get("token_type_hint")).toBe("refresh_token");
+  });
+
   it("returns not connected for a customer without an eBay seller connection", async () => {
     configureSandboxEbay();
     vi.spyOn(EbayConnectionModel, "findOne").mockResolvedValueOnce(null);
@@ -370,6 +393,35 @@ describe("local provider adapters", () => {
         lastError: null
       }
     });
+  });
+
+  it("disconnects a customer eBay seller connection", async () => {
+    configureSandboxEbay();
+    const revokeSpy = vi.spyOn(EbayProvider.prototype, "revokeUserRefreshToken").mockResolvedValueOnce(undefined);
+    const updateSpy = vi.spyOn(EbayConnectionModel, "findByIdAndUpdate").mockResolvedValueOnce(null);
+    vi.spyOn(EbayConnectionModel, "findOne").mockResolvedValueOnce({
+      _id: "connection-1",
+      dealerId: "dealer-1",
+      ebayUserId: "ebay-user-1",
+      marketplaceId: "EBAY_US",
+      encryptedRefreshToken: encryptString("refresh-token"),
+      status: "connected"
+    });
+
+    const service = new EbayService();
+    const result = await service.disconnect("dealer-1");
+
+    expect(result).toEqual({
+      disconnected: true,
+      connected: false,
+      oauthConnected: false,
+      canPublish: false,
+      status: "not_connected",
+      marketplaceId: "EBAY_US",
+      warning: null
+    });
+    expect(revokeSpy).toHaveBeenCalledWith("refresh-token");
+    expect(updateSpy).toHaveBeenCalledWith("connection-1", expect.any(Object));
   });
 
   it("includes OAuth token error payloads in eBay authorization code exchange errors", async () => {

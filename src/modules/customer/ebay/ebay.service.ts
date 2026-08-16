@@ -345,6 +345,59 @@ export class EbayService {
     };
   }
 
+  public async disconnect(dealerId: string) {
+    const marketplaceId = getMarketplaceConfig().ebay.marketplaceId;
+    const connection = await EbayConnectionModel.findOne({
+      dealerId,
+      marketplaceId
+    });
+    if (!connection || connection.status === "revoked") {
+      return {
+        disconnected: true,
+        connected: false,
+        oauthConnected: false,
+        canPublish: false,
+        status: "not_connected",
+        marketplaceId,
+        warning: null
+      };
+    }
+
+    let warning: string | null = null;
+    try {
+      await this.ebay.revokeUserRefreshToken(decryptString(connection.encryptedRefreshToken));
+    } catch (error) {
+      warning =
+        error instanceof Error
+          ? `Disconnected locally, but eBay token revocation failed: ${error.message}`
+          : "Disconnected locally, but eBay token revocation failed.";
+      this.logger.warn({ err: error, dealerId, ebayUserId: connection.ebayUserId }, "eBay token revocation failed during disconnect");
+    }
+
+    await EbayConnectionModel.findByIdAndUpdate(connection._id, {
+      $set: {
+        encryptedRefreshToken: encryptString("revoked"),
+        accessTokenExpiresAt: new Date(),
+        status: "revoked",
+        merchantLocationKey: null,
+        fulfillmentPolicyId: null,
+        paymentPolicyId: null,
+        returnPolicyId: null,
+        lastError: warning
+      }
+    });
+
+    return {
+      disconnected: true,
+      connected: false,
+      oauthConnected: false,
+      canPublish: false,
+      status: "not_connected",
+      marketplaceId,
+      warning
+    };
+  }
+
   public async publishListingToEbay(dealerId: string, listingId: string, input: PublishToEbayInput) {
     const listing = await this.requireOwnedListing(dealerId, listingId);
     const existing = existingPublishing(listing);

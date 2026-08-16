@@ -518,6 +518,30 @@ export class EbayProvider implements MarketplaceProvider {
     };
   }
 
+  public async revokeUserRefreshToken(refreshToken: string): Promise<void> {
+    const trimmedRefreshToken = refreshToken.trim();
+    if (!trimmedRefreshToken) {
+      throw new ConflictError("An eBay refresh token is required.");
+    }
+    const response = await fetchWithTimeout(
+      `${endpointBase()}/identity/v1/oauth2/token/revoke`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${oauthCredentials()}`,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          token: trimmedRefreshToken,
+          token_type_hint: "refresh_token"
+        })
+      },
+      ebayTokenTimeoutMs,
+      "eBay token revocation timed out."
+    );
+    await requireSuccessfulEbayResponse(response, "eBay token revocation");
+  }
+
   public async getSellerUser(accessToken: string): Promise<EbaySellerUser> {
     const response = await fetchWithTimeout(
       `${identityEndpointBase()}/commerce/identity/v1/user`,

@@ -34,6 +34,10 @@ export class EbayController {
     sendSuccess(res, req.requestId, await this.service.connectionStatus(dealerId(req)));
   };
 
+  public disconnect = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.disconnect(dealerId(req)));
+  };
+
   public oauthCallback = async (req: Request, res: Response): Promise<void> => {
     const query = parseEbayOAuthCallbackQuery(req.query);
     sendSuccess(res, req.requestId, await this.service.handleOAuthCallback(query.code, query.state));
