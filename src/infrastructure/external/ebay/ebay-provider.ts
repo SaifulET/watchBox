@@ -269,6 +269,16 @@ const sellerScopes = [
 ];
 const ebayTokenTimeoutMs = 2_500;
 const policyName = "Watchbox Default Policy";
+const localeByMarketplaceId: Record<string, string> = {
+  EBAY_US: "en-US",
+  EBAY_GB: "en-GB",
+  EBAY_AU: "en-AU",
+  EBAY_CA: "en-CA",
+  EBAY_DE: "de-DE",
+  EBAY_FR: "fr-FR",
+  EBAY_IT: "it-IT",
+  EBAY_ES: "es-ES"
+};
 
 const fetchWithTimeout = async (url: URL | string, init: RequestInit, timeoutMs: number, message: string): Promise<Response> => {
   const controller = new AbortController();
@@ -430,6 +440,9 @@ const offerIdFromLocation = (location: string | null): string | undefined => {
 
 const ebayListingUrl = (listingId: string | null): string | null =>
   listingId ? `https://www.ebay.com/itm/${encodeURIComponent(listingId)}` : null;
+
+const localeForMarketplace = (marketplaceId = getMarketplaceConfig().ebay.marketplaceId): string =>
+  localeByMarketplaceId[marketplaceId] ?? "en-US";
 
 export class EbayProvider implements MarketplaceProvider {
   public readonly code = "EBAY" as const;
@@ -709,10 +722,12 @@ export class EbayProvider implements MarketplaceProvider {
     const config = getMarketplaceConfig().ebay;
     const baseUrl = endpointBase();
     const marketplaceId = item.marketplaceId ?? config.marketplaceId;
+    const locale = localeForMarketplace(marketplaceId);
     const headers = {
       Authorization: `Bearer ${sellerAccessToken}`,
       "Content-Type": "application/json",
-      "Content-Language": "en-US"
+      "Content-Language": locale,
+      "Accept-Language": locale
     };
 
     const inventoryResponse = await fetchWithTimeout(
@@ -852,7 +867,7 @@ export class EbayProvider implements MarketplaceProvider {
       `${endpointBase()}/sell/inventory/v1/offer`,
       {
         method: "POST",
-        headers: this.userHeaders(accessToken),
+        headers: this.userHeaders(accessToken, item.marketplaceId),
         body: JSON.stringify(this.offerPayload(item))
       },
       getMarketplaceConfig().ebay.searchTimeoutMs,
@@ -876,7 +891,7 @@ export class EbayProvider implements MarketplaceProvider {
       `${endpointBase()}/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`,
       {
         method: "PUT",
-        headers: this.userHeaders(accessToken),
+        headers: this.userHeaders(accessToken, item.marketplaceId),
         body: JSON.stringify(this.offerPayload(item))
       },
       getMarketplaceConfig().ebay.searchTimeoutMs,
@@ -893,7 +908,7 @@ export class EbayProvider implements MarketplaceProvider {
       `${endpointBase()}/sell/inventory/v1/inventory_item/${encodeURIComponent(item.sku)}`,
       {
         method: "PUT",
-        headers: this.userHeaders(accessToken),
+        headers: this.userHeaders(accessToken, item.marketplaceId),
         body: JSON.stringify({
           availability: {
             shipToLocationAvailability: {
@@ -1003,11 +1018,13 @@ export class EbayProvider implements MarketplaceProvider {
     return true;
   }
 
-  private userHeaders(accessToken: string): Record<string, string> {
+  private userHeaders(accessToken: string, marketplaceId = getMarketplaceConfig().ebay.marketplaceId): Record<string, string> {
+    const locale = localeForMarketplace(marketplaceId);
     return {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
-      "Content-Language": "en-US"
+      "Content-Language": locale,
+      "Accept-Language": locale
     };
   }
 
