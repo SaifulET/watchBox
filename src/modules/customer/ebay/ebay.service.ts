@@ -28,11 +28,13 @@ type EbayPublishingData = {
   listingId?: string;
   marketplaceId?: string;
   status?: string;
+  startedAt?: string;
   publishedAt?: string;
   lastError?: string | null;
 };
 
 const stateTtlMs = 10 * 60 * 1000;
+const publishLockTtlMs = 15 * 60 * 1000;
 const defaultWatchCategoryId = "31387";
 
 const signState = (payload: string): string =>
@@ -146,6 +148,17 @@ const existingPublishing = (listing: GeneratedApiRecordDocument): EbayPublishing
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value
     : {};
+};
+
+const isStalePublishingLock = (publishing: EbayPublishingData): boolean => {
+  if (publishing.status !== "publishing") {
+    return false;
+  }
+  if (!publishing.startedAt) {
+    return true;
+  }
+  const startedAt = Date.parse(publishing.startedAt);
+  return !Number.isFinite(startedAt) || Date.now() - startedAt > publishLockTtlMs;
 };
 
 const defaultSku = (listingId: string): string => `watchbox-${listingId}`.slice(0, 80);
@@ -414,7 +427,7 @@ export class EbayService {
         duplicate: true
       };
     }
-    if (existing.status === "publishing") {
+    if (existing.status === "publishing" && !isStalePublishingLock(existing)) {
       throw new ConflictError("This listing is already being published to eBay.");
     }
 
@@ -554,10 +567,24 @@ export class EbayService {
         ownerId: dealerId,
         resource: "listings",
         deletedAt: null,
-        $or: [
-          { "data.ebayPublishing.status": { $exists: false } },
-          { "data.ebayPublishing.status": { $nin: ["publishing", "published"] } }
-        ]
+        $or: mongoose.trusted([
+          { "data.ebayPublishing.status": mongoose.trusted({ $exists: false }) },
+          { "data.ebayPublishing.status": mongoose.trusted({ $nin: ["publishing", "published"] }) },
+          {
+            "data.ebayPublishing.status": "published",
+            "data.ebayPublishing.listingId": mongoose.trusted({ $exists: false })
+          },
+          {
+            "data.ebayPublishing.status": "publishing",
+            "data.ebayPublishing.startedAt": mongoose.trusted({ $exists: false })
+          },
+          {
+            "data.ebayPublishing.status": "publishing",
+            "data.ebayPublishing.startedAt": mongoose.trusted({
+              $lte: new Date(Date.now() - publishLockTtlMs).toISOString()
+            })
+          }
+        ])
       },
       {
         $set: {
@@ -566,6 +593,7 @@ export class EbayService {
             sku: previous.sku ?? defaultSku(listing._id.toString()),
             marketplaceId: previous.marketplaceId ?? getMarketplaceConfig().ebay.marketplaceId,
             status: "publishing",
+            startedAt: new Date().toISOString(),
             lastError: null
           }
         }

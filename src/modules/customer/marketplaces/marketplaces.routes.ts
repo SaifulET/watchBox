@@ -13,11 +13,15 @@ import {
   ebayShareListingBodySchema,
   ebayShareListingParamsSchema
 } from "./marketplaces.validation.js";
+import { createChrono24Router } from "../../marketplaces/chrono24/chrono24.routes.js";
+import type { RouteDependencies } from "../../../routes/index.js";
 
-export const createMarketplacesRouter = (): Router => {
+export const createMarketplacesRouter = (dependencies: RouteDependencies = {}): Router => {
   const router = Router();
   const controller = new MarketplaceController(new MarketplaceService());
   const customerAuth = authenticate("customer");
+
+  router.use("/chrono24", createChrono24Router({ redis: dependencies.redis }));
 
   router.get("/ebay/search", validate({ query: ebaySearchQuerySchema }), asyncHandler(controller.searchEbay));
   router.post(

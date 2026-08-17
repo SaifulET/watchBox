@@ -9,13 +9,14 @@ export const createListingImagesRouter = (): Router => {
   const router = Router();
   const controller = new ListingImagesController(new ListingImagesService());
   const customerAuth = authenticate("customer");
+  const acceptedImageFields = ["image", "file", "photo"];
 
   router.get("/:listingId/images", customerAuth, asyncHandler(controller.list));
-  router.post("/:listingId/images", customerAuth, requireSingleImage("image"), asyncHandler(controller.upload));
+  router.post("/:listingId/images", customerAuth, requireSingleImage(acceptedImageFields), asyncHandler(controller.upload));
   router.post(
     "/:listingId/images/upload",
     customerAuth,
-    requireSingleImage("image"),
+    requireSingleImage(acceptedImageFields),
     asyncHandler(controller.upload)
   );
 

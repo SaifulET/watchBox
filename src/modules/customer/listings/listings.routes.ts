@@ -9,7 +9,7 @@ export const createListingsRouter = (): Router => {
   const router = Router();
   const controller = new ListingsController(new ListingsService());
   const customerAuth = authenticate("customer");
-  const optionalImage = requireSingleImage("image");
+  const optionalImage = requireSingleImage(["image", "file", "photo"]);
 
   router.post("", customerAuth, optionalImage, asyncHandler(controller.create));
   router.post("/", customerAuth, optionalImage, asyncHandler(controller.create));

@@ -18,6 +18,14 @@ export const getMarketplaceConfig = () => {
         postalCode: env.EBAY_DEFAULT_LOCATION_POSTAL_CODE,
         country: env.EBAY_DEFAULT_LOCATION_COUNTRY
       }
+    },
+    chrono24: {
+      scrapingBeeApiKey: env.SCRAPINGBEE_API_KEY,
+      baseUrl: env.CHRONO24_BASE_URL,
+      countryCode: env.CHRONO24_COUNTRY_CODE,
+      renderJs: env.CHRONO24_RENDER_JS,
+      stealthProxy: env.CHRONO24_STEALTH_PROXY,
+      blockResources: env.CHRONO24_BLOCK_RESOURCES
     }
   };
 };

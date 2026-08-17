@@ -15,6 +15,37 @@ const bodyObject = (body: unknown): Record<string, unknown> =>
     ? (body as Record<string, unknown>)
     : {};
 
+const objectFromJsonField = (value: unknown): Record<string, unknown> => {
+  if (typeof value !== "string" || !value.trim()) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return bodyObject(parsed);
+  } catch {
+    return {};
+  }
+};
+
+const listingBody = (body: unknown): Record<string, unknown> => {
+  const fields = bodyObject(body);
+  const embedded = {
+    ...objectFromJsonField(fields.data),
+    ...objectFromJsonField(fields.info),
+    ...objectFromJsonField(fields.listing),
+    ...objectFromJsonField(fields.payload)
+  };
+  const directFields = { ...fields };
+  delete directFields.data;
+  delete directFields.info;
+  delete directFields.listing;
+  delete directFields.payload;
+  return {
+    ...embedded,
+    ...directFields
+  };
+};
+
 export class ListingsController {
   public constructor(private readonly service: ListingsService) {}
 
@@ -22,7 +53,7 @@ export class ListingsController {
     sendSuccess(
       res,
       req.requestId,
-      await this.service.createListing(actorId(req), bodyObject(req.body), req.file),
+      await this.service.createListing(actorId(req), listingBody(req.body), req.file),
       201
     );
   };
@@ -34,7 +65,7 @@ export class ListingsController {
       await this.service.updateListing(
         actorId(req),
         req.params.listingId ?? "",
-        bodyObject(req.body),
+        listingBody(req.body),
         req.file
       )
     );
