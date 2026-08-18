@@ -285,6 +285,34 @@ describe("local provider adapters", () => {
     });
   });
 
+  it("normalizes granular used conditions for wristwatch inventory items", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    const provider = new EbayProvider();
+    await provider.createOrReplaceInventoryItem("seller-token", {
+      sku: "watchbox-listing-1",
+      title: "Rolex Submariner",
+      description: "Pre-owned Rolex Submariner in good condition",
+      price: 12500,
+      currency: "USD",
+      quantity: 1,
+      condition: "USED_GOOD",
+      categoryId: "31387",
+      merchantLocationKey: "warehouse-1",
+      fulfillmentPolicyId: "fulfillment-policy",
+      paymentPolicyId: "payment-policy",
+      returnPolicyId: "return-policy"
+    });
+
+    const rawInventoryBody = fetchMock.mock.calls[0]?.[1]?.body;
+    const inventoryBody = JSON.parse(
+      typeof rawInventoryBody === "string" ? rawInventoryBody : "{}"
+    ) as Record<string, unknown>;
+    expect(inventoryBody.condition).toBe("USED_EXCELLENT");
+  });
+
   it("builds eBay seller OAuth URLs and exchanges authorization codes", async () => {
     configureSandboxEbay();
 

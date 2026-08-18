@@ -282,6 +282,7 @@ const sellerScopes = [
 ];
 const ebayTokenTimeoutMs = 2_500;
 const policyName = "Watchbox Default Policy";
+const wristwatchCategoryIds = new Set(["31387"]);
 const localeByMarketplaceId: Record<string, string> = {
   EBAY_US: "en-US",
   EBAY_GB: "en-GB",
@@ -341,6 +342,32 @@ const oauthCredentials = (): string => {
 
 const tokenExpiry = (now: number, expiresInSeconds: number | undefined): Date =>
   new Date(now + Math.max((expiresInSeconds ?? 7200) - 60, 60) * 1000);
+
+const normalizedConditionValue = (condition: string): string =>
+  condition.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
+const conditionForCategory = (condition: string, categoryId: string): string => {
+  const normalized = normalizedConditionValue(condition) || "USED_EXCELLENT";
+  if (!wristwatchCategoryIds.has(categoryId)) {
+    return normalized;
+  }
+  if (/\b(PARTS|REPAIR|BROKEN)\b/.test(normalized) || normalized === "FOR_PARTS_OR_NOT_WORKING") {
+    return "FOR_PARTS_OR_NOT_WORKING";
+  }
+  if (/\bDEFECT/.test(normalized) || normalized === "NEW_WITH_DEFECTS") {
+    return "NEW_WITH_DEFECTS";
+  }
+  if (normalized === "NEW_OTHER" || /\b(OPEN_BOX|UNWORN)\b/.test(normalized)) {
+    return "NEW_OTHER";
+  }
+  if (normalized === "NEW" || normalized === "BRAND_NEW") {
+    return "NEW";
+  }
+  if (/\bREFURB/.test(normalized)) {
+    return "SELLER_REFURBISHED";
+  }
+  return "USED_EXCELLENT";
+};
 
 const compactLocation = (location: EbayItemSummary["itemLocation"]): string | undefined => {
   if (!location) {
@@ -751,6 +778,7 @@ export class EbayProvider implements MarketplaceProvider {
     const baseUrl = endpointBase();
     const marketplaceId = item.marketplaceId ?? config.marketplaceId;
     const locale = localeForMarketplace(marketplaceId);
+    const condition = conditionForCategory(item.condition, item.categoryId);
     const headers = {
       Authorization: `Bearer ${sellerAccessToken}`,
       "Content-Type": "application/json",
@@ -769,7 +797,7 @@ export class EbayProvider implements MarketplaceProvider {
               quantity: item.quantity
             }
           },
-          condition: item.condition,
+          condition,
           product: {
             title: item.title,
             description: item.description,
@@ -945,6 +973,7 @@ export class EbayProvider implements MarketplaceProvider {
     accessToken: string,
     item: EbayInventoryItemInput
   ): Promise<void> {
+    const condition = conditionForCategory(item.condition, item.categoryId);
     const response = await fetchWithTimeout(
       `${endpointBase()}/sell/inventory/v1/inventory_item/${encodeURIComponent(item.sku)}`,
       {
@@ -956,7 +985,7 @@ export class EbayProvider implements MarketplaceProvider {
               quantity: item.quantity
             }
           },
-          condition: item.condition,
+          condition,
           product: {
             title: item.title,
             description: item.description,
