@@ -140,6 +140,19 @@ type EbayTokenResponse = {
   refresh_token_expires_in?: number;
 };
 
+type EbayApiErrorDetail = {
+  errorId?: number;
+  domain?: string;
+  category?: string;
+  message?: string;
+  longMessage?: string;
+};
+
+type EbayApiErrorPayload = {
+  message: string;
+  details: unknown[];
+};
+
 type EbaySearchResponse = {
   total?: number;
   itemSummaries?: EbayItemSummary[];
@@ -393,15 +406,12 @@ const scopeFromAspects = (aspects: Record<string, string>): string | undefined =
   return firstAspect(aspects, ["Scope", "Included", "Set Includes"]);
 };
 
-const requireSuccessfulEbayResponse = async (response: Response, action: string): Promise<void> => {
-  if (response.ok) {
-    return;
-  }
+const ebayErrorPayload = async (response: Response): Promise<EbayApiErrorPayload> => {
   let message = "";
   let details: unknown[] = [];
   try {
     const payload = (await response.json()) as {
-      errors?: Array<{ errorId?: number; domain?: string; category?: string; message?: string; longMessage?: string }>;
+      errors?: EbayApiErrorDetail[];
       error?: string;
       error_description?: string;
     };
@@ -423,6 +433,24 @@ const requireSuccessfulEbayResponse = async (response: Response, action: string)
   } catch {
     message = "";
   }
+  return { message, details };
+};
+
+const isOfferNotAvailableResponse = (response: Response, details: unknown[]): boolean =>
+  response.status === 404 &&
+  details.some(
+    (detail) =>
+      typeof detail === "object" &&
+      detail !== null &&
+      "errorId" in detail &&
+      (detail as { errorId?: unknown }).errorId === 25713
+  );
+
+const requireSuccessfulEbayResponse = async (response: Response, action: string): Promise<void> => {
+  if (response.ok) {
+    return;
+  }
+  const { message, details } = await ebayErrorPayload(response);
   throw new AppError(
     "EBAY_API_ERROR",
     message ? `${action} failed with status ${response.status}: ${message}` : `${action} failed with status ${response.status}.`,
@@ -844,7 +872,20 @@ export class EbayProvider implements MarketplaceProvider {
       getMarketplaceConfig().ebay.searchTimeoutMs,
       "eBay get offers request timed out."
     );
-    await requireSuccessfulEbayResponse(response, "eBay get offers request");
+    if (!response.ok) {
+      const errorPayload = await ebayErrorPayload(response);
+      if (isOfferNotAvailableResponse(response, errorPayload.details)) {
+        return [];
+      }
+      throw new AppError(
+        "EBAY_API_ERROR",
+        errorPayload.message
+          ? `eBay get offers request failed with status ${response.status}: ${errorPayload.message}`
+          : `eBay get offers request failed with status ${response.status}.`,
+        response.status === 401 || response.status === 403 ? 409 : 502,
+        errorPayload.details
+      );
+    }
     const payload = (await response.json()) as EbayOfferResponse;
     return (payload.offers ?? []).flatMap((offer) =>
       offer.offerId

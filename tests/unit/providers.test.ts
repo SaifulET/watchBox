@@ -251,6 +251,40 @@ describe("local provider adapters", () => {
     );
   });
 
+  it("treats eBay offer-not-available responses as no offers for the SKU", async () => {
+    configureSandboxEbay();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          errors: [
+            {
+              errorId: 25713,
+              domain: "API_INVENTORY",
+              subdomain: "Selling",
+              category: "Request",
+              message: "This Offer is not available."
+            }
+          ]
+        }),
+        { status: 404 }
+      )
+    );
+
+    const provider = new EbayProvider();
+    const offers = await provider.getOffersBySku("seller-token", "watchbox-listing-1", "EBAY_US");
+
+    expect(offers).toEqual([]);
+    expect((fetchMock.mock.calls[0]?.[0] as URL).href).toBe(
+      "https://api.sandbox.ebay.com/sell/inventory/v1/offer?sku=watchbox-listing-1&marketplace_id=EBAY_US"
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: {
+        Authorization: "Bearer seller-token"
+      }
+    });
+  });
+
   it("builds eBay seller OAuth URLs and exchanges authorization codes", async () => {
     configureSandboxEbay();
 
