@@ -8,6 +8,69 @@ export const ebaySearchQuerySchema = z.object({
 
 export type EbaySearchQuery = z.infer<typeof ebaySearchQuerySchema>;
 
+export const marketplaceAggregateSearchQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(160).optional(),
+    query: z.string().trim().min(1).max(160).optional(),
+    keyword: z.string().trim().min(1).max(160).optional(),
+    search: z.string().trim().min(1).max(160).optional(),
+    brand: z.string().trim().min(1).max(80).optional(),
+    model: z.string().trim().min(1).max(80).optional(),
+    reference: z.string().trim().min(1).max(80).optional(),
+    minPrice: z.coerce.number().nonnegative().optional(),
+    maxPrice: z.coerce.number().nonnegative().optional(),
+    condition: z.string().trim().min(1).max(80).optional(),
+    year: z.coerce.number().int().min(1800).max(new Date().getFullYear() + 1).optional(),
+    country: z.string().trim().min(2).max(2).optional(),
+    sort: z.enum(["relevance", "price_asc", "price_desc", "newest"]).optional(),
+    refresh: z.coerce.boolean().default(false),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(24),
+    chrono24Limit: z.coerce.number().int().min(1).max(100).optional(),
+    ebayLimit: z.coerce.number().int().min(1).max(200).optional(),
+    localLimit: z.coerce.number().int().min(1).max(100).optional(),
+    marketplaceId: z.string().trim().min(3).max(32).optional()
+  })
+  .superRefine((value, context) => {
+    const hasSearchText = Boolean(value.q ?? value.query ?? value.keyword ?? value.search);
+    const hasStructuredSearch = Boolean(value.brand ?? value.model ?? value.reference);
+    if (!hasSearchText && !hasStructuredSearch) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["q"],
+        message: "Search query, brand, model, or reference is required."
+      });
+    }
+    if (typeof value.minPrice === "number" && typeof value.maxPrice === "number" && value.minPrice > value.maxPrice) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["minPrice"],
+        message: "Minimum price cannot be greater than maximum price."
+      });
+    }
+  })
+  .transform((value) => ({
+    q: value.q ?? value.query ?? value.keyword ?? value.search,
+    brand: value.brand,
+    model: value.model,
+    reference: value.reference,
+    minPrice: value.minPrice,
+    maxPrice: value.maxPrice,
+    condition: value.condition,
+    year: value.year,
+    country: value.country,
+    sort: value.sort,
+    refresh: value.refresh,
+    page: value.page,
+    limit: value.limit,
+    chrono24Limit: value.chrono24Limit,
+    ebayLimit: value.ebayLimit,
+    localLimit: value.localLimit,
+    marketplaceId: value.marketplaceId
+  }));
+
+export type MarketplaceAggregateSearchQuery = z.infer<typeof marketplaceAggregateSearchQuerySchema>;
+
 export const ebayLocationSearchSchema = z
   .object({
     q: z.string().trim().min(1).max(160).optional(),

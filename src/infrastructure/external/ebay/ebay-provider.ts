@@ -473,11 +473,48 @@ const isOfferNotAvailableResponse = (response: Response, details: unknown[]): bo
       (detail as { errorId?: unknown }).errorId === 25713
   );
 
+const detailValue = (detail: unknown, key: string): unknown =>
+  typeof detail === "object" && detail !== null && key in detail
+    ? (detail as Record<string, unknown>)[key]
+    : undefined;
+
+const detailParametersText = (detail: unknown): string =>
+  Array.isArray(detailValue(detail, "parameters"))
+    ? (detailValue(detail, "parameters") as Array<{ value?: unknown }>)
+        .map((parameter) => parameter.value)
+        .filter((value): value is string => typeof value === "string")
+        .join(" ")
+    : "";
+
+const isSellerVerificationRequiredResponse = (details: unknown[]): boolean =>
+  details.some((detail) => {
+    const errorId = detailValue(detail, "errorId");
+    const message = detailValue(detail, "message");
+    const detailText = [
+      typeof message === "string" ? message : "",
+      detailParametersText(detail)
+    ].join(" ");
+    return (
+      errorId === 25019 &&
+      (/verified seller/i.test(detailText) ||
+        /verify your details/i.test(detailText) ||
+        /KYC_DSAReq/i.test(detailText))
+    );
+  });
+
 const requireSuccessfulEbayResponse = async (response: Response, action: string): Promise<void> => {
   if (response.ok) {
     return;
   }
   const { message, details } = await ebayErrorPayload(response);
+  if (isSellerVerificationRequiredResponse(details)) {
+    throw new AppError(
+      "EBAY_SELLER_VERIFICATION_REQUIRED",
+      "eBay seller verification is required before publishing listings. Complete verification in eBay, or save this listing as a draft.",
+      409,
+      details
+    );
+  }
   throw new AppError(
     "EBAY_API_ERROR",
     message ? `${action} failed with status ${response.status}: ${message}` : `${action} failed with status ${response.status}.`,

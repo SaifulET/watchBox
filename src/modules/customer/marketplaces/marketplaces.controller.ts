@@ -6,6 +6,7 @@ import {
   ebayAnalyticsQuerySchema,
   ebayLocationSearchSchema,
   ebayMarketInsightsQuerySchema,
+  marketplaceAggregateSearchQuerySchema,
   ebaySellerVerificationQuerySchema,
   ebaySearchQuerySchema,
   ebayShareListingBodySchema,
@@ -21,6 +22,11 @@ const actorId = (req: Request): string => {
 
 export class MarketplaceController {
   public constructor(private readonly service: MarketplaceService) {}
+
+  public searchAll = async (req: Request, res: Response): Promise<void> => {
+    const query = marketplaceAggregateSearchQuerySchema.parse(req.query);
+    sendSuccess(res, req.requestId, await this.service.searchAll(query));
+  };
 
   public searchEbay = async (req: Request, res: Response): Promise<void> => {
     const query = ebaySearchQuerySchema.parse(req.query);

@@ -8,6 +8,7 @@ import {
 import { createAiProvider } from "../../../infrastructure/external/ai/ai-provider.js";
 import { EbayProvider } from "../../../infrastructure/external/ebay/ebay-provider.js";
 import { NominatimGeocodingProvider } from "../../../infrastructure/external/geocoding/geocoding-provider.js";
+import type { RedisClient } from "../../../infrastructure/redis/client.js";
 import type {
   EbayInventoryItemInput,
   EbayPublishInventoryListingResult,
@@ -23,10 +24,16 @@ import type {
   EbayAnalyticsQuery,
   EbayLocationSearchInput,
   EbayMarketInsightsQuery,
+  MarketplaceAggregateSearchQuery,
   EbaySellerVerificationQuery,
   EbaySearchQuery,
   EbayShareListingInput
 } from "./marketplaces.validation.js";
+import { Chrono24Service } from "../../marketplaces/chrono24/chrono24.service.js";
+import type {
+  Chrono24Product,
+  Chrono24SearchQuery
+} from "../../marketplaces/chrono24/chrono24.types.js";
 
 type PriceStats = {
   currency: string | null;
@@ -54,6 +61,39 @@ type MarketInsightProduct = {
 };
 
 type SellerVerificationLevel = "trusted" | "acceptable" | "risky" | "unknown";
+
+type MarketplaceSource = "chrono24" | "ebay" | "local_store";
+
+type AggregateItem = {
+  source: MarketplaceSource;
+  id: string;
+  title: string;
+  brand: string | null;
+  model: string | null;
+  reference: string | null;
+  price: number | null;
+  currency: string | null;
+  condition: string | null;
+  image: string | null;
+  url: string | null;
+};
+
+type LocalStoreListing = AggregateItem & {
+  source: "local_store";
+  ownerId: string | null;
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+type LocalStoreRecord = {
+  _id: { toString(): string };
+  ownerId?: string;
+  data: Record<string, unknown>;
+  status: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
 
 const aiQueryNormalizationTimeoutMs = 3_000;
 
@@ -155,6 +195,14 @@ const listingImageUrls = (data: Record<string, unknown>): string[] => {
   }
   return Array.from(urls).slice(0, 12);
 };
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const searchTerms = (query: string): string[] =>
+  Array.from(new Set(query.split(/\s+/).map((term) => term.trim()).filter((term) => term.length >= 2)));
+
+const aggregateQueryText = (query: MarketplaceAggregateSearchQuery): string =>
+  query.q?.trim() || [query.brand, query.model, query.reference].filter(Boolean).join(" ").trim() || "watch";
 
 const addAspect = (aspects: Record<string, string[]>, name: string, value: string | null): void => {
   if (value) {
@@ -418,6 +466,61 @@ const similarListing = (item: MarketplaceListing) => ({
   buyingOptions: item.buyingOptions
 });
 
+const chrono24AggregateItem = (item: Chrono24Product): AggregateItem => ({
+  source: "chrono24",
+  id: item.id,
+  title: item.title,
+  brand: item.brand || null,
+  model: item.model || null,
+  reference: item.reference || null,
+  price: item.price,
+  currency: item.currency || null,
+  condition: item.condition || null,
+  image: item.image || null,
+  url: item.url || null
+});
+
+const ebayAggregateItem = (item: MarketplaceListing): AggregateItem => ({
+  source: "ebay",
+  id: item.externalId,
+  title: item.title,
+  brand: item.brand ?? null,
+  model: item.model ?? null,
+  reference: item.referenceNumber ?? null,
+  price: item.price,
+  currency: item.currency,
+  condition: item.condition ?? null,
+  image: item.imageUrl ?? null,
+  url: item.sourceUrl
+});
+
+const localStoreAggregateItem = (record: LocalStoreRecord): LocalStoreListing => ({
+  source: "local_store",
+  id: record._id.toString(),
+  title: firstString(record.data, ["title", "name", "generatedTitle"]) ?? "Local store listing",
+  brand: firstString(record.data, ["brand", "manufacturer"]),
+  model: firstString(record.data, ["model", "watchModel"]),
+  reference: firstString(record.data, ["referenceNumber", "reference", "mpn"]),
+  price: firstPrice(record.data),
+  currency: firstString(record.data, ["currency", "priceCurrency"]),
+  condition: firstString(record.data, ["condition"]),
+  image: listingImageUrls(record.data)[0] ?? null,
+  url: `/api/v1/listings/${record._id.toString()}`,
+  ownerId: record.ownerId ?? null,
+  status: record.status,
+  createdAt: record.createdAt?.toISOString() ?? null,
+  updatedAt: record.updatedAt?.toISOString() ?? null
+});
+
+const sourceFailure = (source: MarketplaceSource, error: unknown) => ({
+  source,
+  status: "error" as const,
+  total: 0,
+  count: 0,
+  items: [],
+  warnings: [error instanceof Error ? error.message : `${source} search failed.`]
+});
+
 const sandboxEmptySearchWarning =
   "eBay sandbox does not include live marketplace inventory. Use EBAY_ENVIRONMENT=production with production eBay Browse API credentials for real eBay results.";
 
@@ -471,6 +574,119 @@ export class MarketplaceService {
   private readonly ebay = new EbayProvider();
   private readonly ai = createAiProvider();
   private readonly geocoding = new NominatimGeocodingProvider();
+  private readonly chrono24: Chrono24Service;
+
+  public constructor(redis?: RedisClient) {
+    this.chrono24 = new Chrono24Service(redis);
+  }
+
+  public async searchAll(query: MarketplaceAggregateSearchQuery) {
+    const queryText = aggregateQueryText(query);
+    const chrono24Limit = query.chrono24Limit ?? query.limit;
+    const ebayLimit = query.ebayLimit ?? query.limit;
+    const localLimit = query.localLimit ?? query.limit;
+    const chrono24Query: Chrono24SearchQuery = {
+      page: query.page,
+      limit: chrono24Limit
+    };
+    chrono24Query.q = query.q ?? queryText;
+    chrono24Query.refresh = query.refresh;
+    if (query.brand) {
+      chrono24Query.brand = query.brand;
+    }
+    if (query.model) {
+      chrono24Query.model = query.model;
+    }
+    if (query.reference) {
+      chrono24Query.reference = query.reference;
+    }
+    if (typeof query.minPrice === "number") {
+      chrono24Query.minPrice = query.minPrice;
+    }
+    if (typeof query.maxPrice === "number") {
+      chrono24Query.maxPrice = query.maxPrice;
+    }
+    if (query.condition) {
+      chrono24Query.condition = query.condition;
+    }
+    if (typeof query.year === "number") {
+      chrono24Query.year = query.year;
+    }
+    if (query.country) {
+      chrono24Query.country = query.country;
+    }
+    if (query.sort) {
+      chrono24Query.sort = query.sort;
+    }
+
+    const ebayQuery: EbaySearchQuery = { q: queryText, limit: ebayLimit };
+    if (query.marketplaceId) {
+      ebayQuery.marketplaceId = query.marketplaceId;
+    }
+
+    const [chrono24, ebay, localStore] = await Promise.all([
+      this.chrono24.search(chrono24Query)
+        .then((result) => ({
+          source: "chrono24" as const,
+          status: "ok" as const,
+          total: result.total,
+          count: result.count,
+          page: result.page,
+          limit: result.limit,
+          cached: result.cached,
+          warnings: result.warnings,
+          items: result.items
+        }))
+        .catch((error: unknown) => sourceFailure("chrono24", error)),
+      this.searchEbay(ebayQuery)
+        .then((result) => ({
+          source: "ebay" as const,
+          status: "ok" as const,
+          total: result.total,
+          count: result.count,
+          environment: result.environment,
+          marketplaceId: result.marketplaceId,
+          ebayQuery: result.ebayQuery,
+          queryNormalization: result.queryNormalization,
+          warnings: result.warnings,
+          items: result.items.map((item) => ({ source: "ebay" as const, ...item }))
+        }))
+        .catch((error: unknown) => sourceFailure("ebay", error)),
+      this.searchLocalStore(query, queryText, localLimit)
+        .then((items) => ({
+          source: "local_store" as const,
+          status: "ok" as const,
+          total: items.length,
+          count: items.length,
+          warnings: [] as string[],
+          items
+        }))
+        .catch((error: unknown) => sourceFailure("local_store", error))
+    ]);
+
+    const items = [
+      ...(chrono24.status === "ok" ? chrono24.items.map(chrono24AggregateItem) : []),
+      ...(ebay.status === "ok" ? ebay.items.map(ebayAggregateItem) : []),
+      ...(localStore.status === "ok" ? localStore.items : [])
+    ];
+
+    return {
+      query: {
+        text: queryText,
+        q: query.q ?? null,
+        brand: query.brand ?? null,
+        model: query.model ?? null,
+        reference: query.reference ?? null
+      },
+      sources: ["chrono24", "ebay", "local_store"],
+      total: items.length,
+      count: items.length,
+      items,
+      chrono24,
+      ebay,
+      localStore
+    };
+  }
 
   public async searchEbay(query: EbaySearchQuery) {
     const options: Parameters<EbayProvider["searchListings"]>[1] = {
@@ -497,6 +713,67 @@ export class MarketplaceService {
       }),
       items
     };
+  }
+
+  private async searchLocalStore(
+    query: MarketplaceAggregateSearchQuery,
+    queryText: string,
+    limit: number
+  ): Promise<LocalStoreListing[]> {
+    const clauses: Array<Record<string, unknown>> = [];
+    const fields = [
+      "data.title",
+      "data.name",
+      "data.generatedTitle",
+      "data.brand",
+      "data.manufacturer",
+      "data.model",
+      "data.watchModel",
+      "data.referenceNumber",
+      "data.reference",
+      "data.mpn"
+    ];
+    for (const term of searchTerms(queryText)) {
+      const regex = new RegExp(escapeRegExp(term), "i");
+      clauses.push({
+        $or: fields.map((field) => ({ [field]: regex }))
+      });
+    }
+    if (query.brand) {
+      const regex = new RegExp(escapeRegExp(query.brand), "i");
+      clauses.push({ $or: [{ "data.brand": regex }, { "data.manufacturer": regex }] });
+    }
+    if (query.model) {
+      const regex = new RegExp(escapeRegExp(query.model), "i");
+      clauses.push({ $or: [{ "data.model": regex }, { "data.watchModel": regex }, { "data.title": regex }] });
+    }
+    if (query.reference) {
+      const regex = new RegExp(escapeRegExp(query.reference), "i");
+      clauses.push({
+        $or: [{ "data.referenceNumber": regex }, { "data.reference": regex }, { "data.mpn": regex }, { "data.title": regex }]
+      });
+    }
+
+    const filter: Record<string, unknown> = {
+      resource: "listings",
+      deletedAt: null,
+      status: "active"
+    };
+    if (clauses.length > 0) {
+      filter.$and = clauses;
+    }
+    if (typeof query.minPrice === "number" || typeof query.maxPrice === "number") {
+      filter["data.price"] = {
+        ...(typeof query.minPrice === "number" ? { $gte: query.minPrice } : {}),
+        ...(typeof query.maxPrice === "number" ? { $lte: query.maxPrice } : {})
+      };
+    }
+
+    const records = await GeneratedApiRecordModel.find(filter)
+      .sort({ updatedAt: -1 })
+      .limit(limit)
+      .lean() as LocalStoreRecord[];
+    return records.map(localStoreAggregateItem);
   }
 
   public async searchEbayByLocation(input: EbayLocationSearchInput) {

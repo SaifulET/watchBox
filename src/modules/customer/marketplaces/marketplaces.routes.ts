@@ -8,6 +8,7 @@ import {
   ebayAnalyticsQuerySchema,
   ebayLocationSearchSchema,
   ebayMarketInsightsQuerySchema,
+  marketplaceAggregateSearchQuerySchema,
   ebaySellerVerificationQuerySchema,
   ebaySearchQuerySchema,
   ebayShareListingBodySchema,
@@ -18,11 +19,12 @@ import type { RouteDependencies } from "../../../routes/index.js";
 
 export const createMarketplacesRouter = (dependencies: RouteDependencies = {}): Router => {
   const router = Router();
-  const controller = new MarketplaceController(new MarketplaceService());
+  const controller = new MarketplaceController(new MarketplaceService(dependencies.redis));
   const customerAuth = authenticate("customer");
 
   router.use("/chrono24", createChrono24Router({ redis: dependencies.redis }));
 
+  router.get("/search", validate({ query: marketplaceAggregateSearchQuerySchema }), asyncHandler(controller.searchAll));
   router.get("/ebay/search", validate({ query: ebaySearchQuerySchema }), asyncHandler(controller.searchEbay));
   router.post(
     "/ebay/search-by-location",

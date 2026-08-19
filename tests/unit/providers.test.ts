@@ -7,6 +7,9 @@ import { EbayService } from "../../src/modules/customer/ebay/ebay.service.js";
 import { LocalEmailProvider } from "../../src/infrastructure/external/email/email-provider.js";
 import { LocalPaymentProvider } from "../../src/infrastructure/external/stripe/stripe-provider.js";
 import { MarketplaceService } from "../../src/modules/customer/marketplaces/marketplaces.service.js";
+import { marketplaceAggregateSearchQuerySchema } from "../../src/modules/customer/marketplaces/marketplaces.validation.js";
+import { Chrono24Service } from "../../src/modules/marketplaces/chrono24/chrono24.service.js";
+import { GeneratedApiRecordModel } from "../../src/modules/generated-api/generated-api.model.js";
 import { resetEnvForTests } from "../../src/config/env.js";
 
 afterEach(() => {
@@ -313,6 +316,47 @@ describe("local provider adapters", () => {
     expect(inventoryBody.condition).toBe("USED_EXCELLENT");
   });
 
+  it("surfaces eBay verified seller requirements as a conflict", async () => {
+    configureSandboxEbay();
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          errors: [
+            {
+              errorId: 25019,
+              domain: "API_INVENTORY",
+              subdomain: "Selling",
+              category: "Request",
+              message:
+                "Cannot revise listing. The item cannot be listed or modified. The title and/or description may contain improper words, or the listing or seller may be in violation of eBay policy.",
+              parameters: [
+                {
+                  name: "1",
+                  value:
+                    "We still need to verify your details. To keep our marketplace safe for you and the eBay community, only a verified seller can list an item, At this time, you can still save a draft of your listing."
+                },
+                {
+                  name: "2",
+                  value: "KYC_DSAReq_EUB2C_SYI"
+                }
+              ]
+            }
+          ]
+        }),
+        { status: 400 }
+      )
+    );
+
+    const provider = new EbayProvider();
+    await expect(provider.publishOffer("seller-token", "offer-123")).rejects.toMatchObject({
+      code: "EBAY_SELLER_VERIFICATION_REQUIRED",
+      statusCode: 409,
+      message:
+        "eBay seller verification is required before publishing listings. Complete verification in eBay, or save this listing as a draft."
+    });
+  });
+
   it("builds eBay seller OAuth URLs and exchanges authorization codes", async () => {
     configureSandboxEbay();
 
@@ -566,6 +610,118 @@ describe("local provider adapters", () => {
     expect((fetchMock.mock.calls[2]?.[0] as URL).href).toBe(
       "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+watch&limit=20"
     );
+  });
+
+  it("aggregates Chrono24, eBay, and local store search results", async () => {
+    const chrono24Search = vi.spyOn(Chrono24Service.prototype, "search").mockResolvedValueOnce({
+      query: { q: "Rolex Submariner", page: 1, limit: 2 },
+      total: 1,
+      count: 1,
+      page: 1,
+      limit: 2,
+      aggregateOffer: null,
+      cached: false,
+      warnings: [],
+      items: [
+        {
+          id: "chrono-1",
+          source: "chrono24",
+          title: "Rolex Submariner Date 126610LN",
+          brand: "Rolex",
+          model: "Submariner",
+          reference: "126610LN",
+          price: 12500,
+          currency: "USD",
+          condition: "Pre-owned",
+          year: 2023,
+          image: "https://cdn.example.test/chrono.jpg",
+          url: "https://www.chrono24.com/rolex/submariner--id123.htm",
+          availability: "InStock",
+          location: null,
+          caseMaterial: null,
+          movement: null,
+          description: null,
+          sellerName: null,
+          structuredData: {},
+          capturedAt: "2026-08-19T00:00:00.000Z"
+        }
+      ]
+    });
+    const ebaySearch = vi.spyOn(MarketplaceService.prototype, "searchEbay").mockResolvedValueOnce({
+      query: "Rolex Submariner",
+      ebayQuery: "Rolex Submariner",
+      queryNormalization: {
+        query: "Rolex Submariner",
+        source: "fallback",
+        confidence: null,
+        detectedBrand: null,
+        detectedModel: null,
+        reasoning: null
+      },
+      environment: "sandbox",
+      marketplaceId: "EBAY_US",
+      total: 1,
+      count: 1,
+      warnings: [],
+      items: [
+        {
+          externalId: "ebay-1",
+          title: "Rolex Submariner eBay",
+          brand: "Rolex",
+          model: "Submariner",
+          referenceNumber: "126610LN",
+          price: 12300,
+          currency: "USD",
+          sourceUrl: "https://www.ebay.com/itm/1",
+          imageUrl: "https://i.ebayimg.test/1.jpg",
+          condition: "Pre-Owned",
+          buyingOptions: ["FIXED_PRICE"]
+        }
+      ]
+    });
+    const findSpy = vi.spyOn(GeneratedApiRecordModel, "find").mockReturnValueOnce({
+      sort: vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue({
+          lean: vi.fn().mockResolvedValue([
+            {
+              _id: { toString: () => "local-1" },
+              ownerId: "dealer-1",
+              status: "active",
+              data: {
+                title: "Rolex Submariner Local",
+                brand: "Rolex",
+                model: "Submariner",
+                referenceNumber: "126610LN",
+                price: 12100,
+                currency: "USD",
+                condition: "Excellent",
+                image: "https://cdn.example.test/local.jpg"
+              },
+              createdAt: new Date("2026-08-18T00:00:00.000Z"),
+              updatedAt: new Date("2026-08-19T00:00:00.000Z")
+            }
+          ])
+        })
+      })
+    } as never);
+
+    const query = marketplaceAggregateSearchQuerySchema.parse({
+      q: "Rolex Submariner",
+      chrono24Limit: "2",
+      ebayLimit: "3",
+      localLimit: "4"
+    });
+    const service = new MarketplaceService();
+    const result = await service.searchAll(query);
+
+    expect(result.count).toBe(3);
+    expect(result.items.map((item) => item.source)).toEqual(["chrono24", "ebay", "local_store"]);
+    expect(result.chrono24).toMatchObject({ status: "ok", count: 1 });
+    expect(result.ebay).toMatchObject({ status: "ok", count: 1, ebayQuery: "Rolex Submariner" });
+    expect(result.localStore).toMatchObject({ status: "ok", count: 1 });
+    expect(chrono24Search).toHaveBeenCalledWith(expect.objectContaining({ q: "Rolex Submariner", limit: 2 }));
+    expect(ebaySearch).toHaveBeenCalledWith(expect.objectContaining({ q: "Rolex Submariner", limit: 3 }));
+    expect(findSpy).toHaveBeenCalledWith(expect.objectContaining({ resource: "listings", status: "active" }));
   });
 
   it("builds eBay market analytics from active listing samples", async () => {
