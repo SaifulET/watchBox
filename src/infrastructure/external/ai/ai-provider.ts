@@ -737,7 +737,7 @@ export class HttpAiProvider implements AiProvider {
             ]
           }
         ],
-        max_output_tokens: 400,
+        max_output_tokens: config.imageAnalysisMaxOutputTokens,
         text: {
           format: {
             type: "json_schema",

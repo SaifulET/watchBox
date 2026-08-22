@@ -30,7 +30,7 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/ebay", createEbayRouter());
   router.use("/dealer", createDealerEbayRouter());
   router.use("/users", createUsersRouter(dependencies));
-  router.use(createAiRouter());
+  router.use(createAiRouter(dependencies));
   router.use("/content", createPublicContentRouter());
   router.use("/admin/settings/content", createAdminContentRouter());
   router.use("/listings", createListingsRouter());

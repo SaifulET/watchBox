@@ -78,6 +78,7 @@ const envSchema = z.object({
   AI_MODEL: z.string().default("gpt-5.6"),
   AI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
   AI_ANALYSIS_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+  AI_IMAGE_ANALYSIS_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(1000),
   AI_QUERY_NORMALIZATION_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   EBAY_SEARCH_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   ENCRYPTION_KEY: z.string().min(32).default("dev-encryption-key-32-bytes-minimum")

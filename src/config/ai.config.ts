@@ -9,6 +9,7 @@ export const getAiConfig = () => {
     model: env.AI_MODEL,
     embeddingModel: env.AI_EMBEDDING_MODEL,
     analysisTimeoutMs: env.AI_ANALYSIS_TIMEOUT_MS,
+    imageAnalysisMaxOutputTokens: env.AI_IMAGE_ANALYSIS_MAX_OUTPUT_TOKENS,
     queryNormalizationTimeoutMs: env.AI_QUERY_NORMALIZATION_TIMEOUT_MS,
     ebaySearchTimeoutMs: env.EBAY_SEARCH_TIMEOUT_MS
   };

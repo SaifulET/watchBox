@@ -115,6 +115,7 @@ describe.sequential("generated API routes", () => {
     delete process.env.EBAY_CLIENT_SECRET;
     delete process.env.EBAY_ENVIRONMENT;
     delete process.env.EBAY_MARKETPLACE_ID;
+    delete process.env.EBAY_API_BASE_URL;
     delete process.env.STRIPE_SECRET_KEY;
     delete process.env.STRIPE_WEBHOOK_SECRET;
     delete process.env.STRIPE_ELITE_PRICE_ID;
@@ -403,6 +404,225 @@ describe.sequential("generated API routes", () => {
     expect(body.data.errors).toBeUndefined();
   });
 
+  it("searches eBay directly from text without AI query normalization", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    resetEnvForTests();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            itemSummaries: [
+              {
+                itemId: "direct-text-watch",
+                title: "Titan automatic blue skeleton watch",
+                price: { value: "180.00", currency: "USD" },
+                itemWebUrl: "https://www.ebay.test/itm/direct-text-watch",
+                image: { imageUrl: "https://i.ebayimg.test/titan.jpg" },
+                condition: "New",
+                buyingOptions: ["FIXED_PRICE"]
+              }
+            ]
+          }),
+          { status: 200 }
+        )
+      );
+
+    const accessToken = await registerCustomer();
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        title: "Titan blue skeleton automatic watch",
+        brand: "Titan",
+        model: "Skeleton",
+        price: 190,
+        currency: "USD",
+        condition: "new"
+      })
+      .expect(201);
+    const response = await request(app)
+      .post("/api/v1/image-search/ebay-direct")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ query: "Titan blue skeleton", limit: 5 })
+      .expect(201);
+    const body = response.body as DataResponse<{
+      mode: string;
+      flow: string;
+      query: string;
+      imageAnalysis: null;
+      metadata: {
+        internalProductsMerged: boolean;
+        localCandidates: number;
+        ebayCandidates: number;
+        textSearchDirectToEbay: boolean;
+        imageSearchUsesOpenAiIdentification: boolean;
+        queryNormalization: { source: string };
+      };
+      results: {
+        items: Array<{ source: string; title: string }>;
+        local: Array<{ source: string; title: string }>;
+        ebay: Array<{ source: string; title: string }>;
+      };
+    }>;
+    const searchUrl = fetchMock.mock.calls
+      .map((call) => call[0])
+      .find((value): value is URL => value instanceof URL && value.pathname.includes("/item_summary/search"));
+
+    expect(body.data.mode).toBe("text");
+    expect(body.data.flow).toBe("User query -> eBay directly + internal products");
+    expect(body.data.query).toBe("Titan blue skeleton");
+    expect(body.data.imageAnalysis).toBeNull();
+    expect(body.data.metadata.internalProductsMerged).toBe(true);
+    expect(body.data.metadata.localCandidates).toBe(1);
+    expect(body.data.metadata.ebayCandidates).toBe(1);
+    expect(body.data.metadata.textSearchDirectToEbay).toBe(true);
+    expect(body.data.metadata.imageSearchUsesOpenAiIdentification).toBe(false);
+    expect(body.data.metadata.queryNormalization.source).toBe("fallback");
+    expect(searchUrl?.searchParams.get("q")).toBe("Titan blue skeleton");
+    expect(body.data.results.local[0]).toMatchObject({
+      source: "local",
+      title: "Titan blue skeleton automatic watch"
+    });
+    expect(body.data.results.ebay[0]).toMatchObject({
+      source: "ebay",
+      title: "Titan automatic blue skeleton watch"
+    });
+    expect(body.data.results.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "local", title: "Titan blue skeleton automatic watch" }),
+      expect.objectContaining({ source: "ebay", title: "Titan automatic blue skeleton watch" })
+    ]));
+  });
+
+  it("searches eBay directly from an uploaded image with search_by_image", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    resetEnvForTests();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+      }
+      if (url.includes("/item_summary/search_by_image")) {
+        return new Response(
+          JSON.stringify({
+            itemSummaries: [
+              {
+                itemId: "direct-image-watch",
+                title: "Rolex Submariner 126610LN",
+                price: { value: "12600.00", currency: "USD" },
+                itemWebUrl: "https://www.ebay.test/itm/direct-image-watch",
+                image: { imageUrl: "https://i.ebayimg.test/rolex.jpg" },
+                condition: "Pre-Owned",
+                buyingOptions: ["FIXED_PRICE"]
+              }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      if (url === "https://i.localimg.test/rolex.png") {
+        return new Response(png, { status: 200, headers: { "content-type": "image/png" } });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const accessToken = await registerCustomer();
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      "base64"
+    );
+    await GeneratedApiRecordModel.create({
+      resource: "listings",
+      ownerId: "internal-test-owner",
+      scope: {},
+      status: "active",
+      data: {
+        title: "Internal Rolex Submariner visual match",
+        brand: "Rolex",
+        model: "Submariner",
+        price: 12500,
+        currency: "USD",
+        condition: "very_good",
+        image: "https://i.localimg.test/rolex.png"
+      },
+      history: []
+    });
+    const response = await request(app)
+      .post("/api/v1/image-search/ebay-direct")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .field("limit", "5")
+      .attach("file", png, {
+        filename: "watch.png",
+        contentType: "image/png"
+      })
+      .expect(201);
+    const body = response.body as DataResponse<{
+      mode: string;
+      flow: string;
+      query: string;
+      imageAnalysis: null;
+      metadata: {
+        internalProductsMerged: boolean;
+        localCandidates: number;
+        ebayCandidates: number;
+        textSearchDirectToEbay: boolean;
+        imageSearchUsesOpenAiIdentification: boolean;
+        imageSearchUsesEbayImageSearch: boolean;
+      };
+      results: {
+        items: Array<{ source: string; title: string; visualSimilarity: number | null }>;
+        local: Array<{ source: string; title: string; visualSimilarity: number | null }>;
+        ebay: Array<{ source: string; title: string }>;
+      };
+    }>;
+    const searchUrl = fetchMock.mock.calls
+      .map((call) => call[0])
+      .find((value): value is URL => value instanceof URL && value.pathname.includes("/item_summary/search_by_image"));
+    const imageSearchCall = fetchMock.mock.calls.find((call) => {
+      const value = call[0];
+      return value instanceof URL && value.pathname.includes("/item_summary/search_by_image");
+    });
+    const imageSearchBody = JSON.parse(String(imageSearchCall?.[1]?.body ?? "{}")) as { image?: string };
+
+    expect(body.data.mode).toBe("image");
+    expect(body.data.flow).toBe("Image -> eBay search_by_image + internal visual match");
+    expect(body.data.imageAnalysis).toBeNull();
+    expect(body.data.metadata.internalProductsMerged).toBe(true);
+    expect(body.data.metadata.localCandidates).toBe(1);
+    expect(body.data.metadata.ebayCandidates).toBe(1);
+    expect(body.data.metadata.textSearchDirectToEbay).toBe(false);
+    expect(body.data.metadata.imageSearchUsesOpenAiIdentification).toBe(false);
+    expect(body.data.metadata.imageSearchUsesEbayImageSearch).toBe(true);
+    expect(searchUrl?.searchParams.get("limit")).toBe("5");
+    expect(typeof imageSearchBody.image).toBe("string");
+    expect(imageSearchBody.image?.length).toBeGreaterThan(0);
+    expect(body.data.results.local[0]).toMatchObject({
+      source: "local",
+      title: "Internal Rolex Submariner visual match",
+      visualSimilarity: expect.any(Number)
+    });
+    expect(body.data.results.ebay[0]).toMatchObject({
+      source: "ebay",
+      title: "Rolex Submariner 126610LN"
+    });
+    expect(body.data.results.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "local", title: "Internal Rolex Submariner visual match" }),
+      expect.objectContaining({ source: "ebay", title: "Rolex Submariner 126610LN" })
+    ]));
+  });
+
   it("detects a search query from an uploaded image", async () => {
     process.env.EBAY_CLIENT_ID = "client-id";
     process.env.EBAY_CLIENT_SECRET = "client-secret";
@@ -428,6 +648,18 @@ describe.sequential("generated API routes", () => {
         model: "Submariner",
         referenceNumber: "126610LN",
         price: 12500,
+        currency: "USD"
+      })
+      .expect(201);
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Rolex Datejust 126334",
+        brand: "Rolex",
+        model: "Datejust",
+        referenceNumber: "126334",
+        price: 9800,
         currency: "USD"
       })
       .expect(201);
@@ -468,9 +700,9 @@ describe.sequential("generated API routes", () => {
         value.searchParams.get("q") === "Rolex Submariner 126610LN" &&
         value.searchParams.get("limit") === "20"
       );
-    expect(searchUrl?.href).toBe(
-      "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+Submariner+126610LN&limit=20"
-    );
+    expect(searchUrl?.pathname).toBe("/buy/browse/v1/item_summary/search");
+    expect(searchUrl?.searchParams.get("q")).toBe("Rolex Submariner 126610LN");
+    expect(searchUrl?.searchParams.get("limit")).toBe("20");
     expect(body.data[0]).toMatchObject({
       source: "local",
       title: "Rolex Submariner 126610LN",
@@ -485,6 +717,298 @@ describe.sequential("generated API routes", () => {
     });
     expect(body.data[0]).not.toHaveProperty("similarProducts");
     expect(body.data[0]?.similarityScore).toBeGreaterThan(0);
+    expect(body.data.map((item) => item.title)).not.toContain("Rolex Datejust 126334");
+  });
+
+  it("prioritizes image brand and visual attributes for eBay image search results", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    process.env.EBAY_API_BASE_URL = "https://api.sandbox.ebay.com";
+    resetEnvForTests();
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            itemSummaries: [
+              {
+                itemId: "blue-watch",
+                title: "Rolex Submariner 126610LN watch blue dial",
+                price: { value: "12400", currency: "USD" },
+                itemWebUrl: "https://www.ebay.test/itm/blue-watch",
+                image: { imageUrl: "https://i.ebayimg.test/blue.jpg" },
+                condition: "Pre-Owned",
+                buyingOptions: ["FIXED_PRICE"],
+                localizedAspects: [
+                  { name: "Brand", value: "Rolex" },
+                  { name: "Model", value: "Submariner" },
+                  { name: "Reference Number", value: "126610LN" },
+                  { name: "Dial Color", value: "Blue" },
+                  { name: "Bezel", value: "Steel" },
+                  { name: "Case Shape", value: "Square" }
+                ]
+              },
+              {
+                itemId: "black-watch",
+                title: "Rolex Submariner 126610LN watch black dial",
+                price: { value: "12600", currency: "USD" },
+                itemWebUrl: "https://www.ebay.test/itm/black-watch",
+                image: { imageUrl: "https://i.ebayimg.test/black.jpg" },
+                condition: "Pre-Owned",
+                buyingOptions: ["FIXED_PRICE"],
+                localizedAspects: [
+                  { name: "Brand", value: "Rolex" },
+                  { name: "Model", value: "Submariner" },
+                  { name: "Reference Number", value: "126610LN" },
+                  { name: "Dial Color", value: "Black" },
+                  { name: "Bezel", value: "Ceramic" },
+                  { name: "Case Shape", value: "Round" }
+                ]
+              }
+            ]
+          }),
+          { status: 200 }
+        )
+      );
+
+    const accessToken = await registerCustomer();
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      "base64"
+    );
+    const response = await request(app)
+      .post("/api/v1/image-search")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .attach("file", png, {
+        filename: "watch.png",
+        contentType: "image/png"
+      })
+      .expect(201);
+    const body = response.body as DataResponse<Array<{ id: string; matchReasons: string[] }>>;
+
+    expect(body.data[0]).toMatchObject({
+      id: "black-watch",
+      matchReasons: expect.arrayContaining([
+        "priority:brand",
+        "priority:model",
+        "priority:reference",
+        "priority:visual:black",
+        "priority:visual:ceramic",
+        "priority:visual:round"
+      ])
+    });
+  });
+
+  it("runs the visual image search pipeline with candidate image comparison and confidence", async () => {
+    process.env.EBAY_CLIENT_ID = "client-id";
+    process.env.EBAY_CLIENT_SECRET = "client-secret";
+    process.env.EBAY_ENVIRONMENT = "sandbox";
+    process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
+    process.env.EBAY_API_BASE_URL = "https://api.sandbox.ebay.com";
+    resetEnvForTests();
+    const blackPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWNgIB0AAAA0AAEjQ4N1AAAAAElFTkSuQmCC",
+      "base64"
+    );
+    const bluePng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEElEQVQImWNgYPiPhIjiAACOsw/xX0IioQAAAABJRU5ErkJggg==",
+      "base64"
+    );
+    const ebaySearchResponse = {
+      itemSummaries: [
+        {
+          itemId: "blue-watch",
+          title: "Rolex Submariner 126610LN watch blue dial",
+          price: { value: "12400", currency: "USD" },
+          itemWebUrl: "https://www.ebay.test/itm/blue-watch",
+          image: { imageUrl: "https://i.ebayimg.test/blue.jpg" },
+          condition: "Pre-Owned",
+          buyingOptions: ["FIXED_PRICE"],
+          localizedAspects: [
+            { name: "Brand", value: "Rolex" },
+            { name: "Model", value: "Submariner" },
+            { name: "Reference Number", value: "126610LN" },
+            { name: "Dial Color", value: "Blue" }
+          ]
+        },
+        {
+          itemId: "black-watch",
+          title: "Rolex Submariner 126610LN watch black dial",
+          price: { value: "12600", currency: "USD" },
+          itemWebUrl: "https://www.ebay.test/itm/black-watch",
+          image: { imageUrl: "https://i.ebayimg.test/black.jpg" },
+          condition: "Pre-Owned",
+          buyingOptions: ["FIXED_PRICE"],
+          localizedAspects: [
+            { name: "Brand", value: "Rolex" },
+            { name: "Model", value: "Submariner" },
+            { name: "Reference Number", value: "126610LN" },
+            { name: "Dial Color", value: "Black" },
+            { name: "Bezel", value: "Ceramic" },
+            { name: "Case Shape", value: "Round" }
+          ]
+        }
+      ]
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+      }
+      if (url.includes("/item_summary/search")) {
+        return new Response(JSON.stringify(ebaySearchResponse), { status: 200 });
+      }
+      if (url === "https://i.ebayimg.test/black.jpg") {
+        return new Response(blackPng, { status: 200, headers: { "content-type": "image/png" } });
+      }
+      if (url === "https://i.ebayimg.test/blue.jpg") {
+        return new Response(bluePng, { status: 200, headers: { "content-type": "image/png" } });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const accessToken = await registerCustomer();
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      "base64"
+    );
+    const response = await request(app)
+      .post("/api/v1/image-search/visual")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .field("limit", "2")
+      .attach("file", png, {
+        filename: "watch.png",
+        contentType: "image/png"
+      })
+      .expect(201);
+    const body = response.body as DataResponse<{
+      pipeline: string[];
+      quality: { passed: boolean };
+      queryEmbeddingDimensions: number;
+      metadata: { analyzedCandidateImages: number; candidateImageEmbeddings: boolean; marketplaceCandidates: { ebay: number } };
+      results: {
+        items: Array<{
+          id: string;
+          confidence: number;
+          marketplace: string;
+          originalUrl: string;
+          visualSimilarity: number | null;
+          metadataSimilarity: number;
+          matchScore: number;
+          matchLevel: string;
+          matchedOn: string[];
+          confidenceBreakdown: {
+            imageSimilarity: number | null;
+            visualAttributes: number;
+            metadata: number;
+            text: number;
+          };
+          matchReasons: string[];
+          candidateImageAnalysis: unknown;
+        }>;
+      };
+    }>;
+
+    expect(body.data.pipeline).toEqual([
+      "image_quality_check",
+      "extract_visual_attributes",
+      "generate_image_embedding",
+      "search_marketplace_candidates",
+      "compare_candidate_images_and_metadata",
+      "multi_signal_ranking",
+      "return_top_matches_with_confidence"
+    ]);
+    expect(body.data.quality.passed).toBe(true);
+    expect(body.data.queryEmbeddingDimensions).toBeGreaterThan(0);
+    expect(body.data.metadata.analyzedCandidateImages).toBeGreaterThan(0);
+    expect(body.data.metadata.candidateImageEmbeddings).toBe(true);
+    expect(body.data.metadata.marketplaceCandidates.ebay).toBe(2);
+    expect(body.data.results.items[0]).toMatchObject({
+      id: "black-watch",
+      marketplace: "ebay",
+      originalUrl: "https://www.ebay.test/itm/black-watch",
+      visualSimilarity: expect.any(Number),
+      metadataSimilarity: expect.any(Number),
+      matchScore: expect.any(Number),
+      matchLevel: expect.stringMatching(/^(very_high|high|possible|low)$/),
+      matchedOn: expect.arrayContaining(["dial:black", "case:ceramic", "case:round"]),
+      confidence: expect.any(Number),
+      confidenceBreakdown: {
+        imageSimilarity: expect.any(Number),
+        visualAttributes: expect.any(Number),
+        metadata: expect.any(Number),
+        text: expect.any(Number)
+      },
+      matchReasons: expect.arrayContaining(["dial:black", "case:ceramic", "case:round"]),
+      candidateImageAnalysis: null
+    });
+  });
+
+  it("accepts keyword-only visual image search requests", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Titan Edge Ceramic Watch",
+        brand: "Titan",
+        model: "Edge",
+        price: 250,
+        currency: "USD",
+        condition: "new"
+      })
+      .expect(201);
+
+    const response = await request(app)
+      .post("/api/v1/image-search/visual")
+      .set("Authorization", authorization)
+      .field("keyword", "titan")
+      .expect(201);
+    const body = response.body as DataResponse<{
+      query: string;
+      queryImageAnalysis: null;
+      queryEmbeddingDimensions: number;
+      pipeline: string[];
+      results: {
+        items: Array<{
+          title: string;
+          confidence: number;
+          confidenceBreakdown: {
+            imageSimilarity: null;
+            visualAttributes: number;
+            metadata: number;
+            text: number;
+          };
+        }>;
+      };
+    }>;
+
+    expect(body.data.query).toBe("titan");
+    expect(body.data.queryImageAnalysis).toBeNull();
+    expect(body.data.queryEmbeddingDimensions).toBe(0);
+    expect(body.data.pipeline).toEqual([
+      "keyword_search",
+      "search_marketplace_candidates",
+      "multi_signal_ranking",
+      "return_top_matches_with_confidence"
+    ]);
+    expect(body.data.results.items[0]).toMatchObject({
+      title: "Titan Edge Ceramic Watch",
+      confidence: expect.any(Number),
+      confidenceBreakdown: {
+        imageSimilarity: null,
+        visualAttributes: 0,
+        metadata: 0,
+        text: expect.any(Number)
+      }
+    });
   });
 
   it("returns enriched details for one local product by ID", async () => {

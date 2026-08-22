@@ -757,6 +757,47 @@ export class EbayProvider implements MarketplaceProvider {
     };
   }
 
+  public async searchListingsByImageWithMetadata(
+    base64Image: string,
+    options: Pick<MarketplaceSearchOptions, "limit" | "marketplaceId" | "timeoutMs"> = {}
+  ): Promise<MarketplaceSearchResult> {
+    const image = base64Image.trim();
+    if (!image) {
+      throw new ConflictError("A base64 image is required for eBay image search.");
+    }
+
+    const config = getMarketplaceConfig().ebay;
+    const baseUrl = endpointBase();
+    const url = new URL(`${baseUrl}/buy/browse/v1/item_summary/search_by_image`);
+    url.searchParams.set("limit", parseLimit(options.limit).toString());
+
+    const response = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await this.getApplicationAccessToken()}`,
+          "X-EBAY-C-MARKETPLACE-ID": options.marketplaceId ?? config.marketplaceId,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ image })
+      },
+      options.timeoutMs ?? config.searchTimeoutMs,
+      "eBay image search timed out."
+    );
+
+    if (!response.ok) {
+      throw new ExternalServiceError(`eBay image search failed with status ${response.status}.`);
+    }
+
+    const payload = (await response.json()) as EbaySearchResponse;
+    const total = payload.total;
+    return {
+      total: typeof total === "number" && Number.isInteger(total) ? total : null,
+      items: (payload.itemSummaries ?? []).flatMap(toMarketplaceListing)
+    };
+  }
+
   public async getListingDetails(
     itemId: string,
     options: Pick<MarketplaceSearchOptions, "marketplaceId"> = {}

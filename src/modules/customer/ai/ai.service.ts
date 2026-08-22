@@ -1,5 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Types } from "mongoose";
+import sharp from "sharp";
 import { AppError, ConflictError, ExternalServiceError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
 import { getAiConfig } from "../../../config/ai.config.js";
 import { getMarketplaceConfig } from "../../../config/marketplace.config.js";
@@ -10,6 +11,7 @@ import type {
   ProductDetailGuess
 } from "../../../infrastructure/external/ai/ai-provider.js";
 import { EbayProvider, type MarketplaceListing } from "../../../infrastructure/external/ebay/ebay-provider.js";
+import type { RedisClient } from "../../../infrastructure/redis/client.js";
 import { uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import { GeneratedApiRecordModel } from "../../generated-api/generated-api.model.js";
 import type { GeneratedApiRecordDocument } from "../../generated-api/generated-api.model.js";
@@ -32,8 +34,22 @@ type SearchInput = AnalyzeInput & {
   listingStatus?: ListingStatusFilter;
   condition?: ConditionFilter;
   region?: string;
+  referenceNumber?: string;
   limit: number;
   marketplaceId?: string;
+  visualDepth?: "fast" | "deep";
+  candidateImageLimit?: number;
+};
+
+type AiServiceDependencies = {
+  redis?: RedisClient;
+};
+
+type ImageAnalysisCacheLookup = {
+  cacheHit: boolean;
+  analysis?: ImageAnalysis;
+  imageHash?: string;
+  cacheKey?: string;
 };
 
 type ProductDetailSource = "local" | "ebay";
@@ -78,6 +94,7 @@ type LocalSearchItem = {
   movement: string | null;
   scope: string | null;
   description: string | null;
+  aspects?: Record<string, string>;
   rating: ProductRating | null;
   salesAmount: number | null;
   priceTrendData: Array<{ label: string; averagePrice: number | null; listingCount: number }>;
@@ -94,6 +111,27 @@ type EbaySearchItem = Omit<MarketplaceListing, "imageUrl"> & {
   source: "ebay";
   image: string | null;
   description?: string;
+};
+
+type DirectSearchItem = {
+  source: "local" | "ebay";
+  marketplace: "local" | "ebay";
+  id: string;
+  externalId: string | null;
+  title: string | null;
+  brand: string | null;
+  model: string | null;
+  referenceNumber: string | null;
+  price: number | null;
+  currency: string | null;
+  condition: string | null;
+  image: string | null;
+  sourceUrl: string | null;
+  originalUrl: string | null;
+  matchScore: number;
+  matchType: "text" | "image";
+  visualSimilarity: number | null;
+  matchReasons: string[];
 };
 
 type RankedSearchItem = {
@@ -122,6 +160,15 @@ type RankedSearchItem = {
 
 type InternalRankedSearchItem = RankedSearchItem & {
   rawScore: number;
+  priorityScore: number;
+};
+
+type SearchPrioritySignals = {
+  containsWatch?: boolean;
+  brand?: string;
+  model?: string;
+  referenceNumber?: string;
+  visualTerms: string[];
 };
 
 type MarketLevel = "unknown" | "low" | "medium" | "high";
@@ -177,6 +224,101 @@ type ProductDetails = {
   }>;
 };
 
+type ImageQualityCheck = {
+  passed: boolean;
+  warnings: string[];
+  checks: {
+    hasImage: boolean;
+    acceptedMimeType: boolean;
+    nonEmptyFile: boolean | null;
+    containsWatch: boolean | null;
+  };
+};
+
+type VisualSearchMatch = Omit<ProductDetails, "similarProducts"> & {
+  marketplace: "local" | "ebay";
+  originalUrl: string;
+  visualSimilarity: number | null;
+  metadataSimilarity: number;
+  matchScore: number;
+  matchLevel: "very_high" | "high" | "possible" | "low";
+  matchedOn: string[];
+  confidence: number;
+  confidenceBreakdown: {
+    imageSimilarity: number | null;
+    visualAttributes: number;
+    metadata: number;
+    text: number;
+  };
+  candidateImageAnalysis: {
+    containsWatch: boolean;
+    generatedTitle: string | null;
+    probableBrand: string | null;
+    probableModel: string | null;
+    probableReferenceNumber: string | null;
+    visualAttributes: Record<string, string>;
+    modelVersion: string;
+  } | null;
+};
+
+type VisualEmbeddingResult = {
+  embedding: number[];
+  imageHash?: string;
+  cacheHit: boolean;
+  model: string;
+};
+
+type CandidateVisualEmbedding = {
+  key: string;
+  embedding: number[];
+  imageHash?: string;
+  cacheHit: boolean;
+  model: string;
+};
+
+type VisualMatchLevel = "very_high" | "high" | "possible" | "low";
+
+type VisualSearchWeights = {
+  visualSimilarity: number;
+  brand: number;
+  model: number;
+  dialFeatures: number;
+  caseBezel: number;
+  strap: number;
+  text: number;
+};
+
+type VisualSignalScores = {
+  brand: number;
+  model: number;
+  dialFeatures: number;
+  caseBezel: number;
+  strap: number;
+  text: number;
+  matchedOn: string[];
+};
+
+type EbayListingsSearchResult = {
+  items: EbaySearchItem[];
+  query: string;
+  queryNormalization: MarketplaceQueryNormalization;
+  environment: "sandbox" | "production";
+  marketplaceId: string;
+  total: number | null;
+  attemptedQueries: string[];
+  warnings: string[];
+  error?: string;
+};
+
+type VisualMarketplaceSearchResult = {
+  local: LocalSearchItem[];
+  ebay: EbayListingsSearchResult;
+  localQueries: string[];
+  ebayQueries: string[];
+  localCacheHits: number;
+  ebayCacheHits: number;
+};
+
 const imageExtensionByMimeType: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -186,6 +328,20 @@ const imageExtensionByMimeType: Record<string, string> = {
 
 const sandboxEmptySearchWarning =
   "eBay sandbox does not include live marketplace inventory. Use EBAY_ENVIRONMENT=production with production eBay Browse API credentials for real eBay results.";
+
+const visualEmbeddingModel = "sharp-rgb-grid-histogram-v1";
+const visualAnalysisCacheTtlSeconds = 60 * 60 * 24;
+const visualEmbeddingCacheTtlSeconds = 60 * 60 * 24 * 14;
+const marketplaceSearchCacheTtlSeconds = 60 * 3;
+const visualSearchWeights: VisualSearchWeights = {
+  visualSimilarity: 0.55,
+  brand: 0.15,
+  model: 0.10,
+  dialFeatures: 0.08,
+  caseBezel: 0.05,
+  strap: 0.04,
+  text: 0.03
+};
 
 const withTimeout = async <T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> => {
   let timeout: NodeJS.Timeout | undefined;
@@ -203,8 +359,159 @@ const withTimeout = async <T>(promise: Promise<T>, milliseconds: number, message
   }
 };
 
+type ImageSearchTimerStage =
+  | "image-read"
+  | "sharp-resize"
+  | "image-upload"
+  | "query-image-embedding"
+  | "openai"
+  | "marketplace-search"
+  | "candidate-image-fetch"
+  | "candidate-image-embedding"
+  | "visual-ranking"
+  | "total";
+
+const createImageSearchTimer = (scope: string) => {
+  const timerId = randomUUID().slice(0, 8);
+  const activeLabels = new Set<string>();
+  const counters = new Map<ImageSearchTimerStage, number>();
+  const nextLabel = (stage: ImageSearchTimerStage): string => {
+    const count = (counters.get(stage) ?? 0) + 1;
+    counters.set(stage, count);
+    return `${stage}:${scope}:${timerId}:${count}`;
+  };
+  const start = (stage: ImageSearchTimerStage): string => {
+    const label = nextLabel(stage);
+    activeLabels.add(label);
+    console.time(label);
+    return label;
+  };
+  const end = (label: string): void => {
+    if (!activeLabels.delete(label)) {
+      return;
+    }
+    console.timeEnd(label);
+  };
+
+  return {
+    start,
+    end,
+    async measure<T>(stage: ImageSearchTimerStage, task: () => Promise<T>): Promise<T> {
+      const label = start(stage);
+      try {
+        return await task();
+      } finally {
+        end(label);
+      }
+    },
+    measureSync<T>(stage: ImageSearchTimerStage, task: () => T): T {
+      const label = start(stage);
+      try {
+        return task();
+      } finally {
+        end(label);
+      }
+    },
+    endAll(): void {
+      for (const label of Array.from(activeLabels).reverse()) {
+        end(label);
+      }
+    }
+  };
+};
+
 const fileToDataUrl = (file: Express.Multer.File): string =>
   `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+
+const imagePreprocessInput = async <TInput extends AnalyzeInput>(input: TInput): Promise<TInput> => {
+  if (!input.file) {
+    return input;
+  }
+  const optimizedBuffer = await sharp(input.file.buffer, { failOn: "none" })
+    .rotate()
+    .resize({
+      width: 1024,
+      height: 1024,
+      fit: "inside",
+      withoutEnlargement: true
+    })
+    .jpeg({
+      quality: 82,
+      mozjpeg: true
+    })
+    .toBuffer();
+  const buffer = optimizedBuffer.length < input.file.buffer.length ? optimizedBuffer : input.file.buffer;
+  return {
+    ...input,
+    file: {
+      ...input.file,
+      buffer,
+      size: buffer.length,
+      mimetype: optimizedBuffer.length < input.file.buffer.length ? "image/jpeg" : input.file.mimetype,
+      originalname: optimizedBuffer.length < input.file.buffer.length
+        ? input.file.originalname.replace(/\.[^.]+$/, ".jpg")
+        : input.file.originalname
+    }
+  };
+};
+
+const imageHashInput = (input: AnalyzeInput): Buffer | string | undefined =>
+  input.file?.buffer ?? input.imageUrl;
+
+const imageHash = (input: AnalyzeInput): string | undefined => {
+  const value = imageHashInput(input);
+  return value ? createHash("sha256").update(value).digest("hex") : undefined;
+};
+
+const imageAnalysisCacheKey = (hash: string, input: AnalyzeInput): string =>
+  `visual-analysis:${input.modelVersion ?? "default"}:${input.includeEmbedding === false ? "attrs" : "embedding"}:${hash}`;
+
+const visualEmbeddingCacheKey = (hash: string): string =>
+  `visual-embedding:${visualEmbeddingModel}:${hash}`;
+
+const candidateVisualEmbeddingCacheKey = (source: string, id: string, imageUrl: string): string =>
+  `visual-embedding:candidate:${visualEmbeddingModel}:${source}:${id}:${createHash("sha256").update(imageUrl).digest("hex")}`;
+
+const marketplaceSearchCacheKey = (source: string, query: string, limit: number, filters: ProductSearchFilters, marketplaceId?: string): string =>
+  `marketplace-search:${source}:${createHash("sha256")
+    .update(JSON.stringify({ query, limit, filters, marketplaceId }))
+    .digest("hex")}`;
+
+const cachedImageAnalysis = (value: string | null): ImageAnalysis | null => {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as Partial<ImageAnalysis>;
+    if (typeof parsed.containsWatch !== "boolean" || typeof parsed.modelVersion !== "string") {
+      return null;
+    }
+    const analysis: ImageAnalysis = {
+      containsWatch: parsed.containsWatch,
+      visualAttributes:
+        typeof parsed.visualAttributes === "object" && parsed.visualAttributes !== null && !Array.isArray(parsed.visualAttributes)
+          ? Object.fromEntries(Object.entries(parsed.visualAttributes).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+          : {},
+      embedding: Array.isArray(parsed.embedding) ? parsed.embedding.filter((item): item is number => typeof item === "number") : [],
+      modelVersion: parsed.modelVersion
+    };
+    if (typeof parsed.generatedTitle === "string") {
+      analysis.generatedTitle = parsed.generatedTitle;
+    }
+    if (typeof parsed.probableBrand === "string") {
+      analysis.probableBrand = parsed.probableBrand;
+    }
+    if (typeof parsed.probableModel === "string") {
+      analysis.probableModel = parsed.probableModel;
+    }
+    if (typeof parsed.probableReferenceNumber === "string") {
+      analysis.probableReferenceNumber = parsed.probableReferenceNumber;
+    }
+    return analysis;
+  } catch {
+    return null;
+  }
+};
 
 const compactAnalysisData = (analysis: ImageAnalysis): Record<string, unknown> => ({
   containsWatch: analysis.containsWatch,
@@ -216,6 +523,62 @@ const compactAnalysisData = (analysis: ImageAnalysis): Record<string, unknown> =
   embedding: analysis.embedding,
   modelVersion: analysis.modelVersion
 });
+
+const normalizeVector = (values: number[]): number[] => {
+  const magnitude = Math.sqrt(values.reduce((total, value) => total + value * value, 0));
+  return magnitude > 0 ? values.map((value) => Number((value / magnitude).toFixed(6))) : values;
+};
+
+const visualEmbeddingFromBuffer = async (buffer: Buffer): Promise<number[]> => {
+  const image = sharp(buffer, { failOn: "none" }).rotate();
+  const metadata = await image.metadata();
+  const resized = await image
+    .clone()
+    .resize({ width: 16, height: 16, fit: "fill" })
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+  const values: number[] = [];
+  const histogram = Array.from({ length: 24 }, () => 0);
+  for (let index = 0; index < resized.length; index += 3) {
+    const red = resized[index] ?? 0;
+    const green = resized[index + 1] ?? 0;
+    const blue = resized[index + 2] ?? 0;
+    values.push((red - 127.5) / 127.5, (green - 127.5) / 127.5, (blue - 127.5) / 127.5);
+    const redBin = Math.min(7, Math.floor(red / 32));
+    const greenBin = 8 + Math.min(7, Math.floor(green / 32));
+    const blueBin = 16 + Math.min(7, Math.floor(blue / 32));
+    histogram[redBin] = (histogram[redBin] ?? 0) + 1;
+    histogram[greenBin] = (histogram[greenBin] ?? 0) + 1;
+    histogram[blueBin] = (histogram[blueBin] ?? 0) + 1;
+  }
+  const pixelCount = Math.max(1, resized.length / 3);
+  values.push(...histogram.map((count) => count / pixelCount));
+  values.push((metadata.width ?? 1) / Math.max(metadata.height ?? 1, 1));
+  return normalizeVector(values);
+};
+
+const cachedVisualEmbedding = (value: string | null): Omit<VisualEmbeddingResult, "cacheHit"> | null => {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as Partial<VisualEmbeddingResult>;
+    const embedding = Array.isArray(parsed.embedding)
+      ? parsed.embedding.filter((item): item is number => typeof item === "number")
+      : [];
+    if (embedding.length === 0 || parsed.model !== visualEmbeddingModel) {
+      return null;
+    }
+    return {
+      embedding,
+      model: visualEmbeddingModel,
+      ...(typeof parsed.imageHash === "string" ? { imageHash: parsed.imageHash } : {})
+    };
+  } catch {
+    return null;
+  }
+};
 
 const stringValue = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -340,6 +703,20 @@ const queryTerms = (query: string): string[] =>
     .filter((term) => term.length > 1);
 
 const uniqueTerms = (terms: string[]): string[] => Array.from(new Set(terms));
+const weakSearchTerms = new Set(["watch", "watches", "luxury", "men", "mens", "women", "womens"]);
+const genericBrandValues = new Set(["unbranded", "generic", "unknown", "not specified", "does not apply", "na", "n/a"]);
+const watchCategoryTerms = ["watch", "wristwatch", "timepiece", "chronograph", "automatic", "quartz"];
+const accessoryOnlyTerms = ["strap", "band", "box", "manual", "booklet", "parts", "movement", "caseback", "dial only"];
+
+const significantQueryTerms = (query: string): string[] =>
+  uniqueTerms(queryTerms(query)).filter((term) => !weakSearchTerms.has(term));
+
+const priorityTermsFromText = (value: string | null | undefined): string[] =>
+  (value ?? "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 2 && !weakSearchTerms.has(term));
 
 const compactSearchPart = (value: string | null | undefined): string | null => {
   const compacted = value?.trim().replace(/\s+/g, " ");
@@ -441,7 +818,362 @@ const similarityPercent = (rawScore: number, termCount: number): number => {
   return Math.max(0, Math.min(100, Math.round((rawScore / maxExpectedScore) * 100)));
 };
 
-const rankedLocalItem = (item: LocalSearchItem, terms: string[]): InternalRankedSearchItem => {
+const priorityText = (input: {
+  title: string | null;
+  brand?: string | null;
+  model?: string | null;
+  referenceNumber?: string | null;
+  condition?: string | null;
+  description?: string | null;
+  aspects?: Record<string, string>;
+}): string =>
+  normalizedText(
+    input.title,
+    input.brand,
+    input.model,
+    input.referenceNumber,
+    input.condition,
+    input.description,
+    ...(input.aspects ? Object.entries(input.aspects).flatMap(([name, value]) => [name, value]) : [])
+  );
+
+const hasLooseToken = (haystack: string, needle: string | null | undefined): boolean =>
+  Boolean(needle?.trim()) && haystack.includes(normalizedLooseText(needle));
+
+const hasExplicitBrandMismatch = (brand: string | null | undefined, expectedBrand: string | undefined): boolean => {
+  const actual = normalizedLooseText(brand);
+  const expected = normalizedLooseText(expectedBrand);
+  return Boolean(actual && expected && !genericBrandValues.has(actual) && !actual.includes(expected) && !expected.includes(actual));
+};
+
+const imagePriorityScore = (
+  input: {
+    title: string | null;
+    brand?: string | null;
+    model?: string | null;
+    referenceNumber?: string | null;
+    condition?: string | null;
+    description?: string | null;
+    aspects?: Record<string, string>;
+  },
+  signals?: SearchPrioritySignals
+): { score: number; reasons: string[]; rejected: boolean } => {
+  if (!signals) {
+    return { score: 0, reasons: [], rejected: false };
+  }
+  if (hasExplicitBrandMismatch(input.brand, signals.brand)) {
+    return { score: 0, reasons: ["brand:mismatch"], rejected: true };
+  }
+
+  const haystack = priorityText(input);
+  let score = 0;
+  const reasons: string[] = [];
+  if (signals.containsWatch) {
+    if (watchCategoryTerms.some((term) => haystack.includes(term))) {
+      score += 60;
+      reasons.push("priority:category");
+    }
+    if (accessoryOnlyTerms.some((term) => haystack.includes(term)) && !haystack.includes("watch")) {
+      score -= 40;
+      reasons.push("priority:accessory-penalty");
+    }
+  }
+  if (hasLooseToken(haystack, signals.brand)) {
+    score += 90;
+    reasons.push("priority:brand");
+  }
+  if (hasLooseToken(haystack, signals.model)) {
+    score += 55;
+    reasons.push("priority:model");
+  }
+  if (hasLooseToken(haystack, signals.referenceNumber)) {
+    score += 120;
+    reasons.push("priority:reference");
+  }
+  for (const term of signals.visualTerms) {
+    if (haystack.includes(term)) {
+      score += 18;
+      reasons.push(`priority:visual:${term}`);
+    }
+  }
+  return { score, reasons: uniqueTerms(reasons), rejected: false };
+};
+
+const boundedScore = (score: number): number => Math.max(0, Math.min(100, Math.round(score)));
+
+const cosineSimilarity = (left: number[], right: number[]): number | null => {
+  if (left.length === 0 || left.length !== right.length) {
+    return null;
+  }
+  let dot = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const leftValue = left[index] ?? 0;
+    const rightValue = right[index] ?? 0;
+    dot += leftValue * rightValue;
+    leftMagnitude += leftValue * leftValue;
+    rightMagnitude += rightValue * rightValue;
+  }
+  if (leftMagnitude === 0 || rightMagnitude === 0) {
+    return null;
+  }
+  return dot / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));
+};
+
+const embeddingSimilarityScore = (left: number[], right: number[]): number | null => {
+  const similarity = cosineSimilarity(left, right);
+  return similarity === null ? null : boundedScore(similarity * 100);
+};
+
+const compactCandidateImageAnalysis = (analysis: ImageAnalysis | undefined): VisualSearchMatch["candidateImageAnalysis"] =>
+  analysis
+    ? {
+        containsWatch: analysis.containsWatch,
+        generatedTitle: analysis.generatedTitle ?? null,
+        probableBrand: analysis.probableBrand ?? null,
+        probableModel: analysis.probableModel ?? null,
+        probableReferenceNumber: analysis.probableReferenceNumber ?? null,
+        visualAttributes: analysis.visualAttributes,
+        modelVersion: analysis.modelVersion
+      }
+    : null;
+
+const visualAttributeValue = (analysis: ImageAnalysis, keys: string[]): string | null => {
+  const normalizedKeys = new Set(keys.map(normalizedLooseText));
+  for (const [key, value] of Object.entries(analysis.visualAttributes)) {
+    if (normalizedKeys.has(normalizedLooseText(key)) && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+};
+
+const visualSearchQueries = (input: SearchInput, analysis: ImageAnalysis, filters: ProductSearchFilters): string[] => {
+  const explicit = compactSearchPart(input.q ?? input.keyword ?? input.query ?? input.search);
+  const userBrand = compactSearchPart(filters.brand);
+  const userModel = compactSearchPart(filters.model);
+  const userReference = compactSearchPart(input.referenceNumber);
+  const aiBrand = userBrand ? null : compactSearchPart(analysis.probableBrand);
+  const aiModel = userModel ? null : compactSearchPart(analysis.probableModel);
+  const aiReference = userReference ? null : compactSearchPart(analysis.probableReferenceNumber);
+  const brand = userBrand ?? aiBrand;
+  const model = userModel ?? aiModel;
+  const referenceNumber = userReference ?? aiReference;
+  const dialColor = visualAttributeValue(analysis, ["dialColor", "dial", "color"]);
+  const movement = visualAttributeValue(analysis, ["movement"]);
+  const caseShape = visualAttributeValue(analysis, ["case", "caseShape", "shape"]);
+  const bezel = visualAttributeValue(analysis, ["bezel"]);
+  const bracelet = visualAttributeValue(analysis, ["bracelet", "strap", "band"]);
+  const visualTerms = uniqueTerms(
+    [dialColor, movement, caseShape, bezel, bracelet]
+      .flatMap((value) => priorityTermsFromText(value))
+      .filter((term) => !watchCategoryTerms.includes(term))
+  ).slice(0, 4);
+
+  return uniqueSearchQueries([
+    searchQueryFromParts(explicit, userBrand, userModel, userReference),
+    searchQueryFromParts(userBrand, userModel, userReference),
+    searchQueryFromParts(brand, model, referenceNumber),
+    searchQueryFromParts(brand, model, dialColor, "watch"),
+    searchQueryFromParts(brand, movement, dialColor, "watch"),
+    searchQueryFromParts(brand, ...visualTerms, "watch"),
+    searchQueryFromParts(brand, "watch"),
+    searchQueryFromParts(model, dialColor, "watch"),
+    searchQueryFromParts(explicit, "watch"),
+    searchQueryFromParts(dialColor, caseShape, "watch"),
+    "watch"
+  ]).slice(0, 8);
+};
+
+const visualTermsForKeys = (analysis: ImageAnalysis, keys: string[]): string[] =>
+  uniqueTerms(keys.flatMap((key) => priorityTermsFromText(visualAttributeValue(analysis, [key]))));
+
+const visualTermScore = (haystack: string, terms: string[], reasonPrefix: string): { score: number; matchedOn: string[] } => {
+  if (terms.length === 0) {
+    return { score: 0, matchedOn: [] };
+  }
+  const matched = terms.filter((term) => haystack.includes(term));
+  return {
+    score: matched.length / terms.length,
+    matchedOn: matched.map((term) => `${reasonPrefix}:${term}`)
+  };
+};
+
+const visualSignalScores = (
+  item: RankedSearchItem,
+  input: SearchInput,
+  analysis: ImageAnalysis
+): VisualSignalScores => {
+  const aspects = "aspects" in item && typeof item.aspects === "object" && item.aspects !== null
+    ? item.aspects as Record<string, string>
+    : undefined;
+  const priorityInput: Parameters<typeof priorityText>[0] = {
+    title: item.title,
+    brand: item.brand,
+    model: item.model,
+    referenceNumber: item.referenceNumber,
+    condition: item.condition,
+    description: item.description
+  };
+  if (aspects) {
+    priorityInput.aspects = aspects;
+  }
+  const haystack = priorityText(priorityInput);
+  const matchedOn: string[] = [];
+  const brandExpected = compactSearchPart(input.brand) ?? compactSearchPart(analysis.probableBrand);
+  const modelExpected = compactSearchPart(input.model) ?? compactSearchPart(analysis.probableModel);
+  const referenceExpected = compactSearchPart(input.referenceNumber) ?? compactSearchPart(analysis.probableReferenceNumber);
+  const brand = hasLooseToken(haystack, brandExpected) ? 1 : 0;
+  const modelMatches = [modelExpected, referenceExpected].filter((value): value is string => Boolean(value));
+  const model = modelMatches.length === 0
+    ? 0
+    : modelMatches.filter((value) => hasLooseToken(haystack, value)).length / modelMatches.length;
+  if (brand > 0) {
+    matchedOn.push(`brand:${brandExpected}`);
+  }
+  if (model > 0) {
+    matchedOn.push(...modelMatches.filter((value) => hasLooseToken(haystack, value)).map((value) => `model:${value}`));
+  }
+
+  const dial = visualTermScore(haystack, visualTermsForKeys(analysis, ["dial", "dialColor", "color", "markers", "indices"]), "dial");
+  const caseBezel = visualTermScore(haystack, visualTermsForKeys(analysis, ["case", "caseShape", "shape", "bezel", "material"]), "case");
+  const strap = visualTermScore(haystack, visualTermsForKeys(analysis, ["bracelet", "strap", "band"]), "strap");
+  matchedOn.push(...dial.matchedOn, ...caseBezel.matchedOn, ...strap.matchedOn);
+
+  return {
+    brand,
+    model,
+    dialFeatures: dial.score,
+    caseBezel: caseBezel.score,
+    strap: strap.score,
+    text: Math.max(0, Math.min(1, item.similarityScore / 100)),
+    matchedOn: uniqueTerms(matchedOn)
+  };
+};
+
+const visualMetadataSimilarity = (scores: VisualSignalScores): number => {
+  const nonVisualWeight =
+    visualSearchWeights.brand +
+    visualSearchWeights.model +
+    visualSearchWeights.dialFeatures +
+    visualSearchWeights.caseBezel +
+    visualSearchWeights.strap +
+    visualSearchWeights.text;
+  return boundedScore(
+    ((scores.brand * visualSearchWeights.brand) +
+      (scores.model * visualSearchWeights.model) +
+      (scores.dialFeatures * visualSearchWeights.dialFeatures) +
+      (scores.caseBezel * visualSearchWeights.caseBezel) +
+      (scores.strap * visualSearchWeights.strap) +
+      (scores.text * visualSearchWeights.text)) / nonVisualWeight * 100
+  );
+};
+
+const visualMatchScore = (visualSimilarity: number | null, scores: VisualSignalScores): number =>
+  boundedScore(
+    ((visualSimilarity ?? 0) / 100) * visualSearchWeights.visualSimilarity * 100 +
+    scores.brand * visualSearchWeights.brand * 100 +
+    scores.model * visualSearchWeights.model * 100 +
+    scores.dialFeatures * visualSearchWeights.dialFeatures * 100 +
+    scores.caseBezel * visualSearchWeights.caseBezel * 100 +
+    scores.strap * visualSearchWeights.strap * 100 +
+    scores.text * visualSearchWeights.text * 100
+  );
+
+const visualMatchLevel = (score: number): VisualMatchLevel => {
+  if (score >= 90) {
+    return "very_high";
+  }
+  if (score >= 75) {
+    return "high";
+  }
+  if (score >= 45) {
+    return "possible";
+  }
+  return "low";
+};
+
+const rankedVisualCandidateItems = (
+  query: string,
+  local: LocalSearchItem[],
+  ebay: EbaySearchItem[],
+  limit: number
+): RankedSearchItem[] =>
+  [
+    ...local.map((item) => rankedLocalItem(item, uniqueTerms(queryTerms(query)))),
+    ...ebay.map((item, index) => rankedEbayItem(item, uniqueTerms(queryTerms(query)), index))
+  ]
+    .sort((left, right) => right.similarityScore - left.similarityScore || Number(Boolean(right.image)) - Number(Boolean(left.image)))
+    .slice(0, limit);
+
+const directSearchItem = (
+  item: RankedSearchItem,
+  matchType: DirectSearchItem["matchType"],
+  visualSimilarity: number | null = null
+): DirectSearchItem => ({
+  source: item.source,
+  marketplace: item.source,
+  id: item.id,
+  externalId: item.externalId,
+  title: item.title,
+  brand: item.brand,
+  model: item.model,
+  referenceNumber: item.referenceNumber,
+  price: item.price,
+  currency: item.currency,
+  condition: item.condition,
+  image: item.image,
+  sourceUrl: item.sourceUrl ?? (item.source === "local" ? localProductUrl(item.id) : null),
+  originalUrl: item.sourceUrl ?? (item.source === "local" ? localProductUrl(item.id) : null),
+  matchScore: item.similarityScore,
+  matchType,
+  visualSimilarity,
+  matchReasons: item.matchReasons
+});
+
+const imageQualityCheck = (input: AnalyzeInput, analysis: ImageAnalysis): ImageQualityCheck => {
+  const hasImage = Boolean(input.file || input.imageUrl);
+  const acceptedMimeType = input.file ? Boolean(imageExtensionByMimeType[input.file.mimetype]) : true;
+  const nonEmptyFile = input.file ? input.file.size > 0 && input.file.buffer.length > 0 : null;
+  const warnings: string[] = [];
+  if (!analysis.containsWatch) {
+    warnings.push("AI image analysis did not confidently detect a watch.");
+  }
+  if (input.file && input.file.size < 2 * 1024) {
+    warnings.push("Uploaded image is very small; visual matching confidence may be lower.");
+  }
+  return {
+    passed: hasImage && acceptedMimeType && nonEmptyFile !== false && analysis.containsWatch,
+    warnings,
+    checks: {
+      hasImage,
+      acceptedMimeType,
+      nonEmptyFile,
+      containsWatch: analysis.containsWatch
+    }
+  };
+};
+
+const matchedTermsFromReasons = (reasons: string[]): Set<string> =>
+  new Set(reasons.map((reason) => reason.split(":")[1]).filter((term): term is string => Boolean(term)));
+
+const isReferenceLikeTerm = (term: string): boolean => term.length >= 4 && /\d/.test(term);
+
+const strongEnoughSearchMatch = (item: InternalRankedSearchItem, significantTerms: string[]): boolean => {
+  if (significantTerms.length === 0) {
+    return item.rawScore > 0;
+  }
+  const matchedTerms = matchedTermsFromReasons(item.matchReasons);
+  const matchedCount = significantTerms.filter((term) => matchedTerms.has(term)).length;
+  if (significantTerms.some((term) => isReferenceLikeTerm(term) && matchedTerms.has(term))) {
+    return true;
+  }
+  const requiredMatches = significantTerms.length >= 3 ? 2 : 1;
+  return matchedCount >= requiredMatches;
+};
+
+const rankedLocalItem = (item: LocalSearchItem, terms: string[], signals?: SearchPrioritySignals): InternalRankedSearchItem => {
   const match = textMatchScore({
     title: item.title,
     brand: item.brand,
@@ -451,6 +1183,7 @@ const rankedLocalItem = (item: LocalSearchItem, terms: string[]): InternalRanked
     description: item.description,
     terms
   });
+  const priority = imagePriorityScore(item, signals);
   const rawScore = match.score + Math.min(item.score, 30) + (item.image ? 5 : 0);
   return {
     source: "local",
@@ -473,17 +1206,20 @@ const rankedLocalItem = (item: LocalSearchItem, terms: string[]): InternalRanked
     image: item.image,
     sourceUrl: null,
     similarityScore: similarityPercent(rawScore, terms.length),
-    matchReasons: match.reasons,
-    rawScore
+    matchReasons: [...match.reasons, ...priority.reasons],
+    rawScore,
+    priorityScore: priority.rejected ? Number.NEGATIVE_INFINITY : priority.score
   };
 };
 
-const rankedEbayItem = (item: EbaySearchItem, terms: string[], index: number): InternalRankedSearchItem => {
+const rankedEbayItem = (item: EbaySearchItem, terms: string[], index: number, signals?: SearchPrioritySignals): InternalRankedSearchItem => {
   const match = textMatchScore({
     title: item.title,
     condition: item.condition ?? null,
+    description: item.description ?? null,
     terms
   });
+  const priority = imagePriorityScore(item, signals);
   const ebayRankBoost = Math.max(0, 20 - index);
   const rawScore = match.score + ebayRankBoost + (item.image ? 5 : 0);
   return {
@@ -501,6 +1237,7 @@ const rankedEbayItem = (item: EbaySearchItem, terms: string[], index: number): I
     movement: item.movement ?? null,
     scope: item.scope ?? null,
     description: item.description ?? null,
+    ...(item.aspects ? { aspects: item.aspects } : {}),
     rating:
       item.sellerUsername || typeof item.sellerFeedbackScore === "number" || item.sellerFeedbackPercentage
         ? {
@@ -514,8 +1251,9 @@ const rankedEbayItem = (item: EbaySearchItem, terms: string[], index: number): I
     image: item.image,
     sourceUrl: item.sourceUrl,
     similarityScore: similarityPercent(rawScore, terms.length),
-    matchReasons: match.reasons,
-    rawScore
+    matchReasons: [...match.reasons, ...priority.reasons],
+    rawScore,
+    priorityScore: priority.rejected ? Number.NEGATIVE_INFINITY : priority.score
   };
 };
 
@@ -523,15 +1261,17 @@ const rankedSearchItems = (
   query: string,
   local: LocalSearchItem[],
   ebay: EbaySearchItem[],
-  limit: number
+  limit: number,
+  signals?: SearchPrioritySignals
 ): RankedSearchItem[] => {
   const terms = uniqueTerms(queryTerms(query));
+  const significantTerms = significantQueryTerms(query);
   return [
-    ...local.map((item) => rankedLocalItem(item, terms)),
-    ...ebay.map((item, index) => rankedEbayItem(item, terms, index))
+    ...local.map((item) => rankedLocalItem(item, terms, signals)),
+    ...ebay.map((item, index) => rankedEbayItem(item, terms, index, signals))
   ]
-    .filter((item) => item.rawScore > 0)
-    .sort((left, right) => right.similarityScore - left.similarityScore || right.rawScore - left.rawScore)
+    .filter((item) => item.priorityScore > Number.NEGATIVE_INFINITY && strongEnoughSearchMatch(item, significantTerms))
+    .sort((left, right) => right.priorityScore - left.priorityScore || right.similarityScore - left.similarityScore || right.rawScore - left.rawScore)
     .slice(0, limit)
     .map(({ rawScore: _rawScore, ...item }) => item);
 };
@@ -826,7 +1566,8 @@ const enrichProductDetails = async (
   query: string,
   items: RankedSearchItem[],
   comparableItems: RankedSearchItem[],
-  listingVolumeAmount: number
+  listingVolumeAmount: number,
+  options: { inferMissingDetails?: boolean } = {}
 ): Promise<ProductDetails[]> => {
   const prices = comparableItems.map((item) => item.price).filter((price): price is number => typeof price === "number");
   const avg = average(prices);
@@ -841,14 +1582,16 @@ const enrichProductDetails = async (
   const fallbacks = new Map(
     items.map((item) => [productKey(item), fallbackGuess(item, marketAveragePrice, lowestPrice, highestPrice, listingVolumeAmount, volatility)])
   );
-  const guesses = await withTimeout(
-    ai.inferProductDetails({
-      query,
-      products: items.map(realProductGuessInput)
-    }),
-    getAiConfig().analysisTimeoutMs,
-    "AI product detail inference timed out."
-  ).catch(() => Array.from(fallbacks.values()));
+  const guesses = options.inferMissingDetails === false
+    ? Array.from(fallbacks.values())
+    : await withTimeout(
+        ai.inferProductDetails({
+          query,
+          products: items.map(realProductGuessInput)
+        }),
+        getAiConfig().analysisTimeoutMs,
+        "AI product detail inference timed out."
+      ).catch(() => Array.from(fallbacks.values()));
   const guessById = new Map(guesses.map((guess) => [guess.id, guess]));
 
   return items.map((item) => {
@@ -950,6 +1693,30 @@ const ebaySearchPlanFromAnalysis = (analysis: ImageAnalysis, query: string): Eba
   };
 };
 
+const imageSearchPriorityFromAnalysis = (analysis: ImageAnalysis): SearchPrioritySignals => {
+  const brand = compactSearchPart(analysis.probableBrand);
+  const model = compactSearchPart(analysis.probableModel);
+  const referenceNumber = compactSearchPart(analysis.probableReferenceNumber);
+  const signals: SearchPrioritySignals = {
+    containsWatch: analysis.containsWatch,
+    visualTerms: uniqueTerms(
+      Object.values(analysis.visualAttributes)
+        .flatMap((value) => priorityTermsFromText(value))
+        .filter((term) => term.length > 2)
+    )
+  };
+  if (brand) {
+    signals.brand = brand;
+  }
+  if (model) {
+    signals.model = model;
+  }
+  if (referenceNumber) {
+    signals.referenceNumber = referenceNumber;
+  }
+  return signals;
+};
+
 const ebayItem = (item: MarketplaceListing): EbaySearchItem => {
   const output: EbaySearchItem = {
     source: "ebay",
@@ -968,6 +1735,9 @@ const ebayItem = (item: MarketplaceListing): EbaySearchItem => {
       .slice(0, 8)
       .map(([name, value]) => `${name}: ${value}`)
       .join("; ");
+  }
+  if (item.aspects) {
+    output.aspects = item.aspects;
   }
   if (item.condition) {
     output.condition = item.condition;
@@ -1040,6 +1810,8 @@ export class AiService {
   private readonly ai = createAiProvider();
   private readonly ebay = new EbayProvider();
 
+  public constructor(private readonly dependencies: AiServiceDependencies = {}) {}
+
   public async analyzeImage(input: AnalyzeInput): Promise<ImageAnalysis> {
     const request = this.toAnalysisRequest(input);
     try {
@@ -1056,28 +1828,817 @@ export class AiService {
     }
   }
 
+  private async getCachedImageAnalysis(input: AnalyzeInput): Promise<ImageAnalysisCacheLookup> {
+    const hash = imageHash(input);
+    const cacheKey = hash ? imageAnalysisCacheKey(hash, input) : undefined;
+    if (!cacheKey || !this.dependencies.redis) {
+      return { cacheHit: false, ...(hash ? { imageHash: hash } : {}) };
+    }
+    const analysis = cachedImageAnalysis(await this.dependencies.redis.get(cacheKey).catch(() => null));
+    return {
+      cacheHit: Boolean(analysis),
+      ...(analysis ? { analysis } : {}),
+      ...(hash ? { imageHash: hash } : {}),
+      cacheKey
+    };
+  }
+
+  private async writeCachedImageAnalysis(cacheKey: string | undefined, analysis: ImageAnalysis): Promise<void> {
+    if (!cacheKey || !this.dependencies.redis) {
+      return;
+    }
+    await this.dependencies.redis
+      .set(cacheKey, JSON.stringify(analysis), "EX", visualAnalysisCacheTtlSeconds)
+      .catch(() => undefined);
+  }
+
+  private async visualEmbeddingFromBufferWithCache(
+    buffer: Buffer,
+    cacheKey: string | undefined,
+    hash: string | undefined
+  ): Promise<VisualEmbeddingResult> {
+    if (cacheKey && this.dependencies.redis) {
+      const cached = cachedVisualEmbedding(await this.dependencies.redis.get(cacheKey).catch(() => null));
+      if (cached) {
+        return {
+          ...cached,
+          cacheHit: true
+        };
+      }
+    }
+    const embedding = await visualEmbeddingFromBuffer(buffer);
+    const result: VisualEmbeddingResult = {
+      embedding,
+      cacheHit: false,
+      model: visualEmbeddingModel
+    };
+    if (hash) {
+      result.imageHash = hash;
+    }
+    if (cacheKey && this.dependencies.redis) {
+      await this.dependencies.redis
+        .set(cacheKey, JSON.stringify(result), "EX", visualEmbeddingCacheTtlSeconds)
+        .catch(() => undefined);
+    }
+    return result;
+  }
+
+  private async createQueryVisualEmbedding(input: AnalyzeInput): Promise<VisualEmbeddingResult> {
+    if (input.file) {
+      const hash = imageHash(input);
+      return this.visualEmbeddingFromBufferWithCache(input.file.buffer, hash ? visualEmbeddingCacheKey(hash) : undefined, hash);
+    }
+    if (!input.imageUrl) {
+      throw new ConflictError("Provide an image file or imageUrl.");
+    }
+    const buffer = await this.fetchImageBuffer(input.imageUrl);
+    const hash = createHash("sha256").update(buffer).digest("hex");
+    return this.visualEmbeddingFromBufferWithCache(buffer, visualEmbeddingCacheKey(hash), hash);
+  }
+
+  private async fetchImageBuffer(imageUrl: string): Promise<Buffer> {
+    const response = await withTimeout(
+      fetch(imageUrl),
+      Math.min(getAiConfig().analysisTimeoutMs, 8_000),
+      "Candidate image fetch timed out."
+    );
+    if (!response.ok) {
+      throw new ExternalServiceError(`Candidate image fetch failed with status ${response.status}.`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  private async createCandidateVisualEmbeddings(
+    items: RankedSearchItem[],
+    timer: ReturnType<typeof createImageSearchTimer>,
+    limit: number
+  ): Promise<{ embeddings: Map<string, CandidateVisualEmbedding>; analyzedCandidateImages: number; cacheHits: number }> {
+    if (limit <= 0) {
+      return { embeddings: new Map(), analyzedCandidateImages: 0, cacheHits: 0 };
+    }
+    const candidates = items
+      .filter((item) => typeof item.image === "string" && /^https?:\/\//i.test(item.image))
+      .slice(0, limit);
+    const results = await Promise.allSettled(
+      candidates.map(async (item): Promise<CandidateVisualEmbedding | null> => {
+        const imageUrl = item.image;
+        if (!imageUrl) {
+          return null;
+        }
+        const key = productKey(item);
+        const cacheKey = candidateVisualEmbeddingCacheKey(item.source, item.id, imageUrl);
+        if (this.dependencies.redis) {
+          const cached = cachedVisualEmbedding(await this.dependencies.redis.get(cacheKey).catch(() => null));
+          if (cached) {
+            return {
+              key,
+              embedding: cached.embedding,
+              ...(cached.imageHash ? { imageHash: cached.imageHash } : {}),
+              cacheHit: true,
+              model: cached.model
+            };
+          }
+        }
+        const buffer = await timer.measure("candidate-image-fetch", () => this.fetchImageBuffer(imageUrl));
+        const hash = createHash("sha256").update(buffer).digest("hex");
+        const embedding = await timer.measure("candidate-image-embedding", () => visualEmbeddingFromBuffer(buffer));
+        const result: CandidateVisualEmbedding = {
+          key,
+          embedding,
+          imageHash: hash,
+          cacheHit: false,
+          model: visualEmbeddingModel
+        };
+        if (this.dependencies.redis) {
+          await this.dependencies.redis
+            .set(cacheKey, JSON.stringify(result), "EX", visualEmbeddingCacheTtlSeconds)
+            .catch(() => undefined);
+        }
+        return result;
+      })
+    );
+    const successful = results
+      .filter((result): result is PromiseFulfilledResult<CandidateVisualEmbedding | null> => result.status === "fulfilled")
+      .map((result) => result.value)
+      .filter((result): result is CandidateVisualEmbedding => Boolean(result));
+    return {
+      embeddings: new Map(successful.map((result) => [result.key, result])),
+      analyzedCandidateImages: successful.length,
+      cacheHits: successful.filter((result) => result.cacheHit).length
+    };
+  }
+
+  private async searchLocalVisualQuery(
+    query: string,
+    limit: number,
+    filters: ProductSearchFilters
+  ): Promise<{ items: LocalSearchItem[]; cacheHit: boolean }> {
+    const cacheKey = marketplaceSearchCacheKey("local", query, limit, filters);
+    if (this.dependencies.redis) {
+      const cached = await this.dependencies.redis.get(cacheKey).catch(() => null);
+      if (cached) {
+        try {
+          return { items: JSON.parse(cached) as LocalSearchItem[], cacheHit: true };
+        } catch {
+          // Ignore malformed cache values and refresh from the database.
+        }
+      }
+    }
+    const items = await this.searchLocalListings(query, limit, filters);
+    if (this.dependencies.redis) {
+      await this.dependencies.redis
+        .set(cacheKey, JSON.stringify(items), "EX", marketplaceSearchCacheTtlSeconds)
+        .catch(() => undefined);
+    }
+    return { items, cacheHit: false };
+  }
+
+  private async searchEbayVisualQuery(
+    query: string,
+    limit: number,
+    marketplaceId: string | undefined,
+    filters: ProductSearchFilters
+  ): Promise<EbayListingsSearchResult & { cacheHit: boolean }> {
+    const cacheKey = marketplaceSearchCacheKey("ebay", query, limit, filters, marketplaceId);
+    if (this.dependencies.redis) {
+      const cached = await this.dependencies.redis.get(cacheKey).catch(() => null);
+      if (cached) {
+        try {
+          return { ...(JSON.parse(cached) as EbayListingsSearchResult), cacheHit: true };
+        } catch {
+          // Ignore malformed cache values and refresh from eBay.
+        }
+      }
+    }
+    const result = await this.searchEbayListings(query, limit, marketplaceId, {
+      normalization: {
+        query,
+        source: "fallback",
+        confidence: null,
+        detectedBrand: null,
+        detectedModel: null,
+        reasoning: "Built programmatically from user filters and image visual attributes."
+      },
+      queries: [query]
+    }, filters);
+    if (this.dependencies.redis) {
+      await this.dependencies.redis
+        .set(cacheKey, JSON.stringify(result), "EX", marketplaceSearchCacheTtlSeconds)
+        .catch(() => undefined);
+    }
+    return { ...result, cacheHit: false };
+  }
+
+  private async searchVisualMarketplaceCandidates(
+    queries: string[],
+    candidateLimit: number,
+    filters: ProductSearchFilters,
+    marketplaceId: string | undefined,
+    timer: ReturnType<typeof createImageSearchTimer>
+  ): Promise<VisualMarketplaceSearchResult> {
+    const localTask = timer.measure("marketplace-search", async () => {
+      const byId = new Map<string, LocalSearchItem>();
+      const usedQueries: string[] = [];
+      let cacheHits = 0;
+      for (const query of queries) {
+        if (byId.size >= candidateLimit) {
+          break;
+        }
+        const result = await this.searchLocalVisualQuery(query, candidateLimit, filters);
+        usedQueries.push(query);
+        if (result.cacheHit) {
+          cacheHits += 1;
+        }
+        for (const item of result.items) {
+          byId.set(item.id, item);
+        }
+      }
+      return {
+        items: Array.from(byId.values()).slice(0, candidateLimit),
+        queries: usedQueries,
+        cacheHits
+      };
+    });
+    const ebayTask = timer.measure("marketplace-search", async () => {
+      const byId = new Map<string, EbaySearchItem>();
+      const usedQueries: string[] = [];
+      const warnings: string[] = [];
+      const errors: string[] = [];
+      let total: number | null = null;
+      let environment: "sandbox" | "production" = getMarketplaceConfig().ebay.environment;
+      let resolvedMarketplaceId = marketplaceId ?? getMarketplaceConfig().ebay.marketplaceId;
+      let selectedQuery = queries[0] ?? "watch";
+      let cacheHits = 0;
+      for (const query of queries) {
+        if (byId.size >= candidateLimit) {
+          break;
+        }
+        const remaining = Math.max(candidateLimit - byId.size, 1);
+        const result = await this.searchEbayVisualQuery(query, remaining, marketplaceId, filters);
+        usedQueries.push(query);
+        selectedQuery = result.query;
+        total = Math.max(total ?? 0, result.total ?? 0);
+        environment = result.environment;
+        resolvedMarketplaceId = result.marketplaceId;
+        warnings.push(...result.warnings);
+        if (result.error) {
+          errors.push(result.error);
+        }
+        if (result.cacheHit) {
+          cacheHits += 1;
+        }
+        for (const item of result.items) {
+          byId.set(item.externalId, item);
+        }
+      }
+      const query = selectedQuery;
+      const queryNormalization: MarketplaceQueryNormalization = {
+        query,
+        source: "fallback",
+        confidence: null,
+        detectedBrand: filters.brand ?? null,
+        detectedModel: filters.model ?? null,
+        reasoning: "Built programmatically from user filters and image visual attributes."
+      };
+      const ebay: EbayListingsSearchResult = {
+        items: Array.from(byId.values()).slice(0, candidateLimit),
+        query,
+        queryNormalization,
+        environment,
+        marketplaceId: resolvedMarketplaceId,
+        total,
+        attemptedQueries: usedQueries,
+        warnings: uniqueTerms(warnings),
+        ...(errors.length > 0 ? { error: uniqueTerms(errors).join(" ") } : {})
+      };
+      return { ebay, queries: usedQueries, cacheHits };
+    });
+
+    const [localResult, ebayResult] = await Promise.allSettled([localTask, ebayTask]);
+    const local = localResult.status === "fulfilled" ? localResult.value : { items: [], queries, cacheHits: 0 };
+    const ebay = ebayResult.status === "fulfilled"
+      ? ebayResult.value
+      : {
+          ebay: {
+            items: [],
+            query: queries[0] ?? "watch",
+            queryNormalization: {
+              query: queries[0] ?? "watch",
+              source: "fallback" as const,
+              confidence: null,
+              detectedBrand: filters.brand ?? null,
+              detectedModel: filters.model ?? null,
+              reasoning: "eBay search failed."
+            },
+            environment: getMarketplaceConfig().ebay.environment,
+            marketplaceId: marketplaceId ?? getMarketplaceConfig().ebay.marketplaceId,
+            total: null,
+            attemptedQueries: queries,
+            warnings: [],
+            error: appErrorMessage(ebayResult.reason, "eBay search failed.")
+          },
+          queries,
+          cacheHits: 0
+        };
+    return {
+      local: local.items,
+      ebay: ebay.ebay,
+      localQueries: local.queries,
+      ebayQueries: ebay.queries,
+      localCacheHits: local.cacheHits,
+      ebayCacheHits: ebay.cacheHits
+    };
+  }
+
   public async createSearch(actor: Actor, input: SearchInput) {
+    return this.createSearchResult(actor, input, { inferProductDetails: true });
+  }
+
+  public async createProductSearch(actor: Actor, input: SearchInput) {
+    return this.createSearchResult(actor, input, { inferProductDetails: false });
+  }
+
+  public async createEbayDirectSearch(input: SearchInput) {
+    const timer = createImageSearchTimer("ebay-direct");
+    const filters = searchFilters(input);
+    const explicitText = (input.q ?? input.keyword ?? input.query ?? input.search)?.trim();
+    const hasImage = Boolean(input.file || input.imageUrl);
+    if (!hasImage && !explicitText && !hasFilters(filters)) {
+      throw new ConflictError("Provide a keyword, filter, or an image file.");
+    }
+
+    try {
+      let query: string;
+      let ebayResult: EbayListingsSearchResult;
+      let localItems: DirectSearchItem[] = [];
+
+      if (hasImage) {
+        timer.measureSync("image-read", () => undefined);
+        const optimizedInput = await timer.measure("sharp-resize", () => imagePreprocessInput(input));
+        const imageBuffer = optimizedInput.file?.buffer ?? await timer.measure("candidate-image-fetch", async () => {
+          if (!optimizedInput.imageUrl) {
+            throw new ConflictError("Provide an image file or imageUrl.");
+          }
+          return this.fetchImageBuffer(optimizedInput.imageUrl);
+        });
+        const base64Image = imageBuffer.toString("base64");
+        query = explicitText ? searchQueryFromParts(explicitText, filters.brand, filters.model, input.referenceNumber) : "image";
+        const candidateImageLimit = input.candidateImageLimit ?? Math.min(30, Math.max(input.limit * 3, input.limit));
+        const [ebaySettled, queryEmbeddingSettled, localCandidatesSettled] = await Promise.allSettled([
+          timer.measure("marketplace-search", () =>
+            this.searchEbayImageListings(base64Image, input.limit, input.marketplaceId, filters)
+          ),
+          timer.measure("query-image-embedding", () => this.createQueryVisualEmbedding(optimizedInput)),
+          timer.measure("marketplace-search", () => this.searchLocalCandidateListings(Math.max(100, input.limit * 5), filters))
+        ]);
+        ebayResult = ebaySettled.status === "fulfilled"
+          ? ebaySettled.value
+          : {
+              query: "image",
+              queryNormalization: {
+                query: "image",
+                source: "fallback",
+                confidence: null,
+                detectedBrand: null,
+                detectedModel: null,
+                reasoning: appErrorMessage(ebaySettled.reason, "eBay image search failed.")
+              },
+              items: [],
+              environment: getMarketplaceConfig().ebay.environment,
+              marketplaceId: input.marketplaceId ?? getMarketplaceConfig().ebay.marketplaceId,
+              total: null,
+              attemptedQueries: ["search_by_image"],
+              warnings: [],
+              error: appErrorMessage(ebaySettled.reason, "eBay image search failed.")
+            };
+        if (queryEmbeddingSettled.status === "fulfilled" && localCandidatesSettled.status === "fulfilled") {
+          localItems = await this.localImageDirectMatches(
+            queryEmbeddingSettled.value,
+            localCandidatesSettled.value,
+            timer,
+            input.limit,
+            candidateImageLimit
+          );
+        }
+      } else {
+        query = searchQueryFromParts(explicitText, filters.brand, filters.model, input.referenceNumber);
+        const searchPlan: EbaySearchPlan = {
+          normalization: {
+            query,
+            source: "fallback",
+            confidence: null,
+            detectedBrand: filters.brand ?? null,
+            detectedModel: filters.model ?? null,
+            reasoning: "Direct user query sent to eBay without AI normalization."
+          },
+          queries: [query]
+        };
+        const [localResult, ebaySearchResult] = await Promise.all([
+          timer.measure("marketplace-search", () => this.searchLocalListings(query, input.limit, filters)),
+          timer.measure("marketplace-search", () =>
+            this.searchEbayListings(query, input.limit, input.marketplaceId, searchPlan, filters)
+          )
+        ]);
+        ebayResult = ebaySearchResult;
+        localItems = rankedSearchItems(query, localResult, [], input.limit).map((item) => directSearchItem(item, "text"));
+      }
+      const ebayItems = hasImage
+        ? ebayResult.items
+            .map((item, index) => directSearchItem(rankedEbayItem(item, [], index), "image"))
+            .slice(0, input.limit)
+        : rankedSearchItems(query, [], ebayResult.items, input.limit).map((item) => directSearchItem(item, "text"));
+      const mergedItems = [...localItems, ...ebayItems]
+        .sort((left, right) => right.matchScore - left.matchScore)
+        .slice(0, input.limit);
+
+      return {
+        mode: hasImage ? "image" : "text",
+        flow: hasImage
+          ? "Image -> eBay search_by_image + internal visual match"
+          : "User query -> eBay directly + internal products",
+        query,
+        imageAnalysis: null,
+        results: {
+          items: mergedItems,
+          local: localItems,
+          ebay: ebayItems,
+          count: mergedItems.length
+        },
+        metadata: {
+          provider: "ebay",
+          internalProductsMerged: true,
+          localCandidates: localItems.length,
+          ebayCandidates: ebayItems.length,
+          textSearchDirectToEbay: !hasImage,
+          imageSearchUsesOpenAiIdentification: false,
+          imageSearchUsesEbayImageSearch: hasImage,
+          marketplaceId: ebayResult.marketplaceId,
+          environment: ebayResult.environment,
+          total: ebayResult.total,
+          attemptedQueries: ebayResult.attemptedQueries,
+          warnings: ebayResult.warnings,
+          queryNormalization: ebayResult.queryNormalization
+        },
+        warnings: ebayResult.warnings,
+        ...(ebayResult.error ? { errors: { ebay: ebayResult.error } } : {})
+      };
+    } finally {
+      timer.endAll();
+    }
+  }
+
+  public async createVisualImageSearch(actor: Actor, input: SearchInput) {
+    if (!input.file && !input.imageUrl) {
+      const keywordResult = await this.createSearchResult(actor, input, { inferProductDetails: false });
+      const items: VisualSearchMatch[] = keywordResult.results.items.map((item) => ({
+        ...item,
+        marketplace: item.source,
+        originalUrl: item.sourceUrl,
+        visualSimilarity: null,
+        metadataSimilarity: item.similarityScore,
+        matchScore: item.similarityScore,
+        matchLevel: visualMatchLevel(item.similarityScore),
+        matchedOn: item.matchReasons,
+        confidence: item.similarityScore,
+        confidenceBreakdown: {
+          imageSimilarity: null,
+          visualAttributes: 0,
+          metadata: 0,
+          text: item.similarityScore
+        },
+        candidateImageAnalysis: null
+      }));
+      return {
+        searchId: keywordResult.searchId,
+        query: keywordResult.query,
+        generatedTitle: keywordResult.generatedTitle,
+        image: null,
+        quality: {
+          passed: true,
+          warnings: [],
+          checks: {
+            hasImage: false,
+            acceptedMimeType: true,
+            nonEmptyFile: null,
+            containsWatch: null
+          }
+        },
+        queryImageAnalysis: null,
+        queryEmbeddingDimensions: 0,
+        queryImageHash: null,
+        pipeline: [
+          "keyword_search",
+          "search_marketplace_candidates",
+          "multi_signal_ranking",
+          "return_top_matches_with_confidence"
+        ],
+        results: {
+          items,
+          localCandidates: keywordResult.results.local.length,
+          ebayCandidates: keywordResult.results.ebay.length
+        },
+        metadata: {
+          ...keywordResult.metadata,
+          visualDepth: "keyword",
+          candidateLimit: input.limit,
+          candidateImageLimit: 0,
+          analyzedCandidateImages: 0,
+          candidateImageEmbeddings: false,
+          analysisCacheHit: false
+        },
+        warnings: keywordResult.warnings,
+        ...("errors" in keywordResult ? { errors: keywordResult.errors } : {}),
+        record: keywordResult.record
+      };
+    }
+
+    const timer = createImageSearchTimer("visual");
+    try {
+      timer.measureSync("image-read", () => {
+        return undefined;
+      });
+
+      const optimizedInput = await timer.measure("sharp-resize", () => imagePreprocessInput(input));
+      const cachedAnalysis = await this.getCachedImageAnalysis({ ...optimizedInput, includeEmbedding: false });
+      let imageUploadError: unknown;
+      const imageUrlPromise = timer.measure("image-upload", () =>
+        this.storeImageIfNeeded(actor.id, "visual-image-search", optimizedInput.file, optimizedInput.imageUrl).catch((error: unknown) => {
+          imageUploadError = error;
+          return undefined;
+        })
+      );
+      const analysisPromise = cachedAnalysis.analysis
+        ? Promise.resolve({ analysis: cachedAnalysis.analysis, cacheHit: true, ...(cachedAnalysis.imageHash ? { imageHash: cachedAnalysis.imageHash } : {}) })
+        : timer.measure("openai", async () => {
+            const analysis = await this.analyzeImage({ ...optimizedInput, includeEmbedding: false });
+            await this.writeCachedImageAnalysis(cachedAnalysis.cacheKey, analysis);
+            return { analysis, cacheHit: false, ...(cachedAnalysis.imageHash ? { imageHash: cachedAnalysis.imageHash } : {}) };
+          });
+      const queryEmbeddingPromise = timer.measure("query-image-embedding", () => this.createQueryVisualEmbedding(optimizedInput));
+      const [analysisSettled, imageUrlSettled, queryEmbeddingSettled] = await Promise.allSettled([
+        analysisPromise,
+        imageUrlPromise,
+        queryEmbeddingPromise
+      ]);
+      if (analysisSettled.status === "rejected") {
+        throw analysisSettled.reason;
+      }
+      if (queryEmbeddingSettled.status === "rejected") {
+        throw queryEmbeddingSettled.reason;
+      }
+      if (imageUrlSettled.status === "rejected") {
+        throw imageUrlSettled.reason;
+      }
+      const analysisResult = analysisSettled.value;
+      const analysis = analysisResult.analysis;
+      const quality = imageQualityCheck(input, analysis);
+      const queryEmbedding = queryEmbeddingSettled.value;
+      const generatedTitle = generatedTitleFromAnalysis(analysis);
+      const filters = searchFilters(input);
+      const visualQueries = visualSearchQueries(input, analysis, filters);
+      const query = (visualQueries[0] ?? searchQueryFromParts(input.q ?? input.keyword ?? input.query ?? input.search, filters.brand, filters.model)) || "watch";
+      const visualDepth = input.visualDepth ?? "fast";
+      const candidateLimit = visualDepth === "deep" ? 100 : 50;
+      const candidateImageLimit = typeof input.candidateImageLimit === "number"
+        ? Math.min(input.candidateImageLimit, visualDepth === "deep" ? 60 : 40)
+        : visualDepth === "deep"
+          ? 40
+          : 30;
+      const marketplaceResult = await this.searchVisualMarketplaceCandidates(
+        visualQueries,
+        candidateLimit,
+        filters,
+        input.marketplaceId,
+        timer
+      );
+      const { local, ebay: ebayResult } = marketplaceResult;
+      const imageUrl = imageUrlSettled.value;
+      if (imageUploadError) {
+        if (imageUploadError instanceof AppError) {
+          throw imageUploadError;
+        }
+        throw new ExternalServiceError("Image upload failed.");
+      }
+
+      const candidatePool = rankedVisualCandidateItems(query, local, ebayResult.items, candidateLimit);
+      const candidateEmbeddingResult = await this.createCandidateVisualEmbeddings(candidatePool, timer, candidateImageLimit);
+      const rankedCandidates = timer.measureSync("visual-ranking", () =>
+        candidatePool
+          .map((item) => {
+            const candidateEmbedding = candidateEmbeddingResult.embeddings.get(productKey(item));
+            const visualSimilarity = candidateEmbedding
+              ? embeddingSimilarityScore(queryEmbedding.embedding, candidateEmbedding.embedding)
+              : null;
+            const metadataScores = visualSignalScores(item, input, analysis);
+            const metadataSimilarity = visualMetadataSimilarity(metadataScores);
+            const matchScore = visualMatchScore(visualSimilarity, metadataScores);
+            return {
+              ...item,
+              similarityScore: matchScore,
+              matchReasons: uniqueTerms([...item.matchReasons, ...metadataScores.matchedOn]),
+              visualSimilarity,
+              metadataSimilarity,
+              matchScore,
+              matchLevel: visualMatchLevel(matchScore),
+              matchedOn: metadataScores.matchedOn,
+              confidenceBreakdown: {
+                imageSimilarity: visualSimilarity,
+                visualAttributes: boundedScore((metadataScores.dialFeatures + metadataScores.caseBezel + metadataScores.strap) / 3 * 100),
+                metadata: metadataSimilarity,
+                text: boundedScore(metadataScores.text * 100)
+              }
+            };
+          })
+          .sort((left, right) => right.matchScore - left.matchScore || (right.visualSimilarity ?? 0) - (left.visualSimilarity ?? 0))
+          .slice(0, input.limit)
+      );
+      const comparableItems = rankedVisualCandidateItems(query, local, ebayResult.items, Math.max(candidateLimit, local.length + ebayResult.items.length));
+      const listingVolumeAmount = Math.max(ebayResult.total ?? 0, ebayResult.items.length) + local.length;
+      const productDetails = await enrichProductDetails(this.ai, query, rankedCandidates, comparableItems, listingVolumeAmount, {
+        inferMissingDetails: false
+      });
+      const rankedByKey = new Map(rankedCandidates.map((item) => [productKey(item), item]));
+      const matches: VisualSearchMatch[] = withoutSimilarProductLists(productDetails)
+        .map((item): VisualSearchMatch => {
+          const key = `${item.source}:${item.id}`;
+          const rankedItem = rankedByKey.get(key) as (RankedSearchItem & {
+            visualSimilarity: number | null;
+            metadataSimilarity: number;
+            matchScore: number;
+            matchLevel: VisualMatchLevel;
+            matchedOn: string[];
+            confidenceBreakdown: VisualSearchMatch["confidenceBreakdown"];
+          }) | undefined;
+          const confidence = rankedItem?.matchScore ?? item.similarityScore;
+          return {
+            ...item,
+            marketplace: item.source,
+            originalUrl: item.sourceUrl,
+            visualSimilarity: rankedItem?.visualSimilarity ?? null,
+            metadataSimilarity: rankedItem?.metadataSimilarity ?? 0,
+            matchScore: confidence,
+            matchLevel: rankedItem?.matchLevel ?? visualMatchLevel(confidence),
+            matchedOn: rankedItem?.matchedOn ?? [],
+            confidence,
+            confidenceBreakdown: rankedItem?.confidenceBreakdown ?? {
+              imageSimilarity: null,
+              visualAttributes: 0,
+              metadata: 0,
+              text: item.similarityScore
+            },
+            candidateImageAnalysis: null
+          };
+        })
+        .sort((left, right) => right.matchScore - left.matchScore || (right.visualSimilarity ?? 0) - (left.visualSimilarity ?? 0))
+        .slice(0, input.limit);
+
+      const record = await GeneratedApiRecordModel.create({
+        resource: "visual-image-search",
+        ownerId: actor.id,
+        scope: {},
+        data: {
+          query,
+          generatedTitle,
+          imageUrl,
+          quality,
+          queryImageAnalysis: compactCandidateImageAnalysis(analysis),
+          queryEmbeddingDimensions: queryEmbedding.embedding.length,
+          queryImageHash: queryEmbedding.imageHash ?? analysisResult.imageHash ?? null,
+          analysisCacheHit: analysisResult.cacheHit,
+          queryEmbeddingCacheHit: queryEmbedding.cacheHit,
+          resultCounts: {
+            local: local.length,
+            ebay: ebayResult.items.length,
+            returned: matches.length
+          },
+          filters,
+          visualDepth,
+          marketplaceQueries: {
+            local: marketplaceResult.localQueries,
+            ebay: marketplaceResult.ebayQueries
+          },
+          marketplaceMetadata: {
+            ebay: {
+              environment: ebayResult.environment,
+              marketplaceId: ebayResult.marketplaceId,
+              total: ebayResult.total,
+              attemptedQueries: ebayResult.attemptedQueries,
+              warnings: ebayResult.warnings
+            }
+          }
+        },
+        status: "completed",
+        history: [
+          {
+            action: "visual-image-search.created",
+            actorId: actor.id,
+            actorType: actor.audience,
+            at: new Date(),
+            metadata: { query, generatedTitle, imageUrl }
+          }
+        ]
+      });
+
+      return {
+        searchId: record._id.toString(),
+        query,
+        generatedTitle,
+        image: imageUrl ?? null,
+        quality,
+        queryImageAnalysis: compactCandidateImageAnalysis(analysis),
+        queryEmbeddingDimensions: queryEmbedding.embedding.length,
+        queryImageHash: queryEmbedding.imageHash ?? analysisResult.imageHash ?? null,
+        pipeline: [
+          "image_quality_check",
+          "extract_visual_attributes",
+          "generate_image_embedding",
+          "search_marketplace_candidates",
+          "compare_candidate_images_and_metadata",
+          "multi_signal_ranking",
+          "return_top_matches_with_confidence"
+        ],
+        results: {
+          items: matches,
+          localCandidates: local.length,
+          ebayCandidates: ebayResult.items.length
+        },
+        metadata: {
+          filters,
+          visualDepth,
+          candidateLimit,
+          candidateImageLimit,
+          analyzedCandidateImages: candidateEmbeddingResult.analyzedCandidateImages,
+          candidateImageEmbeddings: candidateImageLimit > 0,
+          visualEmbeddingModel: queryEmbedding.model,
+          analysisCacheHit: analysisResult.cacheHit,
+          queryEmbeddingCacheHit: queryEmbedding.cacheHit,
+          embeddingCacheHits: candidateEmbeddingResult.cacheHits,
+          marketplaceSearchCacheHits: marketplaceResult.localCacheHits + marketplaceResult.ebayCacheHits,
+          marketplaceCandidates: {
+            local: local.length,
+            ebay: ebayResult.items.length
+          },
+          returned: matches.length,
+          weights: visualSearchWeights,
+          ebay: {
+            environment: ebayResult.environment,
+            marketplaceId: ebayResult.marketplaceId,
+            query: ebayResult.query,
+            total: ebayResult.total,
+            attemptedQueries: ebayResult.attemptedQueries,
+            warnings: ebayResult.warnings
+          }
+        },
+        warnings: [...quality.warnings, ...ebayResult.warnings],
+        ...(ebayResult.error ? { errors: { ebay: ebayResult.error } } : {}),
+        record: serializeRecord(record)
+      };
+    } finally {
+      timer.endAll();
+    }
+  }
+
+  private async createSearchResult(actor: Actor, input: SearchInput, options: { inferProductDetails: boolean }) {
+    const timer = createImageSearchTimer("standard");
     const filters = searchFilters(input);
     const explicitText = (input.q ?? input.keyword ?? input.query ?? input.search)?.trim();
     const explicitQuery = searchQueryFromParts(explicitText, filters.brand, filters.model);
     const hasImage = Boolean(input.file || input.imageUrl);
-    if (!explicitQuery && !hasImage && !hasFilters(filters)) {
+    if (hasImage) {
+      timer.measureSync("image-read", () => undefined);
+    } else if (!explicitQuery && !hasFilters(filters)) {
       throw new ConflictError("Provide a keyword, filter, or an image file.");
     }
+    const optimizedInput = hasImage
+      ? await timer.measure("sharp-resize", () => imagePreprocessInput(input))
+      : input;
+    const cachedAnalysis = hasImage && !explicitQuery
+      ? await this.getCachedImageAnalysis({ ...optimizedInput, includeEmbedding: false })
+      : undefined;
 
     let imageUploadError: unknown;
     const imageUrlPromise = hasImage
-      ? this.storeImageIfNeeded(actor.id, "image-search", input.file, input.imageUrl).catch((error: unknown) => {
-          imageUploadError = error;
-          return undefined;
-        })
+      ? timer.measure("image-upload", () =>
+          this.storeImageIfNeeded(actor.id, "image-search", optimizedInput.file, optimizedInput.imageUrl).catch((error: unknown) => {
+            imageUploadError = error;
+            return undefined;
+          })
+        )
       : Promise.resolve<string | undefined>(undefined);
     let analysisError: string | undefined;
     const analysis = hasImage && !explicitQuery
-      ? await this.analyzeImage({ ...input, includeEmbedding: false }).catch((error: unknown) => {
-          analysisError = appErrorMessage(error, "AI image analysis failed.");
-          return undefined;
-        })
+      ? cachedAnalysis?.analysis
+        ? cachedAnalysis.analysis
+        : await timer.measure("openai", async () => {
+            try {
+              const analysis = await this.analyzeImage({ ...optimizedInput, includeEmbedding: false });
+              await this.writeCachedImageAnalysis(cachedAnalysis?.cacheKey, analysis);
+              return analysis;
+            } catch (error) {
+              analysisError = appErrorMessage(error, "AI image analysis failed.");
+              return undefined;
+            }
+          })
       : undefined;
     const generatedTitle = analysis ? generatedTitleFromAnalysis(analysis) : null;
     const filterOnlySearch = !explicitQuery && !generatedTitle && !hasImage && hasFilters(filters);
@@ -1086,6 +2647,7 @@ export class AiService {
       throw new ConflictError("AI could not detect a searchable watch from the image.");
     }
     const ebaySearchPlan = analysis ? ebaySearchPlanFromAnalysis(analysis, query) : undefined;
+    const prioritySignals = analysis ? imageSearchPriorityFromAnalysis(analysis) : undefined;
 
     const [local, ebayResult] = await Promise.all([
       this.searchLocalListings(filterOnlySearch ? "" : query, input.limit, filters),
@@ -1099,10 +2661,12 @@ export class AiService {
       throw new ExternalServiceError("Image upload failed.");
     }
 
-    const rankedItems = rankedSearchItems(query, local, ebayResult.items, input.limit);
-    const comparableItems = rankedSearchItems(query, local, ebayResult.items, Math.max(input.limit, local.length + ebayResult.items.length));
+    const rankedItems = rankedSearchItems(query, local, ebayResult.items, input.limit, prioritySignals);
+    const comparableItems = rankedSearchItems(query, local, ebayResult.items, Math.max(input.limit, local.length + ebayResult.items.length), prioritySignals);
     const listingVolumeAmount = Math.max(ebayResult.total ?? 0, ebayResult.items.length) + local.length;
-    const productDetails = await enrichProductDetails(this.ai, query, rankedItems, comparableItems, listingVolumeAmount);
+    const productDetails = await enrichProductDetails(this.ai, query, rankedItems, comparableItems, listingVolumeAmount, {
+      inferMissingDetails: options.inferProductDetails
+    });
     const listProductDetails = withoutSimilarProductLists(productDetails);
 
     const record = await GeneratedApiRecordModel.create({
@@ -1335,6 +2899,56 @@ export class AiService {
       .slice(0, limit);
   }
 
+  private async searchLocalCandidateListings(limit: number, filters: ProductSearchFilters = {}): Promise<LocalSearchItem[]> {
+    const records = await GeneratedApiRecordModel.find({
+      resource: "listings",
+      deletedAt: null
+    })
+      .sort({ updatedAt: -1 })
+      .limit(Math.max(limit * 5, 200));
+
+    return records
+      .map((record): LocalSearchItem => localSearchItemFromRecord(record, []))
+      .filter((item) => this.localItemMatchesFilters(item, filters))
+      .slice(0, limit);
+  }
+
+  private async localImageDirectMatches(
+    queryEmbedding: VisualEmbeddingResult,
+    localCandidates: LocalSearchItem[],
+    timer: ReturnType<typeof createImageSearchTimer>,
+    limit: number,
+    candidateImageLimit: number
+  ): Promise<DirectSearchItem[]> {
+    const rankedCandidates = localCandidates
+      .map((item) => rankedLocalItem(item, []))
+      .filter((item) => item.image)
+      .slice(0, Math.max(candidateImageLimit, limit));
+    const candidateEmbeddings = await this.createCandidateVisualEmbeddings(rankedCandidates, timer, candidateImageLimit);
+    return rankedCandidates
+      .flatMap((item): DirectSearchItem[] => {
+        const visualSimilarity = candidateEmbeddings.embeddings.has(productKey(item))
+          ? embeddingSimilarityScore(queryEmbedding.embedding, candidateEmbeddings.embeddings.get(productKey(item))!.embedding)
+          : null;
+        if (visualSimilarity === null || visualSimilarity < 55) {
+          return [];
+        }
+        return [
+          directSearchItem(
+            {
+              ...item,
+              similarityScore: visualSimilarity,
+              matchReasons: uniqueTerms([...item.matchReasons, "internal:image-match"])
+            },
+            "image",
+            visualSimilarity
+          )
+        ];
+      })
+      .sort((left, right) => right.matchScore - left.matchScore)
+      .slice(0, limit);
+  }
+
   private localItemMatchesFilters(item: LocalSearchItem, filters: ProductSearchFilters): boolean {
     return (
       includesLooseText(item.brand, filters.brand) &&
@@ -1352,17 +2966,7 @@ export class AiService {
     marketplaceId: string | undefined,
     searchPlan?: EbaySearchPlan,
     filters: ProductSearchFilters = {}
-  ): Promise<{
-    items: EbaySearchItem[];
-    query: string;
-    queryNormalization: MarketplaceQueryNormalization;
-    environment: "sandbox" | "production";
-    marketplaceId: string;
-    total: number | null;
-    attemptedQueries: string[];
-    warnings: string[];
-    error?: string;
-  }> {
+  ): Promise<EbayListingsSearchResult> {
     const normalization = searchPlan?.normalization ?? await this.normalizeMarketplaceQuery(query);
     const config = getMarketplaceConfig().ebay;
     const resolvedMarketplaceId = marketplaceId ?? config.marketplaceId;
@@ -1436,6 +3040,63 @@ export class AiService {
         attemptedQueries: [],
         warnings: [],
         error: error instanceof AppError ? error.message : "eBay search failed."
+      };
+    }
+  }
+
+  private async searchEbayImageListings(
+    base64Image: string,
+    limit: number,
+    marketplaceId: string | undefined,
+    filters: ProductSearchFilters = {}
+  ): Promise<EbayListingsSearchResult> {
+    const config = getMarketplaceConfig().ebay;
+    const resolvedMarketplaceId = marketplaceId ?? config.marketplaceId;
+    try {
+      const options: Parameters<EbayProvider["searchListingsByImageWithMetadata"]>[1] = { limit };
+      if (marketplaceId) {
+        options.marketplaceId = marketplaceId;
+      }
+      const result = await withTimeout(
+        this.ebay.searchListingsByImageWithMetadata(base64Image, options),
+        getAiConfig().ebaySearchTimeoutMs,
+        "eBay image search timed out."
+      );
+      return {
+        query: "image",
+        queryNormalization: {
+          query: "image",
+          source: "fallback",
+          confidence: null,
+          detectedBrand: null,
+          detectedModel: null,
+          reasoning: "Sent base64 image directly to eBay Browse search_by_image."
+        },
+        items: result.items.map(ebayItem).filter((item) => this.ebayItemMatchesFilters(item, filters)),
+        environment: config.environment,
+        marketplaceId: resolvedMarketplaceId,
+        total: result.total,
+        attemptedQueries: ["search_by_image"],
+        warnings: []
+      };
+    } catch (error) {
+      return {
+        query: "image",
+        queryNormalization: {
+          query: "image",
+          source: "fallback",
+          confidence: null,
+          detectedBrand: null,
+          detectedModel: null,
+          reasoning: error instanceof AppError ? error.message : null
+        },
+        items: [],
+        environment: config.environment,
+        marketplaceId: resolvedMarketplaceId,
+        total: null,
+        attemptedQueries: ["search_by_image"],
+        warnings: [],
+        error: error instanceof AppError ? error.message : "eBay image search failed."
       };
     }
   }

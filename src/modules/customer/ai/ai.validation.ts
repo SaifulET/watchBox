@@ -18,6 +18,7 @@ export const aiSearchBodySchema = z
     search: z.string().trim().min(1).max(160).optional(),
     brand: z.string().trim().min(1).max(80).optional(),
     model: z.string().trim().min(1).max(120).optional(),
+    referenceNumber: z.string().trim().min(2).max(80).optional(),
     minPrice: z.coerce.number().min(0).optional(),
     maxPrice: z.coerce.number().min(0).optional(),
     priceMin: z.coerce.number().min(0).optional(),
@@ -27,6 +28,8 @@ export const aiSearchBodySchema = z
     region: z.string().trim().min(2).max(80).optional(),
     imageUrl: z.string().url().optional(),
     modelVersion: z.string().trim().min(1).max(80).optional(),
+    visualDepth: z.enum(["fast", "deep"]).optional(),
+    candidateImageLimit: z.coerce.number().int().min(0).max(60).optional(),
     limit: z.coerce.number().int().min(1).max(50).default(20),
     marketplaceId: z.string().trim().min(3).max(32).optional()
   })

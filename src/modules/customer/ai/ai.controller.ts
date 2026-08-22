@@ -16,6 +16,7 @@ type ControllerSearchInput = ControllerImageInput & {
   search?: string;
   brand?: string;
   model?: string;
+  referenceNumber?: string;
   minPrice?: number;
   maxPrice?: number;
   listingStatus?: "active" | "historical_sold";
@@ -23,6 +24,8 @@ type ControllerSearchInput = ControllerImageInput & {
   region?: string;
   limit: number;
   marketplaceId?: string;
+  visualDepth?: "fast" | "deep";
+  candidateImageLimit?: number;
 };
 
 const actor = (req: Request) => {
@@ -71,6 +74,9 @@ const searchInput = (body: AiSearchBody, file: Express.Multer.File | undefined):
   if (body.model) {
     input.model = body.model;
   }
+  if (body.referenceNumber) {
+    input.referenceNumber = body.referenceNumber;
+  }
   const minPrice = body.minPrice ?? body.priceMin;
   const maxPrice = body.maxPrice ?? body.priceMax;
   if (typeof minPrice === "number") {
@@ -99,6 +105,12 @@ const searchInput = (body: AiSearchBody, file: Express.Multer.File | undefined):
   }
   if (body.marketplaceId) {
     input.marketplaceId = body.marketplaceId;
+  }
+  if (body.visualDepth) {
+    input.visualDepth = body.visualDepth;
+  }
+  if (typeof body.candidateImageLimit === "number") {
+    input.candidateImageLimit = body.candidateImageLimit;
   }
   if (file) {
     input.file = file;
@@ -130,8 +142,28 @@ export class AiController {
 
   public createProductSearch = async (req: Request, res: Response): Promise<void> => {
     const body = req.body as AiSearchBody;
-    const result = await this.service.createSearch(actor(req), searchInput(body, req.file));
+    const result = await this.service.createProductSearch(actor(req), searchInput(body, req.file));
     sendSuccess(res, req.requestId, result.results.items, 201);
+  };
+
+  public createEbayDirectSearch = async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as AiSearchBody;
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.createEbayDirectSearch(searchInput(body, req.file)),
+      201
+    );
+  };
+
+  public createVisualImageSearch = async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as AiSearchBody;
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.createVisualImageSearch(actor(req), searchInput(body, req.file)),
+      201
+    );
   };
 
   public getProductDetails = async (req: Request, res: Response): Promise<void> => {
