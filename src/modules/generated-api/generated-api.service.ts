@@ -7,6 +7,7 @@ import {
   getObjectUrl
 } from "../../infrastructure/storage/s3-storage.js";
 import type { RedisClient } from "../../infrastructure/redis/client.js";
+import { CustomerAccountModel } from "../customer/auth/auth.model.js";
 import { GeneratedApiRepository } from "./generated-api.repository.js";
 import type { GeneratedApiRecordDocument } from "./generated-api.model.js";
 
@@ -29,11 +30,28 @@ export type GeneratedEndpointDefinition = {
 };
 
 export type GeneratedListResult = {
-  items: Array<ReturnType<typeof serializeRecord>>;
+  items: SerializedRecord[];
   page: number;
   limit: number;
   total: number;
   totalPages: number;
+};
+
+type BasicOwnerInfo = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+type OwnerAccountLookup = {
+  _id: unknown;
+  displayName?: unknown;
+  avatarUrl?: unknown;
+  deletedAt?: unknown;
+};
+
+type SerializedRecord = ReturnType<typeof serializeRecord> & {
+  owner?: BasicOwnerInfo | null;
 };
 
 type GeneratedApiDependencies = {
@@ -100,6 +118,27 @@ const serializeRecord = (record: GeneratedApiRecordDocument) => ({
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString()
 });
+
+const ownerInfoFromAccount = (account: {
+  _id: unknown;
+  displayName?: unknown;
+  avatarUrl?: unknown;
+}): BasicOwnerInfo | null => {
+  if (typeof account.displayName !== "string") {
+    return null;
+  }
+  return {
+    id: String(account._id),
+    displayName: account.displayName,
+    avatarUrl: typeof account.avatarUrl === "string" ? account.avatarUrl : null
+  };
+};
+
+const isActiveOwnerAccount = (value: unknown): value is OwnerAccountLookup =>
+  typeof value === "object" &&
+  value !== null &&
+  "_id" in value &&
+  !("deletedAt" in value && Boolean((value as OwnerAccountLookup).deletedAt));
 
 const parsePositiveInteger = (value: unknown, fallback: number, max: number): number => {
   const parsed = Number(value);
@@ -182,7 +221,7 @@ export class GeneratedApiService {
     }
     const { records, total } = await this.repository.list(listOptions);
     const response: GeneratedListResult = {
-      items: records.map(serializeRecord),
+      items: await this.serializeRecords(records),
       page,
       limit,
       total,
@@ -202,14 +241,14 @@ export class GeneratedApiService {
       if (!record) {
         throw new ResourceNotFoundError(`${definition.resource} record not found.`);
       }
-      return serializeRecord(record);
+      return this.serializeRecord(record);
     }
 
     const record = await this.repository.findByScope(definition.resource, params, ownerId);
     if (!record) {
       throw new ResourceNotFoundError(`${definition.resource} record not found.`);
     }
-    return serializeRecord(record);
+    return this.serializeRecord(record);
   }
 
   public async create(
@@ -436,6 +475,61 @@ export class GeneratedApiService {
       return actor.id;
     }
     return undefined;
+  }
+
+  private async serializeRecords(records: GeneratedApiRecordDocument[]): Promise<SerializedRecord[]> {
+    const ownerMap = await this.ownerMap(records);
+    return records.map((record) => this.serializeRecordWithOwnerMap(record, ownerMap));
+  }
+
+  private async serializeRecord(record: GeneratedApiRecordDocument): Promise<SerializedRecord> {
+    if (record.resource !== "listings" || !record.ownerId) {
+      return serializeRecord(record);
+    }
+    const ownerMap = await this.ownerMap([record]);
+    return this.serializeRecordWithOwnerMap(record, ownerMap);
+  }
+
+  private serializeRecordWithOwnerMap(
+    record: GeneratedApiRecordDocument,
+    ownerMap: Map<string, BasicOwnerInfo>
+  ): SerializedRecord {
+    const serialized = serializeRecord(record);
+    if (record.resource !== "listings") {
+      return serialized;
+    }
+    return {
+      ...serialized,
+      owner: record.ownerId ? ownerMap.get(record.ownerId) ?? null : null
+    };
+  }
+
+  private async ownerMap(records: GeneratedApiRecordDocument[]): Promise<Map<string, BasicOwnerInfo>> {
+    const ownerIds = Array.from(
+      new Set(
+        records
+          .filter((record) => record.resource === "listings")
+          .map((record) => record.ownerId)
+          .filter((ownerId): ownerId is string => Boolean(ownerId))
+      )
+    );
+    if (ownerIds.length === 0) {
+      return new Map();
+    }
+    const rawAccounts: unknown[] = await Promise.all(
+      ownerIds.map((ownerId) =>
+        CustomerAccountModel.findById(ownerId)
+          .select("displayName avatarUrl deletedAt")
+          .lean()
+      )
+    );
+    const accounts = rawAccounts.filter(isActiveOwnerAccount);
+    return new Map(
+      accounts.flatMap((account) => {
+        const owner = ownerInfoFromAccount(account);
+        return owner ? [[owner.id, owner] as const] : [];
+      })
+    );
   }
 
   private primaryIdentifier(params: Record<string, string>): string | undefined {

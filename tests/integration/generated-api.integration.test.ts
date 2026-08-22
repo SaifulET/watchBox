@@ -299,6 +299,55 @@ describe.sequential("generated API routes", () => {
     expect(noChange.error.message).toBe("No listing changes were detected.");
   });
 
+  it("includes basic owner info with internal product listings", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+
+    const createdResponse = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", authorization)
+      .send({
+        title: "Owner Info Listing",
+        brand: "Rolex",
+        model: "Submariner",
+        price: 12500,
+        currency: "USD"
+      })
+      .expect(201);
+    const created = createdResponse.body as RecordResponse;
+
+    const response = await request(app)
+      .get("/api/v1/listings?limit=10")
+      .expect(200);
+    const body = response.body as DataResponse<Array<{
+      id: string;
+      ownerId: string;
+      owner: {
+        id: string;
+        displayName: string;
+        avatarUrl: string | null;
+      } | null;
+      data: {
+        title: string;
+      };
+    }>>;
+    const listing = body.data.find((item) => item.id === created.data.id);
+
+    expect(listing).toMatchObject({
+      id: created.data.id,
+      ownerId: expect.any(String),
+      owner: {
+        id: expect.any(String),
+        displayName: "Generated Customer",
+        avatarUrl: null
+      },
+      data: {
+        title: "Owner Info Listing"
+      }
+    });
+    expect(listing?.owner?.id).toBe(listing?.ownerId);
+  });
+
   it("searches local listings and eBay from a keyword", async () => {
     process.env.EBAY_CLIENT_ID = "client-id";
     process.env.EBAY_CLIENT_SECRET = "client-secret";
