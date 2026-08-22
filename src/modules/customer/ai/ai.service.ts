@@ -2171,6 +2171,8 @@ export class AiService {
       let query: string;
       let ebayResult: EbayListingsSearchResult;
       let localItems: DirectSearchItem[] = [];
+      let ebayDetailEnriched = 0;
+      let ebayDetailEnrichmentFailed = 0;
 
       if (hasImage) {
         timer.measureSync("image-read", () => undefined);
@@ -2242,6 +2244,15 @@ export class AiService {
         ebayResult = ebaySearchResult;
         localItems = rankedSearchItems(query, localResult, [], input.limit).map((item) => directSearchItem(item, "text"));
       }
+      const ebayDetailResult = await timer.measure("marketplace-search", () =>
+        this.enrichEbayListingsWithDetails(ebayResult.items, input.marketplaceId ?? ebayResult.marketplaceId, input.limit)
+      );
+      ebayResult = {
+        ...ebayResult,
+        items: ebayDetailResult.items
+      };
+      ebayDetailEnriched = ebayDetailResult.enrichedCount;
+      ebayDetailEnrichmentFailed = ebayDetailResult.failedCount;
       const ebayItems = hasImage
         ? ebayResult.items
             .map((item, index) => directSearchItem(rankedEbayItem(item, [], index), "image"))
@@ -2269,6 +2280,8 @@ export class AiService {
           internalProductsMerged: true,
           localCandidates: localItems.length,
           ebayCandidates: ebayItems.length,
+          ebayDetailEnriched,
+          ebayDetailEnrichmentFailed,
           textSearchDirectToEbay: !hasImage,
           imageSearchUsesOpenAiIdentification: false,
           imageSearchUsesEbayImageSearch: hasImage,
@@ -3099,6 +3112,54 @@ export class AiService {
         error: error instanceof AppError ? error.message : "eBay image search failed."
       };
     }
+  }
+
+  private async enrichEbayListingsWithDetails(
+    items: EbaySearchItem[],
+    marketplaceId: string | undefined,
+    limit: number
+  ): Promise<{ items: EbaySearchItem[]; enrichedCount: number; failedCount: number }> {
+    const detailLimit = Math.min(limit, items.length);
+    const detailOptions: Parameters<EbayProvider["getListingDetails"]>[1] = {};
+    if (marketplaceId) {
+      detailOptions.marketplaceId = marketplaceId;
+    }
+    const detailResults = await Promise.allSettled(
+      items.slice(0, detailLimit).map(async (item) => ebayItem(await this.ebay.getListingDetails(item.externalId, detailOptions)))
+    );
+    const detailById = new Map<string, EbaySearchItem>();
+    let failedCount = 0;
+    for (const result of detailResults) {
+      if (result.status === "fulfilled") {
+        detailById.set(result.value.externalId, result.value);
+      } else {
+        failedCount += 1;
+      }
+    }
+    const enrichedItems = items.map((item) => {
+      const detail = detailById.get(item.externalId);
+      if (!detail) {
+        return item;
+      }
+      const enriched: EbaySearchItem = {
+        ...item,
+        ...detail,
+        title: item.title,
+        price: item.price,
+        currency: item.currency,
+        sourceUrl: item.sourceUrl,
+        image: item.image ?? detail.image
+      };
+      if (item.description && !detail.description) {
+        enriched.description = item.description;
+      }
+      return enriched;
+    });
+    return {
+      items: enrichedItems,
+      enrichedCount: detailById.size,
+      failedCount
+    };
   }
 
   private ebayItemMatchesFilters(item: EbaySearchItem, filters: ProductSearchFilters): boolean {

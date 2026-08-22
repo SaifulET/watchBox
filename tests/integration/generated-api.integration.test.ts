@@ -306,14 +306,13 @@ describe.sequential("generated API routes", () => {
     process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
     resetEnvForTests();
 
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
-          status: 200
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+      }
+      if (url.includes("/item_summary/search")) {
+        return new Response(
           JSON.stringify({
             itemSummaries: [
               {
@@ -328,8 +327,29 @@ describe.sequential("generated API routes", () => {
             ]
           }),
           { status: 200 }
-        )
-      );
+        );
+      }
+      if (url.includes("direct-text-watch")) {
+        return new Response(
+          JSON.stringify({
+            itemId: "direct-text-watch",
+            title: "Titan automatic blue skeleton watch",
+            price: { value: "180.00", currency: "USD" },
+            itemWebUrl: "https://www.ebay.test/itm/direct-text-watch",
+            image: { imageUrl: "https://i.ebayimg.test/titan.jpg" },
+            condition: "New",
+            buyingOptions: ["FIXED_PRICE"],
+            localizedAspects: [
+              { name: "Brand", value: "Titan" },
+              { name: "Model", value: "Skeleton" },
+              { name: "Reference Number", value: "90123QM01" }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response("not found", { status: 404 });
+    });
 
     const accessToken = await registerCustomer();
     const authorization = `Bearer ${accessToken}`;
@@ -411,14 +431,13 @@ describe.sequential("generated API routes", () => {
     process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
     resetEnvForTests();
 
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
-          status: 200
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/oauth2/token")) {
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+      }
+      if (url.includes("/item_summary/search")) {
+        return new Response(
           JSON.stringify({
             itemSummaries: [
               {
@@ -433,8 +452,29 @@ describe.sequential("generated API routes", () => {
             ]
           }),
           { status: 200 }
-        )
-      );
+        );
+      }
+      if (url.includes("direct-text-watch")) {
+        return new Response(
+          JSON.stringify({
+            itemId: "direct-text-watch",
+            title: "Titan automatic blue skeleton watch",
+            price: { value: "180.00", currency: "USD" },
+            itemWebUrl: "https://www.ebay.test/itm/direct-text-watch",
+            image: { imageUrl: "https://i.ebayimg.test/titan.jpg" },
+            condition: "New",
+            buyingOptions: ["FIXED_PRICE"],
+            localizedAspects: [
+              { name: "Brand", value: "Titan" },
+              { name: "Model", value: "Skeleton" },
+              { name: "Reference Number", value: "90123QM01" }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response("not found", { status: 404 });
+    });
 
     const accessToken = await registerCustomer();
     await request(app)
@@ -463,14 +503,15 @@ describe.sequential("generated API routes", () => {
         internalProductsMerged: boolean;
         localCandidates: number;
         ebayCandidates: number;
+        ebayDetailEnriched: number;
         textSearchDirectToEbay: boolean;
         imageSearchUsesOpenAiIdentification: boolean;
         queryNormalization: { source: string };
       };
       results: {
-        items: Array<{ source: string; title: string }>;
+        items: Array<{ source: string; title: string; brand: string | null; model: string | null; referenceNumber: string | null }>;
         local: Array<{ source: string; title: string }>;
-        ebay: Array<{ source: string; title: string }>;
+        ebay: Array<{ source: string; title: string; brand: string | null; model: string | null; referenceNumber: string | null }>;
       };
     }>;
     const searchUrl = fetchMock.mock.calls
@@ -484,6 +525,7 @@ describe.sequential("generated API routes", () => {
     expect(body.data.metadata.internalProductsMerged).toBe(true);
     expect(body.data.metadata.localCandidates).toBe(1);
     expect(body.data.metadata.ebayCandidates).toBe(1);
+    expect(body.data.metadata.ebayDetailEnriched).toBe(1);
     expect(body.data.metadata.textSearchDirectToEbay).toBe(true);
     expect(body.data.metadata.imageSearchUsesOpenAiIdentification).toBe(false);
     expect(body.data.metadata.queryNormalization.source).toBe("fallback");
@@ -494,7 +536,10 @@ describe.sequential("generated API routes", () => {
     });
     expect(body.data.results.ebay[0]).toMatchObject({
       source: "ebay",
-      title: "Titan automatic blue skeleton watch"
+      title: "Titan automatic blue skeleton watch",
+      brand: "Titan",
+      model: "Skeleton",
+      referenceNumber: "90123QM01"
     });
     expect(body.data.results.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ source: "local", title: "Titan blue skeleton automatic watch" }),
@@ -527,6 +572,25 @@ describe.sequential("generated API routes", () => {
                 condition: "Pre-Owned",
                 buyingOptions: ["FIXED_PRICE"]
               }
+            ]
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.includes("/buy/browse/v1/item/direct-image-watch")) {
+        return new Response(
+          JSON.stringify({
+            itemId: "direct-image-watch",
+            title: "Rolex Submariner 126610LN",
+            price: { value: "12600.00", currency: "USD" },
+            itemWebUrl: "https://www.ebay.test/itm/direct-image-watch",
+            image: { imageUrl: "https://i.ebayimg.test/rolex.jpg" },
+            condition: "Pre-Owned",
+            buyingOptions: ["FIXED_PRICE"],
+            localizedAspects: [
+              { name: "Brand", value: "Rolex" },
+              { name: "Model", value: "Submariner" },
+              { name: "Reference Number", value: "126610LN" }
             ]
           }),
           { status: 200 }
@@ -577,6 +641,7 @@ describe.sequential("generated API routes", () => {
         internalProductsMerged: boolean;
         localCandidates: number;
         ebayCandidates: number;
+        ebayDetailEnriched: number;
         textSearchDirectToEbay: boolean;
         imageSearchUsesOpenAiIdentification: boolean;
         imageSearchUsesEbayImageSearch: boolean;
@@ -584,7 +649,7 @@ describe.sequential("generated API routes", () => {
       results: {
         items: Array<{ source: string; title: string; visualSimilarity: number | null }>;
         local: Array<{ source: string; title: string; visualSimilarity: number | null }>;
-        ebay: Array<{ source: string; title: string }>;
+        ebay: Array<{ source: string; title: string; brand: string | null; model: string | null; referenceNumber: string | null }>;
       };
     }>;
     const searchUrl = fetchMock.mock.calls
@@ -602,6 +667,7 @@ describe.sequential("generated API routes", () => {
     expect(body.data.metadata.internalProductsMerged).toBe(true);
     expect(body.data.metadata.localCandidates).toBe(1);
     expect(body.data.metadata.ebayCandidates).toBe(1);
+    expect(body.data.metadata.ebayDetailEnriched).toBe(1);
     expect(body.data.metadata.textSearchDirectToEbay).toBe(false);
     expect(body.data.metadata.imageSearchUsesOpenAiIdentification).toBe(false);
     expect(body.data.metadata.imageSearchUsesEbayImageSearch).toBe(true);
@@ -615,7 +681,10 @@ describe.sequential("generated API routes", () => {
     });
     expect(body.data.results.ebay[0]).toMatchObject({
       source: "ebay",
-      title: "Rolex Submariner 126610LN"
+      title: "Rolex Submariner 126610LN",
+      brand: "Rolex",
+      model: "Submariner",
+      referenceNumber: "126610LN"
     });
     expect(body.data.results.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ source: "local", title: "Internal Rolex Submariner visual match" }),
