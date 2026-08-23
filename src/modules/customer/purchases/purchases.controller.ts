@@ -34,6 +34,14 @@ export class PurchasesController {
     sendSuccess(res, req.requestId, await this.service.createOrder(actorId(req), req.body as CreateOrderInput), 201);
   };
 
+  public productPaymentStatus = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.productPaymentStatus(actorId(req), routeParam(req, "productId"))
+    );
+  };
+
   public createProductPaymentIntent = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(
       res,

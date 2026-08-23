@@ -133,6 +133,58 @@ export class PurchasesService {
     };
   }
 
+  public async productPaymentStatus(userId: string, productId: string) {
+    const listing = await this.requireListing(productId);
+    const productPayment = await GeneratedApiRecordModel.findOne({
+      resource: "product-payments",
+      ownerId: userId,
+      deletedAt: null,
+      "scope.listingId": listing._id.toString()
+    }).sort({ createdAt: -1 });
+    const purchaseId = productPayment?._id.toString() ?? null;
+    const paymentRecord = purchaseId
+      ? await GeneratedApiRecordModel.findOne({
+          resource: "payment-intent",
+          ownerId: userId,
+          deletedAt: null,
+          "scope.purchaseId": purchaseId
+        }).sort({ createdAt: -1 })
+      : null;
+
+    return {
+      productId: listing._id.toString(),
+      productStatus: listing.status,
+      listingStatus: stringValue(listing.data.listingStatus) ?? null,
+      purchaseStatus: stringValue(listing.data.purchaseStatus) ?? null,
+      purchaseId,
+      paymentStatus:
+        stringValue(productPayment?.data.paymentStatus) ??
+        stringValue(paymentRecord?.data.status) ??
+        productPayment?.status ??
+        paymentRecord?.status ??
+        null,
+      paymentIntentId:
+        stringValue(productPayment?.data.paymentIntentId) ??
+        stringValue(paymentRecord?.data.paymentIntentId) ??
+        null,
+      paymentProvider:
+        stringValue(productPayment?.data.paymentProvider) ??
+        stringValue(paymentRecord?.data.provider) ??
+        null,
+      fulfillmentStatus: stringValue(productPayment?.data.fulfillmentStatus) ?? null,
+      amount:
+        numberValue(productPayment?.data.total) ??
+        numberValue(paymentRecord?.data.amount) ??
+        null,
+      currency:
+        stringValue(productPayment?.data.currency)?.toUpperCase() ??
+        stringValue(paymentRecord?.data.currency)?.toUpperCase() ??
+        null,
+      paidAt: stringValue(productPayment?.data.paidAt) ?? null,
+      updatedAt: productPayment?.updatedAt.toISOString() ?? listing.updatedAt.toISOString()
+    };
+  }
+
   public async createOrder(userId: string, input: CreateOrderInput) {
     const listing = await this.requirePurchasableListing(input.listingId, userId);
     const price = numberValue(listing.data.price);
@@ -854,6 +906,18 @@ export class PurchasesService {
     listingId: string,
     buyerId: string
   ): Promise<GeneratedApiRecordDocument> {
+    const listing = await this.requireListing(listingId);
+    if (listing.ownerId === buyerId) {
+      throw new ConflictError("You cannot purchase your own listing.");
+    }
+    const listingStatus = stringValue(listing.data.listingStatus) ?? stringValue(listing.data.purchaseStatus);
+    if (unavailableListingStatuses.has(listing.status) || (listingStatus && unavailableListingStatuses.has(listingStatus))) {
+      throw new ConflictError("Listing is not available for purchase.");
+    }
+    return listing;
+  }
+
+  private async requireListing(listingId: string): Promise<GeneratedApiRecordDocument> {
     if (!Types.ObjectId.isValid(listingId)) {
       throw new ResourceNotFoundError("Listing not found.");
     }
@@ -864,13 +928,6 @@ export class PurchasesService {
     });
     if (!listing) {
       throw new ResourceNotFoundError("Listing not found.");
-    }
-    if (listing.ownerId === buyerId) {
-      throw new ConflictError("You cannot purchase your own listing.");
-    }
-    const listingStatus = stringValue(listing.data.listingStatus) ?? stringValue(listing.data.purchaseStatus);
-    if (unavailableListingStatuses.has(listing.status) || (listingStatus && unavailableListingStatuses.has(listingStatus))) {
-      throw new ConflictError("Listing is not available for purchase.");
     }
     return listing;
   }

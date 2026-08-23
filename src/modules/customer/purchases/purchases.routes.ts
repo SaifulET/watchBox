@@ -17,6 +17,16 @@ export const createPurchasesRouter = (): Router => {
   const customerAuth = authenticate("customer");
 
   router.get("/payments/config", asyncHandler(controller.paymentConfig));
+  router.get(
+    "/payments/products/:productId/status",
+    customerAuth,
+    asyncHandler(controller.productPaymentStatus)
+  );
+  router.get(
+    "/listings/:productId/status",
+    customerAuth,
+    asyncHandler(controller.productPaymentStatus)
+  );
   router.post(
     "/payments/products/:productId/payment-intent",
     customerAuth,

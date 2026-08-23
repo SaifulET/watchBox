@@ -515,6 +515,50 @@ describe.sequential("generated API routes", () => {
     const soldListing = soldListingResponse.body as RecordResponse;
     expect(soldListing.data.status).toBe("sold");
     expect(soldListing.data.data.purchaseId).toBe(payment.data.productPayment.id);
+
+    const statusResponse = await request(app)
+      .get(`/api/v1/listings/${listing.data.id}/status`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .expect(200);
+    const status = statusResponse.body as DataResponse<{
+      productId: string;
+      productStatus: string;
+      listingStatus: string;
+      purchaseStatus: string;
+      purchaseId: string;
+      paymentStatus: string;
+      paymentIntentId: string;
+      paymentProvider: string;
+      fulfillmentStatus: string;
+      amount: number;
+      currency: string;
+      paidAt: string;
+    }>;
+    expect(status.data).toMatchObject({
+      productId: listing.data.id,
+      productStatus: "sold",
+      listingStatus: "sold",
+      purchaseStatus: "sold",
+      purchaseId: payment.data.productPayment.id,
+      paymentStatus: "paid",
+      paymentIntentId: payment.data.paymentIntent.id,
+      paymentProvider: "local",
+      fulfillmentStatus: "processing",
+      amount: 7200,
+      currency: "USD"
+    });
+    expect(typeof status.data.paidAt).toBe("string");
+
+    const paymentStatusResponse = await request(app)
+      .get(`/api/v1/payments/products/${listing.data.id}/status`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .expect(200);
+    const paymentStatus = paymentStatusResponse.body as DataResponse<{
+      purchaseId: string;
+      paymentStatus: string;
+    }>;
+    expect(paymentStatus.data.purchaseId).toBe(payment.data.productPayment.id);
+    expect(paymentStatus.data.paymentStatus).toBe("paid");
   });
 
   it("creates an internal product order and payment intent", async () => {
