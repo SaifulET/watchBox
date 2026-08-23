@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createApp } from "../../src/app.js";
 import { getDatabaseConfig } from "../../src/config/database.config.js";
 import { getEnv, resetEnvForTests } from "../../src/config/env.js";
+import { StripePaymentProvider } from "../../src/infrastructure/external/stripe/stripe-provider.js";
 import {
   AdminAccountModel,
   AuthSessionModel,
@@ -17,6 +18,7 @@ process.env.STORAGE_PROVIDER = "local";
 process.env.EMAIL_PROVIDER = "local";
 process.env.AI_PROVIDER = "local";
 delete process.env.STRIPE_SECRET_KEY;
+delete process.env.STRIPE_PUBLISHABLE_KEY;
 delete process.env.STRIPE_WEBHOOK_SECRET;
 delete process.env.STRIPE_ELITE_PRICE_ID;
 resetEnvForTests();
@@ -42,6 +44,11 @@ type RecordResponse = DataResponse<{
   data: Record<string, unknown>;
   status: string;
 }>;
+
+type RegisteredCustomer = {
+  id: string;
+  accessToken: string;
+};
 
 type ErrorResponse = {
   success: false;
@@ -75,6 +82,25 @@ const registerCustomer = async (): Promise<string> => {
     .expect(201);
   const body = response.body as AuthResponse;
   return body.data.tokens.accessToken;
+};
+
+const registerCustomerProfile = async (
+  email: string,
+  displayName: string
+): Promise<RegisteredCustomer> => {
+  const response = await request(app)
+    .post("/api/v1/auth/register")
+    .send({
+      email,
+      password: "generated-password",
+      displayName
+    })
+    .expect(201);
+  const body = response.body as AuthResponse;
+  return {
+    id: body.data.account.id,
+    accessToken: body.data.tokens.accessToken
+  };
 };
 
 const loginAdmin = async (): Promise<string> => {
@@ -117,6 +143,7 @@ describe.sequential("generated API routes", () => {
     delete process.env.EBAY_MARKETPLACE_ID;
     delete process.env.EBAY_API_BASE_URL;
     delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_PUBLISHABLE_KEY;
     delete process.env.STRIPE_WEBHOOK_SECRET;
     delete process.env.STRIPE_ELITE_PRICE_ID;
     resetEnvForTests();
@@ -330,9 +357,11 @@ describe.sequential("generated API routes", () => {
       data: {
         title: string;
       };
-    }>>;
+    }>> & { meta: { count: number; total: number } };
     const listing = body.data.find((item) => item.id === created.data.id);
 
+    expect(body.meta.count).toBe(1);
+    expect(body.meta.total).toBe(1);
     expect(listing).toMatchObject({
       id: created.data.id,
       ownerId: expect.any(String),
@@ -346,6 +375,432 @@ describe.sequential("generated API routes", () => {
       }
     });
     expect(listing?.owner?.id).toBe(listing?.ownerId);
+  });
+
+  it("creates a direct product payment intent without a frontend order step", async () => {
+    const seller = await registerCustomerProfile("direct-seller@example.com", "Direct Seller");
+    const buyer = await registerCustomerProfile("direct-buyer@example.com", "Direct Buyer");
+
+    const listingResponse = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", `Bearer ${seller.accessToken}`)
+      .send({
+        title: "Direct Click Watch",
+        brand: "Cartier",
+        model: "Santos",
+        referenceNumber: "WSSA0029",
+        price: 7200,
+        currency: "USD"
+      })
+      .expect(201);
+    const listing = listingResponse.body as RecordResponse;
+
+    const paymentResponse = await request(app)
+      .post(`/api/v1/payments/products/${listing.data.id}/payment-intent`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({})
+      .expect(201);
+    const payment = paymentResponse.body as DataResponse<{
+      productPayment: {
+        id: string;
+        resource: string;
+        ownerId: string;
+        status: string;
+        data: {
+          buyerId: string;
+          sellerId: string;
+          listingId: string;
+          total: number;
+          currency: string;
+          paymentIntentId: string;
+          paymentProvider: string;
+          paymentStatus: string;
+          product: {
+            brand: string;
+            model: string;
+            referenceNumber: string;
+          };
+        };
+      };
+      paymentIntent: {
+        id: string;
+        clientSecret: string;
+        amount: number;
+        amountMinor: number;
+        currency: string;
+        provider: string;
+        status: string;
+      };
+      reused: boolean;
+    }>;
+
+    expect(payment.data.reused).toBe(false);
+    expect(payment.data.productPayment).toMatchObject({
+      resource: "product-payments",
+      ownerId: buyer.id,
+      status: "requires_payment_method",
+      data: {
+        buyerId: buyer.id,
+        sellerId: seller.id,
+        listingId: listing.data.id,
+        total: 7200,
+        currency: "USD",
+        paymentProvider: "local",
+        paymentStatus: "requires_payment_method",
+        product: {
+          brand: "Cartier",
+          model: "Santos",
+          referenceNumber: "WSSA0029"
+        }
+      }
+    });
+    expect(payment.data.paymentIntent).toMatchObject({
+      amount: 7200,
+      amountMinor: 720000,
+      currency: "USD",
+      provider: "local",
+      status: "requires_payment_method"
+    });
+    expect(payment.data.productPayment.data.paymentIntentId).toBe(payment.data.paymentIntent.id);
+
+    const repeatedPaymentResponse = await request(app)
+      .post(`/api/v1/payments/products/${listing.data.id}/payment-intent`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({})
+      .expect(201);
+    const repeatedPayment = repeatedPaymentResponse.body as DataResponse<{
+      productPayment: {
+        id: string;
+      };
+      paymentIntent: {
+        id: string;
+        clientSecret: string;
+      };
+      reused: boolean;
+    }>;
+
+    expect(repeatedPayment.data.reused).toBe(true);
+    expect(repeatedPayment.data.productPayment.id).toBe(payment.data.productPayment.id);
+    expect(repeatedPayment.data.paymentIntent.id).toBe(payment.data.paymentIntent.id);
+    expect(repeatedPayment.data.paymentIntent.clientSecret).toBe(payment.data.paymentIntent.clientSecret);
+
+    await request(app)
+      .post("/api/v1/webhooks/stripe")
+      .send({
+        id: "evt_direct_purchase_paid",
+        type: "payment_intent.succeeded",
+        data: {
+          object: {
+            id: payment.data.paymentIntent.id,
+            status: "succeeded",
+            metadata: {
+              purchaseId: payment.data.productPayment.id,
+              buyerId: buyer.id,
+              sellerId: seller.id,
+              listingId: listing.data.id
+            }
+          }
+        }
+      })
+      .expect(200);
+
+    const purchaseRecord = await GeneratedApiRecordModel.findById(payment.data.productPayment.id);
+    expect(purchaseRecord?.resource).toBe("product-payments");
+    expect(purchaseRecord?.status).toBe("paid");
+    expect(purchaseRecord?.data.paymentStatus).toBe("paid");
+
+    const soldListingResponse = await request(app)
+      .get(`/api/v1/listings/${listing.data.id}`)
+      .expect(200);
+    const soldListing = soldListingResponse.body as RecordResponse;
+    expect(soldListing.data.status).toBe("sold");
+    expect(soldListing.data.data.purchaseId).toBe(payment.data.productPayment.id);
+  });
+
+  it("creates an internal product order and payment intent", async () => {
+    process.env.STRIPE_PUBLISHABLE_KEY = "pk_test_purchase";
+    resetEnvForTests();
+
+    const configResponse = await request(app).get("/api/v1/payments/config").expect(200);
+    const config = configResponse.body as DataResponse<{
+      provider: string;
+      stripePublishableKey: string;
+      paymentFlow: string;
+      confirmation: string;
+    }>;
+    expect(config.data).toMatchObject({
+      provider: "local",
+      stripePublishableKey: "pk_test_purchase",
+      paymentFlow: "payment_intent",
+      confirmation: "local_confirm_endpoint"
+    });
+
+    const seller = await registerCustomerProfile("seller@example.com", "Seller User");
+    const buyer = await registerCustomerProfile("buyer@example.com", "Buyer User");
+
+    const listingResponse = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", `Bearer ${seller.accessToken}`)
+      .send({
+        title: "Purchase Ready Watch",
+        brand: "Tudor",
+        model: "Black Bay",
+        referenceNumber: "M7941A1A0RU-0003",
+        price: 4200,
+        currency: "USD"
+      })
+      .expect(201);
+    const listing = listingResponse.body as RecordResponse;
+
+    const orderResponse = await request(app)
+      .post("/api/v1/orders")
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({ listingId: listing.data.id })
+      .expect(201);
+    const order = orderResponse.body as DataResponse<{
+      order: {
+        id: string;
+        ownerId: string;
+        status: string;
+        data: {
+          buyerId: string;
+          sellerId: string;
+          listingId: string;
+          total: number;
+          currency: string;
+          paymentStatus: string;
+          listing: {
+            brand: string;
+            model: string;
+            referenceNumber: string;
+          };
+        };
+      };
+      reused: boolean;
+    }>;
+
+    expect(order.data.reused).toBe(false);
+    expect(order.data.order).toMatchObject({
+      ownerId: buyer.id,
+      status: "pending_payment",
+      data: {
+        buyerId: buyer.id,
+        sellerId: seller.id,
+        listingId: listing.data.id,
+        total: 4200,
+        currency: "USD",
+        paymentStatus: "requires_payment",
+        listing: {
+          brand: "Tudor",
+          model: "Black Bay",
+          referenceNumber: "M7941A1A0RU-0003"
+        }
+      }
+    });
+
+    const repeatedOrderResponse = await request(app)
+      .post("/api/v1/orders")
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({ listingId: listing.data.id })
+      .expect(201);
+    const repeatedOrder = repeatedOrderResponse.body as DataResponse<{
+      order: {
+        id: string;
+      };
+      reused: boolean;
+    }>;
+    expect(repeatedOrder.data.reused).toBe(true);
+    expect(repeatedOrder.data.order.id).toBe(order.data.order.id);
+
+    const paymentResponse = await request(app)
+      .post(`/api/v1/orders/${order.data.order.id}/payment-intent`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({})
+      .expect(200);
+    const payment = paymentResponse.body as DataResponse<{
+      order: {
+        data: {
+          paymentIntentId: string;
+          paymentProvider: string;
+          paymentStatus: string;
+        };
+      };
+      paymentIntent: {
+        id: string;
+        clientSecret: string;
+        amount: number;
+        amountMinor: number;
+        currency: string;
+        provider: string;
+        status: string;
+      };
+      reused: boolean;
+    }>;
+
+    expect(payment.data.reused).toBe(false);
+    expect(payment.data.paymentIntent).toMatchObject({
+      amount: 4200,
+      amountMinor: 420000,
+      currency: "USD",
+      provider: "local",
+      status: "requires_payment_method"
+    });
+    expect(payment.data.paymentIntent.id).toMatch(/^local_pi_/);
+    expect(payment.data.order.data.paymentProvider).toBe("local");
+    expect(payment.data.order.data.paymentIntentId).toBe(payment.data.paymentIntent.id);
+
+    const repeatedPaymentResponse = await request(app)
+      .post(`/api/v1/orders/${order.data.order.id}/payment-intent`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({})
+      .expect(200);
+    const repeatedPayment = repeatedPaymentResponse.body as DataResponse<{
+      paymentIntent: {
+        id: string;
+        clientSecret: string;
+      };
+      reused: boolean;
+    }>;
+    expect(repeatedPayment.data.reused).toBe(true);
+    expect(repeatedPayment.data.paymentIntent.id).toBe(payment.data.paymentIntent.id);
+    expect(repeatedPayment.data.paymentIntent.clientSecret).toBe(payment.data.paymentIntent.clientSecret);
+
+    const confirmResponse = await request(app)
+      .post(`/api/v1/orders/${order.data.order.id}/confirm-payment`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({ paymentIntentId: payment.data.paymentIntent.id })
+      .expect(200);
+    const confirmed = confirmResponse.body as DataResponse<{
+      order: {
+        status: string;
+        data: {
+          paymentStatus: string;
+          fulfillmentStatus: string;
+        };
+      };
+      listing: {
+        status: string;
+        data: {
+          listingStatus: string;
+          purchaseStatus: string;
+          orderId: string;
+        };
+      };
+    }>;
+
+    expect(confirmed.data.order.status).toBe("paid");
+    expect(confirmed.data.order.data.paymentStatus).toBe("paid");
+    expect(confirmed.data.order.data.fulfillmentStatus).toBe("processing");
+    expect(confirmed.data.listing.status).toBe("sold");
+    expect(confirmed.data.listing.data).toMatchObject({
+      listingStatus: "sold",
+      purchaseStatus: "sold",
+      orderId: order.data.order.id
+    });
+  });
+
+  it("marks an internal product order paid from a Stripe payment intent webhook", async () => {
+    const seller = await registerCustomerProfile("webhook-seller@example.com", "Webhook Seller");
+    const buyer = await registerCustomerProfile("webhook-buyer@example.com", "Webhook Buyer");
+
+    const listingResponse = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", `Bearer ${seller.accessToken}`)
+      .send({
+        title: "Webhook Purchase Watch",
+        brand: "Omega",
+        model: "Speedmaster",
+        referenceNumber: "310.30.42.50.01.002",
+        price: 6100,
+        currency: "USD"
+      })
+      .expect(201);
+    const listing = listingResponse.body as RecordResponse;
+
+    const orderResponse = await request(app)
+      .post("/api/v1/orders")
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({ listingId: listing.data.id })
+      .expect(201);
+    const order = orderResponse.body as DataResponse<{ order: { id: string } }>;
+
+    const paymentResponse = await request(app)
+      .post(`/api/v1/orders/${order.data.order.id}/payment-intent`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({})
+      .expect(200);
+    const payment = paymentResponse.body as DataResponse<{ paymentIntent: { id: string } }>;
+
+    await request(app)
+      .post("/api/v1/webhooks/stripe")
+      .send({
+        id: "evt_purchase_paid",
+        type: "payment_intent.succeeded",
+        data: {
+          object: {
+            id: payment.data.paymentIntent.id,
+            status: "succeeded",
+            metadata: {
+              orderId: order.data.order.id,
+              buyerId: buyer.id,
+              listingId: listing.data.id
+            }
+          }
+        }
+      })
+      .expect(200);
+
+    const paidOrderResponse = await request(app)
+      .get(`/api/v1/orders/${order.data.order.id}`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .expect(200);
+    const paidOrder = paidOrderResponse.body as RecordResponse;
+    expect(paidOrder.data.status).toBe("paid");
+    expect(paidOrder.data.data.paymentStatus).toBe("paid");
+    expect(paidOrder.data.data.fulfillmentStatus).toBe("processing");
+
+    const soldListingResponse = await request(app)
+      .get(`/api/v1/listings/${listing.data.id}`)
+      .expect(200);
+    const soldListing = soldListingResponse.body as RecordResponse;
+    expect(soldListing.data.status).toBe("sold");
+    expect(soldListing.data.data.listingStatus).toBe("sold");
+    expect(soldListing.data.data.orderId).toBe(order.data.order.id);
+  });
+
+  it("sends an idempotency key to Stripe for direct card payment intents", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_purchase";
+    resetEnvForTests();
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(
+        JSON.stringify({
+          id: "pi_direct_card",
+          client_secret: "pi_direct_card_secret",
+          status: "requires_payment_method",
+          amount: 420000,
+          currency: "usd"
+        }),
+        { status: 200 }
+      )
+    );
+
+    const paymentIntent = await new StripePaymentProvider().createPaymentIntent({
+      amount: 420000,
+      currency: "USD",
+      idempotencyKey: "purchase-idempotency-key",
+      metadata: {
+        orderId: "order-id",
+        buyerId: "buyer-id"
+      }
+    });
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const requestBody = requestInit?.body as URLSearchParams | undefined;
+
+    expect(paymentIntent.id).toBe("pi_direct_card");
+    expect((requestInit?.headers as Record<string, string>)["Idempotency-Key"]).toBe("purchase-idempotency-key");
+    expect(requestBody?.get("payment_method_types[0]")).toBe("card");
+    expect(requestBody?.has("automatic_payment_methods")).toBe(false);
   });
 
   it("searches local listings and eBay from a keyword", async () => {
@@ -565,7 +1020,12 @@ describe.sequential("generated API routes", () => {
     }>;
     const searchUrl = fetchMock.mock.calls
       .map((call) => call[0])
-      .find((value): value is URL => value instanceof URL && value.pathname.includes("/item_summary/search"));
+      .find(
+        (value): value is URL =>
+          value instanceof URL &&
+          value.pathname.includes("/item_summary/search") &&
+          value.searchParams.get("q") === "Titan blue skeleton"
+      );
 
     expect(body.data.mode).toBe("text");
     expect(body.data.flow).toBe("User query -> eBay directly + internal products");

@@ -9,6 +9,7 @@ import { createEbayWebhookRouter } from "../modules/customer/marketplaces/ebay-w
 import { createListingsRouter } from "../modules/customer/listings/listings.routes.js";
 import { createMarketplacesRouter } from "../modules/customer/marketplaces/marketplaces.routes.js";
 import { createNotificationPreferencesRouter } from "../modules/customer/notification-preferences/notification-preferences.routes.js";
+import { createPurchasesRouter } from "../modules/customer/purchases/purchases.routes.js";
 import { createSavedRouter } from "../modules/customer/saved/saved.routes.js";
 import { createSubscriptionsRouter } from "../modules/customer/subscriptions/subscriptions.routes.js";
 import { createUsersRouter } from "../modules/customer/users/users.routes.js";
@@ -38,6 +39,7 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/marketplaces", createMarketplacesRouter(dependencies));
   router.use(createSavedRouter());
   router.use(createSubscriptionsRouter());
+  router.use(createPurchasesRouter());
   router.use(createWatchAlertsRouter());
   router.use("/notification-preferences", createNotificationPreferencesRouter(dependencies));
   router.use(createEbayWebhookRouter());

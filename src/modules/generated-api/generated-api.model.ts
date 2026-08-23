@@ -41,6 +41,16 @@ const generatedApiRecordSchema = new Schema<GeneratedApiRecord>(
 
 generatedApiRecordSchema.index({ resource: 1, ownerId: 1, deletedAt: 1 });
 generatedApiRecordSchema.index({ resource: 1, "scope.key": 1 });
+generatedApiRecordSchema.index(
+  { resource: 1, ownerId: 1, "scope.idempotencyKey": 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      "scope.idempotencyKey": { $exists: true }
+    }
+  }
+);
 
 export type GeneratedApiRecordDocument = HydratedDocument<GeneratedApiRecord>;
 

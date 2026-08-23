@@ -283,6 +283,7 @@ export const createGeneratedApiRouter = (dependencies: RouteDependencies = {}): 
               success: true,
               data: list.items,
               meta: {
+                count: list.items.length,
                 page: list.page,
                 limit: list.limit,
                 total: list.total,

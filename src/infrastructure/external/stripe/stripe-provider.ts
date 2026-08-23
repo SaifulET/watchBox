@@ -24,10 +24,29 @@ export type BillingPortalSession = {
   url: string;
 };
 
+export type PaymentIntentRequest = {
+  amount: number;
+  currency: string;
+  customerId?: string;
+  description?: string;
+  idempotencyKey?: string;
+  metadata?: Record<string, string>;
+  receiptEmail?: string;
+};
+
+export type PaymentIntent = {
+  id: string;
+  clientSecret: string | null;
+  status: string;
+  amount: number;
+  currency: string;
+};
+
 export interface PaymentProvider {
   createCheckoutSession(payload: CheckoutSessionRequest): Promise<CheckoutSession>;
   createCustomer(payload: { email: string; name: string; metadata?: Record<string, string> }): Promise<StripeCustomer>;
   createBillingPortalSession(payload: { customerId: string; returnUrl: string }): Promise<BillingPortalSession>;
+  createPaymentIntent(payload: PaymentIntentRequest): Promise<PaymentIntent>;
 }
 
 export class LocalPaymentProvider implements PaymentProvider {
@@ -48,6 +67,18 @@ export class LocalPaymentProvider implements PaymentProvider {
     return Promise.resolve({
       id: `local_portal_${payload.customerId}`,
       url: payload.returnUrl
+    });
+  }
+
+  public createPaymentIntent(payload: PaymentIntentRequest): Promise<PaymentIntent> {
+    const key = payload.idempotencyKey ?? `${payload.currency}_${payload.amount}_${Date.now()}`;
+    const id = `local_pi_${key}`.replace(/[^a-zA-Z0-9_]+/g, "_");
+    return Promise.resolve({
+      id,
+      clientSecret: `${id}_secret_local`,
+      status: "requires_payment_method",
+      amount: payload.amount,
+      currency: payload.currency.toLowerCase()
     });
   }
 }
@@ -105,7 +136,30 @@ export class StripePaymentProvider implements PaymentProvider {
     };
   }
 
-  private async request<T extends { id: string }>(path: string, params: Record<string, string | undefined>): Promise<T> {
+  public async createPaymentIntent(payload: PaymentIntentRequest): Promise<PaymentIntent> {
+    const response = await this.request<PaymentIntent & { client_secret?: string }>("payment_intents", {
+      amount: String(payload.amount),
+      currency: payload.currency.toLowerCase(),
+      customer: payload.customerId,
+      description: payload.description,
+      receipt_email: payload.receiptEmail,
+      "payment_method_types[0]": "card",
+      ...this.metadataParams(payload.metadata)
+    }, payload.idempotencyKey ? { idempotencyKey: payload.idempotencyKey } : {});
+    return {
+      id: response.id,
+      clientSecret: response.client_secret ?? response.clientSecret ?? null,
+      status: response.status,
+      amount: response.amount,
+      currency: response.currency
+    };
+  }
+
+  private async request<T extends { id: string }>(
+    path: string,
+    params: Record<string, string | undefined>,
+    options: { idempotencyKey?: string } = {}
+  ): Promise<T> {
     const config = getPaymentConfig();
     if (!config.stripeSecretKey) {
       throw new ConflictError("Stripe secret key is required.");
@@ -116,12 +170,16 @@ export class StripePaymentProvider implements PaymentProvider {
         body.set(key, value);
       }
     }
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${config.stripeSecretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    };
+    if (options.idempotencyKey) {
+      headers["Idempotency-Key"] = options.idempotencyKey;
+    }
     const response = await fetch(`${this.baseUrl}/${path}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.stripeSecretKey}`,
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
+      headers,
       body
     });
     const payload = (await response.json()) as StripeResponse<T>;

@@ -58,6 +58,7 @@ const envSchema = z.object({
   CHRONO24_STEALTH_PROXY: envBoolean.default(true),
   CHRONO24_BLOCK_RESOURCES: envBoolean.default(false),
   STRIPE_SECRET_KEY: optionalEnvString,
+  STRIPE_PUBLISHABLE_KEY: optionalEnvString,
   STRIPE_WEBHOOK_SECRET: optionalEnvString,
   STRIPE_ELITE_PRICE_ID: optionalEnvString,
   EMAIL_PROVIDER: z.enum(["local", "smtp", "ses", "sendgrid", "mailgun"]).default("local"),

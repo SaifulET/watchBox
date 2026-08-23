@@ -12,6 +12,7 @@ import {
   type PaymentProvider
 } from "../../../infrastructure/external/stripe/stripe-provider.js";
 import { CustomerAccountModel } from "../auth/auth.model.js";
+import { PurchasesService } from "../purchases/purchases.service.js";
 import {
   GeneratedApiRecordModel,
   type GeneratedApiRecordDocument
@@ -238,6 +239,10 @@ export class SubscriptionsService {
     }
     if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
       await this.applyInvoice(event.data.object, event.type);
+      return;
+    }
+    if (event.type === "payment_intent.succeeded" || event.type === "payment_intent.payment_failed") {
+      await PurchasesService.applyStripePaymentIntentEvent(event.data.object, event.type);
     }
   }
 
