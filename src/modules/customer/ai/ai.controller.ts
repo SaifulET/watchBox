@@ -156,6 +156,16 @@ export class AiController {
     );
   };
 
+  public createMarketplacesDirectSearch = async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as AiSearchBody;
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.createMarketplacesDirectSearch(searchInput(body, req.file)),
+      201
+    );
+  };
+
   public createVisualImageSearch = async (req: Request, res: Response): Promise<void> => {
     const body = req.body as AiSearchBody;
     sendSuccess(

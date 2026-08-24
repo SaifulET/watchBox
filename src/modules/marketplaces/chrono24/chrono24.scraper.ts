@@ -66,6 +66,21 @@ const delay = async (milliseconds: number): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 };
 
+const scrapingBeeErrorMessage = (status: number, body: string): string => {
+  if (status !== 401) {
+    return `ScrapingBee request failed with status ${status}.`;
+  }
+  try {
+    const parsed = JSON.parse(body) as { message?: unknown };
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return `ScrapingBee authentication failed. ${parsed.message.trim()}`;
+    }
+  } catch {
+    // Fall through to the generic authentication guidance.
+  }
+  return "ScrapingBee authentication failed. Check SCRAPINGBEE_API_KEY.";
+};
+
 export class Chrono24ScrapingService {
   private readonly parser = new Chrono24Parser();
 
@@ -153,11 +168,7 @@ export class Chrono24ScrapingService {
               await delay(500 * attempt);
               break;
             }
-            const message =
-              response.status === 401
-                ? "ScrapingBee authentication failed. Check SCRAPINGBEE_API_KEY."
-                : `ScrapingBee request failed with status ${response.status}.`;
-            throw new ExternalServiceError(message);
+            throw new ExternalServiceError(scrapingBeeErrorMessage(response.status, body));
           }
           if (isBlockedPage(body)) {
             throw new ExternalServiceError("Chrono24 returned a bot challenge or block page.");

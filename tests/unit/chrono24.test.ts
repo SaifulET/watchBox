@@ -286,6 +286,19 @@ describe("Chrono24 ScrapingBee service", () => {
     });
   });
 
+  it("surfaces ScrapingBee quota errors from 401 responses", async () => {
+    configureChrono24();
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "Monthly API calls limit reached: 1000" }), { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "Monthly API calls limit reached: 1000" }), { status: 401 }));
+
+    const service = new Chrono24ScrapingService();
+
+    await expect(service.fetchSearchPage({ q: "Rolex", page: 1, limit: 24 })).rejects.toMatchObject({
+      message: "ScrapingBee authentication failed. Monthly API calls limit reached: 1000"
+    });
+  });
+
   it("does not reject usable JSON-LD just because vendor text mentions Cloudflare", async () => {
     configureChrono24();
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(

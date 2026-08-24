@@ -15,6 +15,8 @@ import type { RedisClient } from "../../../infrastructure/redis/client.js";
 import { uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import { GeneratedApiRecordModel } from "../../generated-api/generated-api.model.js";
 import type { GeneratedApiRecordDocument } from "../../generated-api/generated-api.model.js";
+import { Chrono24Service } from "../../marketplaces/chrono24/chrono24.service.js";
+import type { Chrono24Product } from "../../marketplaces/chrono24/chrono24.types.js";
 import type { Actor, AiImageInput } from "./ai.types.js";
 
 type AnalyzeInput = AiImageInput & {
@@ -114,8 +116,8 @@ type EbaySearchItem = Omit<MarketplaceListing, "imageUrl"> & {
 };
 
 type DirectSearchItem = {
-  source: "local" | "ebay";
-  marketplace: "local" | "ebay";
+  source: "local" | "ebay" | "chrono24";
+  marketplace: "local" | "ebay" | "chrono24";
   id: string;
   externalId: string | null;
   title: string | null;
@@ -1132,6 +1134,38 @@ const directSearchItem = (
   matchReasons: item.matchReasons
 });
 
+const chrono24DirectSearchItem = (item: Chrono24Product, query: string, index: number): DirectSearchItem => {
+  const terms = uniqueTerms(queryTerms(query));
+  const match = textMatchScore({
+    title: item.title,
+    condition: item.condition,
+    description: item.description,
+    terms
+  });
+  const rankBoost = Math.max(0, 20 - index);
+  const rawScore = match.score + rankBoost + (item.image ? 5 : 0);
+  return {
+    source: "chrono24",
+    marketplace: "chrono24",
+    id: item.id,
+    externalId: item.id,
+    title: item.title,
+    brand: item.brand || null,
+    model: item.model || null,
+    referenceNumber: item.reference || null,
+    price: item.price,
+    currency: item.currency,
+    condition: item.condition || null,
+    image: item.image || null,
+    sourceUrl: item.url || null,
+    originalUrl: item.url || null,
+    matchScore: similarityPercent(rawScore, terms.length),
+    matchType: "text",
+    visualSimilarity: null,
+    matchReasons: match.reasons
+  };
+};
+
 const imageQualityCheck = (input: AnalyzeInput, analysis: ImageAnalysis): ImageQualityCheck => {
   const hasImage = Boolean(input.file || input.imageUrl);
   const acceptedMimeType = input.file ? Boolean(imageExtensionByMimeType[input.file.mimetype]) : true;
@@ -1460,7 +1494,8 @@ const fiveSimilarProducts = (
 };
 
 const withoutSimilarProducts = (item: ProductDetails): Omit<ProductDetails, "similarProducts"> => {
-  const { similarProducts: _similarProducts, ...product } = item;
+  const { similarProducts, ...product } = item;
+  void similarProducts;
   return product;
 };
 
@@ -1809,8 +1844,11 @@ const localSearchItemFromRecord = (record: GeneratedApiRecordDocument, terms: st
 export class AiService {
   private readonly ai = createAiProvider();
   private readonly ebay = new EbayProvider();
+  private readonly chrono24: Chrono24Service;
 
-  public constructor(private readonly dependencies: AiServiceDependencies = {}) {}
+  public constructor(private readonly dependencies: AiServiceDependencies = {}) {
+    this.chrono24 = new Chrono24Service(dependencies.redis);
+  }
 
   public async analyzeImage(input: AnalyzeInput): Promise<ImageAnalysis> {
     const request = this.toAnalysisRequest(input);
@@ -2294,6 +2332,156 @@ export class AiService {
         },
         warnings: ebayResult.warnings,
         ...(ebayResult.error ? { errors: { ebay: ebayResult.error } } : {})
+      };
+    } finally {
+      timer.endAll();
+    }
+  }
+
+  public async createMarketplacesDirectSearch(input: SearchInput) {
+    const hasImage = Boolean(input.file || input.imageUrl);
+    if (hasImage) {
+      const result = await this.createEbayDirectSearch(input);
+      return {
+        ...result,
+        flow: `${result.flow} + Chrono24 skipped for image input`,
+        results: {
+          ...result.results,
+          chrono24: []
+        },
+        metadata: {
+          ...result.metadata,
+          provider: "marketplaces",
+          chrono24Candidates: 0,
+          chrono24SkippedForImage: true,
+          chrono24SearchReason: "Chrono24 is searched only for keyword/text input because this backend has no native Chrono24 image search."
+        }
+      };
+    }
+
+    const timer = createImageSearchTimer("marketplaces-direct");
+    const filters = searchFilters(input);
+    const explicitText = (input.q ?? input.keyword ?? input.query ?? input.search)?.trim();
+    if (!explicitText && !hasFilters(filters)) {
+      throw new ConflictError("Provide a keyword, filter, or an image file.");
+    }
+
+    try {
+      const query = searchQueryFromParts(explicitText, filters.brand, filters.model, input.referenceNumber);
+      const searchPlan: EbaySearchPlan = {
+        normalization: {
+          query,
+          source: "fallback",
+          confidence: null,
+          detectedBrand: filters.brand ?? null,
+          detectedModel: filters.model ?? null,
+          reasoning: "Direct user query sent to marketplaces without AI normalization."
+        },
+        queries: [query]
+      };
+      const [localSettled, ebaySettled, chrono24Settled] = await Promise.allSettled([
+        timer.measure("marketplace-search", () => this.searchLocalListings(query, input.limit, filters)),
+        timer.measure("marketplace-search", () =>
+          this.searchEbayListings(query, input.limit, input.marketplaceId, searchPlan, filters)
+        ),
+        timer.measure("marketplace-search", () => this.searchChrono24Listings(query, input.limit, filters, input.referenceNumber))
+      ]);
+      const localResult = localSettled.status === "fulfilled" ? localSettled.value : [];
+      let ebayResult: EbayListingsSearchResult =
+        ebaySettled.status === "fulfilled"
+          ? ebaySettled.value
+          : {
+              query,
+              queryNormalization: searchPlan.normalization,
+              items: [],
+              environment: getMarketplaceConfig().ebay.environment,
+              marketplaceId: input.marketplaceId ?? getMarketplaceConfig().ebay.marketplaceId,
+              total: null,
+              attemptedQueries: [query],
+              warnings: [],
+              error: appErrorMessage(ebaySettled.reason, "eBay search failed.")
+            };
+      const chrono24Result =
+        chrono24Settled.status === "fulfilled"
+          ? chrono24Settled.value
+          : {
+              items: [],
+              total: null,
+              warnings: [],
+              error: appErrorMessage(chrono24Settled.reason, "Chrono24 search failed.")
+            };
+      const ebayDetailResult = await timer.measure("marketplace-search", () =>
+        this.enrichEbayListingsWithDetails(ebayResult.items, input.marketplaceId ?? ebayResult.marketplaceId, input.limit)
+      );
+      ebayResult = {
+        ...ebayResult,
+        items: ebayDetailResult.items
+      };
+
+      const localItems = rankedSearchItems(query, localResult, [], input.limit).map((item) => directSearchItem(item, "text"));
+      const ebayItems = rankedSearchItems(query, [], ebayResult.items, input.limit).map((item) => directSearchItem(item, "text"));
+      const chrono24Items = chrono24Result.items
+        .map((item, index) => chrono24DirectSearchItem(item, query, index))
+        .slice(0, input.limit);
+      const mergedItems = [...localItems, ...ebayItems, ...chrono24Items]
+        .sort((left, right) => right.matchScore - left.matchScore)
+        .slice(0, input.limit);
+      const warnings = [
+        ...(localSettled.status === "rejected" ? [appErrorMessage(localSettled.reason, "Local search failed.")] : []),
+        ...ebayResult.warnings,
+        ...chrono24Result.warnings
+      ];
+
+      return {
+        mode: "text",
+        flow: "User query -> local + eBay + Chrono24 in parallel",
+        query,
+        imageAnalysis: null,
+        results: {
+          items: mergedItems,
+          local: localItems,
+          ebay: ebayItems,
+          chrono24: chrono24Items,
+          count: mergedItems.length
+        },
+        metadata: {
+          provider: "marketplaces",
+          internalProductsMerged: true,
+          localCandidates: localItems.length,
+          ebayCandidates: ebayItems.length,
+          chrono24Candidates: chrono24Items.length,
+          ebayDetailEnriched: ebayDetailResult.enrichedCount,
+          ebayDetailEnrichmentFailed: ebayDetailResult.failedCount,
+          textSearchDirectToEbay: true,
+          textSearchDirectToChrono24: true,
+          imageSearchUsesOpenAiIdentification: false,
+          imageSearchUsesEbayImageSearch: false,
+          chrono24SkippedForImage: false,
+          marketplaceId: ebayResult.marketplaceId,
+          environment: ebayResult.environment,
+          total: {
+            ebay: ebayResult.total,
+            chrono24: chrono24Result.total
+          },
+          attemptedQueries: {
+            ebay: ebayResult.attemptedQueries,
+            chrono24: [query]
+          },
+          warnings,
+          queryNormalization: {
+            ebay: ebayResult.queryNormalization
+          }
+        },
+        warnings,
+        ...(ebayResult.error || chrono24Result.error || localSettled.status === "rejected"
+          ? {
+              errors: {
+                ...(localSettled.status === "rejected" ? { local: appErrorMessage(localSettled.reason, "Local search failed.") } : {}),
+                ...(ebayResult.error ? { ebay: ebayResult.error } : {}),
+                ...(chrono24Result.error ? { chrono24: chrono24Result.error } : {})
+              }
+            }
+          : {})
       };
     } finally {
       timer.endAll();
@@ -3053,6 +3241,47 @@ export class AiService {
         attemptedQueries: [],
         warnings: [],
         error: error instanceof AppError ? error.message : "eBay search failed."
+      };
+    }
+  }
+
+  private async searchChrono24Listings(
+    query: string,
+    limit: number,
+    filters: ProductSearchFilters,
+    referenceNumber: string | undefined
+  ): Promise<{ items: Chrono24Product[]; total: number | null; warnings: string[]; error?: string }> {
+    if (filters.listingStatus === "historical_sold") {
+      return {
+        items: [],
+        total: null,
+        warnings: ["Chrono24 search returns current marketplace listings only; historical sold results are searched from local database records."]
+      };
+    }
+    try {
+      const result = await this.chrono24.search({
+        q: query || "watch",
+        brand: filters.brand,
+        model: filters.model,
+        reference: referenceNumber,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        condition: filters.condition,
+        refresh: false,
+        page: 1,
+        limit
+      });
+      return {
+        items: result.items,
+        total: result.total,
+        warnings: result.warnings
+      };
+    } catch (error) {
+      return {
+        items: [],
+        total: null,
+        warnings: [],
+        error: appErrorMessage(error, "Chrono24 search failed.")
       };
     }
   }
