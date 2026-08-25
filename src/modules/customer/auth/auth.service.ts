@@ -118,6 +118,8 @@ const serializeCustomer = (account: CustomerAccountDocument) => ({
   id: account._id.toString(),
   email: account.email,
   displayName: account.displayName,
+  ...(typeof account.latitude === "number" ? { latitude: account.latitude } : {}),
+  ...(typeof account.longitude === "number" ? { longitude: account.longitude } : {}),
   status: account.status,
   emailVerified: account.emailVerified,
   darkMode: Boolean(account.darkMode),
@@ -192,7 +194,17 @@ export class CustomerAuthService {
       const account = await this.customers.create({
         email: input.email,
         passwordHash,
-        displayName: input.displayName
+        displayName: input.displayName,
+        ...(input.latitude !== undefined && input.longitude !== undefined
+          ? {
+              latitude: input.latitude,
+              longitude: input.longitude,
+              location: {
+                type: "Point" as const,
+                coordinates: [input.longitude, input.latitude] as [number, number]
+              }
+            }
+          : {})
       });
       await this.publish("customer.registered", account._id, {
         email: account.email,

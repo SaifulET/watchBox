@@ -183,6 +183,30 @@ paths:
       responses:
         "200":
           description: Session revoked.
+  /api/v1/users/nearby:
+    get:
+      tags: [Customer]
+      summary: List customer accounts within 5km of a coordinate.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        "200":
+          description: Nearby customer accounts.
   /api/v1/users/me:
     get:
       tags: [Customer]
@@ -362,6 +386,14 @@ components:
         displayName:
           type: string
           minLength: 2
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
     LoginRequest:
       type: object
       required: [email, password]
