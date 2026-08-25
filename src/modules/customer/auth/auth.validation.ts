@@ -4,16 +4,29 @@ const email = z.string().trim().email().transform((value) => value.toLowerCase()
 const password = z.string().min(8).max(128);
 const token = z.string().min(32).max(2048);
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Expected a MongoDB ObjectId.");
+const latitude = z.number().min(-90).max(90);
+const longitude = z.number().min(-180).max(180);
 
-export const registerSchema = z.object({
+const registerBaseSchema = z.object({
   email,
   password,
   displayName: z.string().trim().min(2).max(120)
 });
 
+export const registerSchema = z
+  .object({
+    ...registerBaseSchema.shape,
+    latitude: latitude.optional(),
+    longitude: longitude.optional()
+  })
+  .refine((value) => (value.latitude === undefined) === (value.longitude === undefined), {
+    path: ["longitude"],
+    message: "Latitude and longitude must be provided together."
+  });
+
 const adminAccessValue = z.string().trim().min(1).max(120);
 
-export const adminRegisterSchema = registerSchema
+export const adminRegisterSchema = registerBaseSchema
   .extend({
     permissions: z.array(adminAccessValue).max(100).optional(),
     roles: z.array(adminAccessValue).max(50).optional()
