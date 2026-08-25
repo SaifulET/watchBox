@@ -5,6 +5,12 @@ export type CustomerAccount = {
   email: string;
   passwordHash: string;
   displayName: string;
+  latitude?: number;
+  longitude?: number;
+  location?: {
+    type: "Point";
+    coordinates: [number, number];
+  };
   status: AccountStatus;
   emailVerified: boolean;
   darkMode: boolean;
@@ -70,6 +76,17 @@ const customerAccountSchema = new Schema<CustomerAccount>(
     email: { type: String, required: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     displayName: { type: String, required: true, trim: true },
+    latitude: { type: Number, min: -90, max: 90 },
+    longitude: { type: Number, min: -180, max: 180 },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"]
+      },
+      coordinates: {
+        type: [Number]
+      }
+    },
     status: { type: String, enum: ["active", "suspended", "deleted"], default: "active", index: true },
     emailVerified: { type: Boolean, default: false },
     darkMode: { type: Boolean, default: false },
@@ -88,6 +105,7 @@ const customerAccountSchema = new Schema<CustomerAccount>(
   },
   { timestamps: true }
 );
+customerAccountSchema.index({ location: "2dsphere" });
 customerAccountSchema.index(
   { email: 1 },
   {

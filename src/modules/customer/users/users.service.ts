@@ -19,16 +19,18 @@ import type { CustomerAccountDocument } from "../auth/auth.model.js";
 import type {
   AvatarUploadUrlInput,
   ConfirmAvatarInput,
+  NearbyUsersQueryInput,
   UpdateDarkModeInput,
   UpdatePreferencesInput,
   UpdateProfileInput
 } from "./users.validation.js";
-import { UserRepository } from "./users.repository.js";
+import { UserRepository, type NearbyCustomerAccount } from "./users.repository.js";
 import type {
   CustomerAvatar,
   CustomerProfile,
   CustomerStats,
-  DarkModePreference
+  DarkModePreference,
+  NearbyCustomerProfile
 } from "./users.types.js";
 
 type UserServiceDependencies = {
@@ -38,7 +40,9 @@ type UserServiceDependencies = {
   customers?: CustomerAccountRepository;
 };
 
-const serializeProfile = (account: CustomerAccountDocument): CustomerProfile => {
+const nearbySearchRadiusMeters = 5000;
+
+const serializeProfile = (account: CustomerAccountDocument | NearbyCustomerAccount): CustomerProfile => {
   const profile: CustomerProfile = {
     id: account._id.toString(),
     email: account.email,
@@ -52,6 +56,12 @@ const serializeProfile = (account: CustomerAccountDocument): CustomerProfile => 
     createdAt: account.createdAt.toISOString(),
     updatedAt: account.updatedAt.toISOString()
   };
+  if (typeof account.latitude === "number") {
+    profile.latitude = account.latitude;
+  }
+  if (typeof account.longitude === "number") {
+    profile.longitude = account.longitude;
+  }
   if (account.phone) {
     profile.phone = account.phone;
   }
@@ -93,6 +103,18 @@ export class UserService {
   public async getMe(userId: string): Promise<CustomerProfile> {
     const account = await this.requireAccount(userId);
     return serializeProfile(account);
+  }
+
+  public async listNearby(input: NearbyUsersQueryInput): Promise<NearbyCustomerProfile[]> {
+    const accounts = await this.users.findNearby(
+      input.latitude,
+      input.longitude,
+      nearbySearchRadiusMeters
+    );
+    return accounts.map((account) => ({
+      ...serializeProfile(account),
+      distanceMeters: Math.round(account.distanceMeters)
+    }));
   }
 
   public async updateMe(userId: string, input: UpdateProfileInput): Promise<CustomerProfile> {

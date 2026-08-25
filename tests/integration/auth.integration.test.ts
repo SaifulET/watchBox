@@ -22,6 +22,8 @@ type AuthResponse = {
     account: {
       id: string;
       email: string;
+      latitude?: number;
+      longitude?: number;
       permissions?: string[];
       roles?: string[];
       notificationPreferences?: {
@@ -383,6 +385,52 @@ describe("auth APIs", () => {
         displayName: "New Profile User"
       })
       .expect(201);
+  });
+
+  it("stores customer account coordinates and lists accounts within 5km", async () => {
+    const nearbyRegister = await request(app)
+      .post("/api/v1/auth/register")
+      .send({
+        email: "nearby@example.com",
+        password: "nearby-password",
+        displayName: "Nearby User",
+        latitude: 23.7806,
+        longitude: 90.4074
+      })
+      .expect(201);
+    const nearbyUser = nearbyRegister.body as AuthResponse;
+
+    expect(nearbyUser.data.account.latitude).toBe(23.7806);
+    expect(nearbyUser.data.account.longitude).toBe(90.4074);
+
+    await request(app)
+      .post("/api/v1/auth/register")
+      .send({
+        email: "faraway@example.com",
+        password: "faraway-password",
+        displayName: "Faraway User",
+        latitude: 22.3569,
+        longitude: 91.7832
+      })
+      .expect(201);
+
+    const nearbyResponse = await request(app)
+      .get("/api/v1/users/nearby")
+      .query({ lat: 23.7808, lan: 90.4076 })
+      .set("Authorization", `Bearer ${nearbyUser.data.tokens.accessToken}`)
+      .expect(200);
+    const nearbyBody = nearbyResponse.body as DataResponse<
+      Array<{
+        email: string;
+        latitude?: number;
+        longitude?: number;
+        distanceMeters: number;
+      }>
+    >;
+
+    expect(nearbyBody.data.map((account) => account.email)).toContain("nearby@example.com");
+    expect(nearbyBody.data.map((account) => account.email)).not.toContain("faraway@example.com");
+    expect(nearbyBody.data[0]?.distanceMeters).toBeLessThanOrEqual(5000);
   });
 
   it("authenticates admins and exposes admin auth workflows", async () => {
