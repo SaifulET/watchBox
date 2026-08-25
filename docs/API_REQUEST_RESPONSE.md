@@ -80,7 +80,9 @@ Request body:
 {
   "email": "customer@example.com",
   "password": "customer-password",
-  "displayName": "Customer One"
+  "displayName": "Customer One",
+  "latitude": 23.7806,
+  "longitude": 90.4074
 }
 ```
 Success response:
@@ -92,6 +94,8 @@ Success response:
       "id": "64f000000000000000000001",
       "email": "customer@example.com",
       "displayName": "Customer One",
+      "latitude": 23.7806,
+      "longitude": 90.4074,
       "darkMode": false,
       "notificationPreferences": {
         "emailAlerts": true
@@ -612,6 +616,57 @@ Error response:
         "message": "Required"
       }
     ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/users/nearby
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/users/nearby?lat=23.7808&lng=90.4076
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Query parameters:
+`lat`/`latitude` and `lng`/`longitude` are supported. `lan` is also accepted as a longitude alias.
+
+Success response:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "64f000000000000000000001",
+      "email": "customer@example.com",
+      "displayName": "Customer One",
+      "status": "active",
+      "emailVerified": false,
+      "darkMode": false,
+      "latitude": 23.7806,
+      "longitude": 90.4074,
+      "preferences": {
+        "currency": "USD"
+      },
+      "createdAt": "2026-08-24T00:00:00.000Z",
+      "updatedAt": "2026-08-24T00:00:00.000Z",
+      "distanceMeters": 28
+    }
+  ],
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed."
   },
   "meta": {
     "requestId": "request-id"
