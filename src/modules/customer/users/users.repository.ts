@@ -1,4 +1,4 @@
-import mongoose, { type UpdateQuery } from "mongoose";
+import mongoose, { type Types, type UpdateQuery } from "mongoose";
 import {
   AccountTokenModel,
   AuthSessionModel,
@@ -6,6 +6,11 @@ import {
   type CustomerAccount,
   type CustomerAccountDocument
 } from "../auth/auth.model.js";
+
+export type NearbyCustomerAccount = Omit<CustomerAccount, "passwordHash" | "location"> & {
+  _id: Types.ObjectId;
+  distanceMeters: number;
+};
 
 export class UserRepository {
   public findById(userId: string): Promise<CustomerAccountDocument | null> {
@@ -54,6 +59,33 @@ export class UserRepository {
     })
       .sort({ createdAt: -1 })
       .limit(limit);
+  }
+
+  public findNearby(
+    latitude: number,
+    longitude: number,
+    maxDistanceMeters: number
+  ): Promise<NearbyCustomerAccount[]> {
+    return CustomerAccountModel.aggregate<NearbyCustomerAccount>([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [longitude, latitude]
+          },
+          distanceField: "distanceMeters",
+          maxDistance: maxDistanceMeters,
+          spherical: true,
+          query: { deletedAt: null }
+        }
+      },
+      {
+        $project: {
+          passwordHash: 0,
+          location: 0
+        }
+      }
+    ]);
   }
 
   public async countOwnedDocuments(collectionName: string, userId: string): Promise<number> {
