@@ -16,7 +16,12 @@ import {
 import type { AccountKind, AccountTokenPurpose } from "./auth.types.js";
 
 export class CustomerAccountRepository {
-  public create(input: Pick<CustomerAccount, "email" | "passwordHash" | "displayName">) {
+  public create(
+    input: Pick<
+      CustomerAccount,
+      "email" | "passwordHash" | "displayName" | "latitude" | "longitude" | "location"
+    >
+  ) {
     return CustomerAccountModel.create(input);
   }
 

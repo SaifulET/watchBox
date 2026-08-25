@@ -5,6 +5,8 @@ export type CustomerProfile = {
   status: string;
   emailVerified: boolean;
   darkMode: boolean;
+  latitude?: number;
+  longitude?: number;
   phone?: string;
   country?: string;
   avatarKey?: string;
@@ -30,4 +32,8 @@ export type DarkModePreference = {
 export type CustomerAvatar = {
   avatarKey: string | null;
   avatarUrl: string | null;
+};
+
+export type NearbyCustomerProfile = CustomerProfile & {
+  distanceMeters: number;
 };
