@@ -10,6 +10,7 @@ import { UserService } from "./users.service.js";
 import {
   avatarUploadUrlSchema,
   confirmAvatarSchema,
+  nearbyUsersQuerySchema,
   updateDarkModeSchema,
   updatePreferencesSchema,
   updateProfileSchema
@@ -28,6 +29,7 @@ export const createUsersRouter = (dependencies: RouteDependencies = {}): Router 
   const customerAuth = authenticate("customer");
 
   router.use(customerAuth);
+  router.get("/nearby", validate({ query: nearbyUsersQuerySchema }), asyncHandler(controller.nearby));
   router.get("/me", asyncHandler(controller.me));
   router.patch("/me", validate({ body: updateProfileSchema }), asyncHandler(controller.updateMe));
   router.delete("/me", asyncHandler(controller.deleteMe));
