@@ -5,10 +5,12 @@ import type { UserService } from "./users.service.js";
 import type {
   AvatarUploadUrlInput,
   ConfirmAvatarInput,
+  NearbyUsersQueryInput,
   UpdateDarkModeInput,
   UpdatePreferencesInput,
   UpdateProfileInput
 } from "./users.validation.js";
+import { nearbyUsersQuerySchema } from "./users.validation.js";
 
 const actorId = (req: Request): string => {
   if (!req.auth) {
@@ -22,6 +24,11 @@ export class UserController {
 
   public me = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(res, req.requestId, await this.service.getMe(actorId(req)));
+  };
+
+  public nearby = async (req: Request, res: Response): Promise<void> => {
+    const query: NearbyUsersQueryInput = nearbyUsersQuerySchema.parse(req.query);
+    sendSuccess(res, req.requestId, await this.service.listNearby(query));
   };
 
   public updateMe = async (req: Request, res: Response): Promise<void> => {
