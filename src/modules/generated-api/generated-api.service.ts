@@ -3,10 +3,13 @@ import { ConflictError, ResourceNotFoundError } from "../../common/errors/app-er
 import type { DomainEventPublisher } from "../../common/services/domain-event-publisher.js";
 import type { JobPublisher } from "../../common/services/job-publisher.js";
 import {
-  createPresignedPutUrl,
-  getObjectUrl
-} from "../../infrastructure/storage/s3-storage.js";
+  deleteMessageAttachments,
+  storeMessageAttachments
+} from "../../common/services/message-attachment-storage.js";
+import { createPresignedPutUrl, getObjectUrl } from "../../infrastructure/storage/s3-storage.js";
 import type { RedisClient } from "../../infrastructure/redis/client.js";
+import { realtimeEventsForMutation } from "../../realtime/realtime-events.js";
+import type { RealtimePublisher } from "../../realtime/socket-realtime.service.js";
 import { CustomerAccountModel } from "../customer/auth/auth.model.js";
 import { GeneratedApiRepository } from "./generated-api.repository.js";
 import type { GeneratedApiRecordDocument } from "./generated-api.model.js";
@@ -59,6 +62,7 @@ type GeneratedApiDependencies = {
   redis?: RedisClient;
   events: DomainEventPublisher;
   jobs: JobPublisher;
+  realtime?: RealtimePublisher;
 };
 
 type ImageContentType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
@@ -148,7 +152,11 @@ const parsePositiveInteger = (value: unknown, fallback: number, max: number): nu
   return Math.min(parsed, max);
 };
 
-const cacheKey = (definition: GeneratedEndpointDefinition, query: ListQuery, actor: Actor): string =>
+const cacheKey = (
+  definition: GeneratedEndpointDefinition,
+  query: ListQuery,
+  actor: Actor
+): string =>
   `api-cache:${createHash("sha256")
     .update(JSON.stringify({ path: definition.fullPath, query, actorId: actor.id ?? null }))
     .digest("hex")}`;
@@ -169,7 +177,9 @@ const parseImageContentType = (value: unknown): ImageContentType => {
   if (typeof value === "string" && imageContentTypes.has(value)) {
     return value as ImageContentType;
   }
-  throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif uploads are supported.");
+  throw new ConflictError(
+    "Only image/jpeg, image/png, image/webp, and image/gif uploads are supported."
+  );
 };
 
 const parseUploadCount = (body: Record<string, unknown>): number => {
@@ -233,11 +243,19 @@ export class GeneratedApiService {
     return response;
   }
 
-  public async get(definition: GeneratedEndpointDefinition, params: Record<string, string>, actor: Actor) {
+  public async get(
+    definition: GeneratedEndpointDefinition,
+    params: Record<string, string>,
+    actor: Actor
+  ) {
     const ownerId = this.ownerId(definition, actor);
     const identifier = this.primaryIdentifier(params);
     if (identifier) {
-      const record = await this.repository.findByIdentifier(definition.resource, identifier, ownerId);
+      const record = await this.repository.findByIdentifier(
+        definition.resource,
+        identifier,
+        ownerId
+      );
       if (!record) {
         throw new ResourceNotFoundError(`${definition.resource} record not found.`);
       }
@@ -283,7 +301,7 @@ export class GeneratedApiService {
       createInput.actorType = actor.audience;
     }
     const record = await this.repository.create(createInput);
-    await this.afterMutation(definition, record._id.toString(), actor, body);
+    await this.afterMutation(definition, record._id.toString(), params, actor, body);
     return serializeRecord(record);
   }
 
@@ -301,14 +319,18 @@ export class GeneratedApiService {
       actor.id,
       actor.audience
     );
-    await this.afterMutation(definition, updated._id.toString(), actor, body);
+    await this.afterMutation(definition, updated._id.toString(), params, actor, body);
     return serializeRecord(updated);
   }
 
-  public async remove(definition: GeneratedEndpointDefinition, params: Record<string, string>, actor: Actor) {
+  public async remove(
+    definition: GeneratedEndpointDefinition,
+    params: Record<string, string>,
+    actor: Actor
+  ) {
     const record = await this.requireTarget(definition, params, actor);
     await this.repository.softDelete(record, definition.action, actor.id, actor.audience);
-    await this.afterMutation(definition, record._id.toString(), actor, {});
+    await this.afterMutation(definition, record._id.toString(), params, actor, {});
     return { deleted: true };
   }
 
@@ -316,10 +338,14 @@ export class GeneratedApiService {
     definition: GeneratedEndpointDefinition,
     params: Record<string, string>,
     body: Record<string, unknown>,
-    actor: Actor
+    actor: Actor,
+    files: Express.Multer.File[] = []
   ) {
     if (this.isUploadUrlAction(definition)) {
       return this.createUploadUrls(definition, params, body, actor);
+    }
+    if (this.isSupportMessageAction(definition)) {
+      return this.appendSupportMessage(definition, params, body, actor, files);
     }
 
     const target = await this.findOrCreateActionTarget(definition, params, body, actor);
@@ -331,7 +357,7 @@ export class GeneratedApiService {
       actor.id,
       actor.audience
     );
-    await this.afterMutation(definition, updated._id.toString(), actor, {
+    await this.afterMutation(definition, updated._id.toString(), params, actor, {
       ...body,
       status
     });
@@ -390,7 +416,7 @@ export class GeneratedApiService {
       actor.id,
       actor.audience
     );
-    await this.afterMutation(definition, updated._id.toString(), actor, uploadData);
+    await this.afterMutation(definition, updated._id.toString(), params, actor, uploadData);
 
     return {
       accepted: true,
@@ -477,7 +503,9 @@ export class GeneratedApiService {
     return undefined;
   }
 
-  private async serializeRecords(records: GeneratedApiRecordDocument[]): Promise<SerializedRecord[]> {
+  private async serializeRecords(
+    records: GeneratedApiRecordDocument[]
+  ): Promise<SerializedRecord[]> {
     const ownerMap = await this.ownerMap(records);
     return records.map((record) => this.serializeRecordWithOwnerMap(record, ownerMap));
   }
@@ -500,11 +528,13 @@ export class GeneratedApiService {
     }
     return {
       ...serialized,
-      owner: record.ownerId ? ownerMap.get(record.ownerId) ?? null : null
+      owner: record.ownerId ? (ownerMap.get(record.ownerId) ?? null) : null
     };
   }
 
-  private async ownerMap(records: GeneratedApiRecordDocument[]): Promise<Map<string, BasicOwnerInfo>> {
+  private async ownerMap(
+    records: GeneratedApiRecordDocument[]
+  ): Promise<Map<string, BasicOwnerInfo>> {
     const ownerIds = Array.from(
       new Set(
         records
@@ -518,9 +548,7 @@ export class GeneratedApiService {
     }
     const rawAccounts: unknown[] = await Promise.all(
       ownerIds.map((ownerId) =>
-        CustomerAccountModel.findById(ownerId)
-          .select("displayName avatarUrl deletedAt")
-          .lean()
+        CustomerAccountModel.findById(ownerId).select("displayName avatarUrl deletedAt").lean()
       )
     );
     const accounts = rawAccounts.filter(isActiveOwnerAccount);
@@ -570,6 +598,61 @@ export class GeneratedApiService {
     );
   }
 
+  private isSupportMessageAction(definition: GeneratedEndpointDefinition): boolean {
+    return (
+      definition.method === "POST" &&
+      definition.fullPath.endsWith("/support/tickets/:ticketId/messages")
+    );
+  }
+
+  private async appendSupportMessage(
+    definition: GeneratedEndpointDefinition,
+    params: Record<string, string>,
+    body: Record<string, unknown>,
+    actor: Actor,
+    files: Express.Multer.File[]
+  ) {
+    const target = await this.requireTarget(definition, params, actor);
+    const attachments = await storeMessageAttachments(
+      `support/tickets/${target._id.toString()}/attachments`,
+      files
+    );
+    const messageBody = { ...body };
+    delete messageBody.file;
+    delete messageBody.files;
+    delete messageBody.attachment;
+    delete messageBody.attachments;
+    const message = {
+      ...messageBody,
+      id: randomUUID(),
+      senderId: actor.id ?? null,
+      senderType: actor.audience ?? null,
+      createdAt: new Date().toISOString(),
+      attachments
+    };
+    let updated: GeneratedApiRecordDocument;
+    try {
+      updated = await this.repository.appendDataItem(
+        target,
+        "messages",
+        message,
+        definition.action,
+        actor.id,
+        actor.audience
+      );
+    } catch (error) {
+      await deleteMessageAttachments(attachments);
+      throw error;
+    }
+    await this.afterMutation(definition, updated._id.toString(), params, actor, { message });
+    return {
+      accepted: true,
+      action: definition.action,
+      message,
+      record: serializeRecord(updated)
+    };
+  }
+
   private uploadKeyPrefix(
     definition: GeneratedEndpointDefinition,
     params: Record<string, string>,
@@ -587,6 +670,7 @@ export class GeneratedApiService {
   private async afterMutation(
     definition: GeneratedEndpointDefinition,
     aggregateId: string,
+    params: Record<string, string>,
     actor: Actor,
     payload: Record<string, unknown>
   ): Promise<void> {
@@ -600,6 +684,22 @@ export class GeneratedApiService {
         actorType: actor.audience ?? null
       }
     });
+    if (actor.id && actor.audience === "customer") {
+      const realtimePayload = {
+        action: definition.action,
+        aggregateId,
+        params,
+        data: payload,
+        occurredAt: new Date().toISOString()
+      };
+      const realtimeEvents = realtimeEventsForMutation(definition);
+      for (const event of realtimeEvents) {
+        this.dependencies.realtime?.emitToCustomer(actor.id, event, realtimePayload);
+        if (definition.resource === "support") {
+          this.dependencies.realtime?.emitToAdmins(event, realtimePayload);
+        }
+      }
+    }
 
     if (definition.job) {
       await this.dependencies.jobs.publish({

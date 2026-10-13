@@ -112,3 +112,18 @@ export const rolePermissionMatrix: Record<AdminRoleCode, AdminPermissionCode[]> 
   ANALYTICS_VIEWER: ["dashboard.read", "analytics.read", "analytics.export"],
   SYSTEM_OPERATOR: ["dashboard.read", "system.maintenance.update", "settings.read"]
 };
+
+export const resolveAdminPermissions = (
+  explicitPermissions: string[],
+  roles: string[]
+): string[] => {
+  const rolePermissions = roles.flatMap((role) => {
+    if (role === "super-admin") {
+      return [...adminPermissions];
+    }
+    return role in rolePermissionMatrix
+      ? rolePermissionMatrix[role as AdminRoleCode]
+      : [];
+  });
+  return Array.from(new Set([...explicitPermissions, ...rolePermissions]));
+};
