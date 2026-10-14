@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { getEnv } from "../config/env.js";
 import type { RabbitConnection } from "../infrastructure/rabbitmq/connection.js";
 import type { RedisClient } from "../infrastructure/redis/client.js";
+import type { RealtimePublisher } from "../realtime/socket-realtime.service.js";
 import { createAdminRouter } from "./admin.routes.js";
 import { createCustomerRouter } from "./customer.routes.js";
 import { createHealthRouter, type HealthRouteDependencies } from "./health.routes.js";
@@ -10,6 +11,7 @@ import { createInternalRouter } from "./internal.routes.js";
 export type RouteDependencies = HealthRouteDependencies & {
   redis?: RedisClient;
   rabbitMq?: RabbitConnection;
+  realtime?: RealtimePublisher;
 };
 
 export const registerRoutes = (app: Express, dependencies: RouteDependencies = {}): void => {

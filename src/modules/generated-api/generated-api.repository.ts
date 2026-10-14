@@ -102,7 +102,11 @@ export class GeneratedApiRepository {
     if (isObjectId(identifier)) {
       filter._id = identifier;
     } else {
-      filter.$or = [{ "scope.identifier": identifier }, { "data.slug": identifier }, { "data.key": identifier }];
+      filter.$or = [
+        { "scope.identifier": identifier },
+        { "data.slug": identifier },
+        { "data.key": identifier }
+      ];
     }
     return GeneratedApiRecordModel.findOne(filter);
   }
@@ -148,7 +152,9 @@ export class GeneratedApiRepository {
       $push: { history }
     };
 
-    const updated = await GeneratedApiRecordModel.findByIdAndUpdate(record._id, update, { new: true });
+    const updated = await GeneratedApiRecordModel.findByIdAndUpdate(record._id, update, {
+      new: true
+    });
     return updated ?? record;
   }
 
@@ -209,6 +215,39 @@ export class GeneratedApiRepository {
           status
         },
         $push: { history }
+      },
+      { new: true }
+    );
+    return updated ?? record;
+  }
+
+  public async appendDataItem(
+    record: GeneratedApiRecordDocument,
+    field: string,
+    item: Record<string, unknown>,
+    action: string,
+    actorId?: string,
+    actorType?: string
+  ): Promise<GeneratedApiRecordDocument> {
+    const history: GeneratedApiRecord["history"][number] = {
+      action,
+      at: new Date(),
+      metadata: item
+    };
+    if (actorId) {
+      history.actorId = actorId;
+    }
+    if (actorType) {
+      history.actorType = actorType;
+    }
+
+    const updated = await GeneratedApiRecordModel.findByIdAndUpdate(
+      record._id,
+      {
+        $push: {
+          [`data.${field}`]: item,
+          history
+        }
       },
       { new: true }
     );

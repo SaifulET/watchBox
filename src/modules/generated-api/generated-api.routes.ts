@@ -1,6 +1,10 @@
 import { Router, type RequestHandler } from "express";
 import { authenticate, requirePermissions } from "../../common/auth/authenticate.js";
 import { asyncHandler } from "../../common/middleware/async-handler.js";
+import {
+  messageAttachmentFiles,
+  messageAttachmentsUpload
+} from "../../common/middleware/message-attachment-upload.js";
 import { validate } from "../../common/middleware/validate.js";
 import { DomainEventPublisher } from "../../common/services/domain-event-publisher.js";
 import { JobPublisher } from "../../common/services/job-publisher.js";
@@ -122,9 +126,7 @@ const routeAuth = (method: string, fullPath: string): GeneratedEndpointDefinitio
 };
 
 const staticSegments = (localPath: string): string[] =>
-  localPath
-    .split("/")
-    .filter((segment) => segment.length > 0 && !segment.startsWith(":"));
+  localPath.split("/").filter((segment) => segment.length > 0 && !segment.startsWith(":"));
 
 const resourceFromPath = (fullPath: string): string => {
   const localPath = toLocalPath(fullPath);
@@ -207,7 +209,9 @@ const definitionFromEndpoint = (
 
 const paramsObject = (params: Record<string, string | undefined>): Record<string, string> =>
   Object.fromEntries(
-    Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    Object.entries(params).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string"
+    )
   );
 
 const bodyObject = (body: unknown): Record<string, unknown> =>
@@ -238,6 +242,9 @@ export const createGeneratedApiRouter = (dependencies: RouteDependencies = {}): 
   if (dependencies.redis) {
     serviceDependencies.redis = dependencies.redis;
   }
+  if (dependencies.realtime) {
+    serviceDependencies.realtime = dependencies.realtime;
+  }
   const service = new GeneratedApiService(serviceDependencies);
 
   for (const endpoint of requiredApiEndpoints) {
@@ -255,6 +262,12 @@ export const createGeneratedApiRouter = (dependencies: RouteDependencies = {}): 
     }
     if (definition.method === "GET") {
       middleware.push(validate({ query: generatedQuerySchema }));
+    }
+    if (
+      definition.method === "POST" &&
+      definition.fullPath.endsWith("/support/tickets/:ticketId/messages")
+    ) {
+      middleware.push(messageAttachmentsUpload);
     }
     if (["POST", "PATCH"].includes(definition.method)) {
       middleware.push(validate({ body: generatedBodySchema }));
@@ -304,9 +317,17 @@ export const createGeneratedApiRouter = (dependencies: RouteDependencies = {}): 
           const lastSegment = staticSegments(definition.localPath).at(-1) ?? "";
           const isAction = mutationActions.has(lastSegment) || Object.keys(params).length > 0;
           const data = isAction
-            ? await service.action(definition, params, body, actor)
+            ? await service.action(
+                definition,
+                params,
+                body,
+                actor,
+                messageAttachmentFiles(req)
+              )
             : await service.create(definition, params, body, actor);
-          res.status(isAction ? 200 : 201).json({ success: true, data, meta: { requestId: req.requestId } });
+          res
+            .status(isAction ? 200 : 201)
+            .json({ success: true, data, meta: { requestId: req.requestId } });
           return;
         }
 
