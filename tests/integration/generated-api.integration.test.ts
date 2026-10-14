@@ -161,6 +161,57 @@ describe.sequential("generated API routes", () => {
     expect(body.meta.total).toBe(0);
   });
 
+  it("persists support ticket messages for later reads", async () => {
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    const createdResponse = await request(app)
+      .post("/api/v1/support/tickets")
+      .set("Authorization", authorization)
+      .send({ subject: "Order help", message: "Initial request" })
+      .expect(201);
+    const created = createdResponse.body as RecordResponse;
+
+    await request(app)
+      .post(`/api/v1/support/tickets/${created.data.id}/messages`)
+      .set("Authorization", authorization)
+      .field("message", "First follow-up")
+      .attach("attachments", Buffer.from("invoice"), {
+        filename: "invoice.pdf",
+        contentType: "application/pdf"
+      })
+      .expect(200);
+    await request(app)
+      .post(`/api/v1/support/tickets/${created.data.id}/messages`)
+      .set("Authorization", authorization)
+      .send({ message: "Second follow-up" })
+      .expect(200);
+
+    const ticketResponse = await request(app)
+      .get(`/api/v1/support/tickets/${created.data.id}`)
+      .set("Authorization", authorization)
+      .expect(200);
+    const ticket = ticketResponse.body as RecordResponse;
+    const messages = ticket.data.data.messages as Array<Record<string, unknown>>;
+
+    expect(messages).toHaveLength(2);
+    expect(messages.map((message) => message.message)).toEqual([
+      "First follow-up",
+      "Second follow-up"
+    ]);
+    expect(messages.every((message) => typeof message.id === "string")).toBe(true);
+    const firstAttachments = messages[0]?.attachments as Array<Record<string, unknown>>;
+    expect(firstAttachments).toHaveLength(1);
+    expect(firstAttachments[0]).toMatchObject({
+      name: "invoice.pdf",
+      contentType: "application/pdf",
+      size: 7
+    });
+    expect(firstAttachments[0]?.key).toMatch(
+      new RegExp(`^support/tickets/${created.data.id}/attachments/`)
+    );
+    expect(firstAttachments[0]?.url).toEqual(expect.any(String));
+  });
+
   it("persists and updates a customer-owned listing record", async () => {
     const accessToken = await registerCustomer();
     const authorization = `Bearer ${accessToken}`;
@@ -307,7 +358,9 @@ describe.sequential("generated API routes", () => {
       .expect(409);
     const duplicate = duplicateResponse.body as ErrorResponse;
     expect(duplicate.error.code).toBe("RESOURCE_CONFLICT");
-    expect(duplicate.error.message).toBe("Listing title must be unique. Please use a different title.");
+    expect(duplicate.error.message).toBe(
+      "Listing title must be unique. Please use a different title."
+    );
 
     const emptyUpdateResponse = await request(app)
       .patch(`/api/v1/listings/${created.data.id}`)
@@ -343,21 +396,21 @@ describe.sequential("generated API routes", () => {
       .expect(201);
     const created = createdResponse.body as RecordResponse;
 
-    const response = await request(app)
-      .get("/api/v1/listings?limit=10")
-      .expect(200);
-    const body = response.body as DataResponse<Array<{
-      id: string;
-      ownerId: string;
-      owner: {
+    const response = await request(app).get("/api/v1/listings?limit=10").expect(200);
+    const body = response.body as DataResponse<
+      Array<{
         id: string;
-        displayName: string;
-        avatarUrl: string | null;
-      } | null;
-      data: {
-        title: string;
-      };
-    }>> & { meta: { count: number; total: number } };
+        ownerId: string;
+        owner: {
+          id: string;
+          displayName: string;
+          avatarUrl: string | null;
+        } | null;
+        data: {
+          title: string;
+        };
+      }>
+    > & { meta: { count: number; total: number } };
     const listing = body.data.find((item) => item.id === created.data.id);
 
     expect(body.meta.count).toBe(1);
@@ -482,7 +535,9 @@ describe.sequential("generated API routes", () => {
     expect(repeatedPayment.data.reused).toBe(true);
     expect(repeatedPayment.data.productPayment.id).toBe(payment.data.productPayment.id);
     expect(repeatedPayment.data.paymentIntent.id).toBe(payment.data.paymentIntent.id);
-    expect(repeatedPayment.data.paymentIntent.clientSecret).toBe(payment.data.paymentIntent.clientSecret);
+    expect(repeatedPayment.data.paymentIntent.clientSecret).toBe(
+      payment.data.paymentIntent.clientSecret
+    );
 
     await request(app)
       .post("/api/v1/webhooks/stripe")
@@ -707,7 +762,9 @@ describe.sequential("generated API routes", () => {
     }>;
     expect(repeatedPayment.data.reused).toBe(true);
     expect(repeatedPayment.data.paymentIntent.id).toBe(payment.data.paymentIntent.id);
-    expect(repeatedPayment.data.paymentIntent.clientSecret).toBe(payment.data.paymentIntent.clientSecret);
+    expect(repeatedPayment.data.paymentIntent.clientSecret).toBe(
+      payment.data.paymentIntent.clientSecret
+    );
 
     const confirmResponse = await request(app)
       .post(`/api/v1/orders/${order.data.order.id}/confirm-payment`)
@@ -816,17 +873,18 @@ describe.sequential("generated API routes", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_purchase";
     resetEnvForTests();
 
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
-      new Response(
-        JSON.stringify({
-          id: "pi_direct_card",
-          client_secret: "pi_direct_card_secret",
-          status: "requires_payment_method",
-          amount: 420000,
-          currency: "usd"
-        }),
-        { status: 200 }
-      )
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: "pi_direct_card",
+            client_secret: "pi_direct_card_secret",
+            status: "requires_payment_method",
+            amount: 420000,
+            currency: "usd"
+          }),
+          { status: 200 }
+        )
     );
 
     const paymentIntent = await new StripePaymentProvider().createPaymentIntent({
@@ -842,7 +900,9 @@ describe.sequential("generated API routes", () => {
     const requestBody = requestInit?.body as URLSearchParams | undefined;
 
     expect(paymentIntent.id).toBe("pi_direct_card");
-    expect((requestInit?.headers as Record<string, string>)["Idempotency-Key"]).toBe("purchase-idempotency-key");
+    expect((requestInit?.headers as Record<string, string>)["Idempotency-Key"]).toBe(
+      "purchase-idempotency-key"
+    );
     expect(requestBody?.get("payment_method_types[0]")).toBe("card");
     expect(requestBody?.has("automatic_payment_methods")).toBe(false);
   });
@@ -857,7 +917,9 @@ describe.sequential("generated API routes", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/oauth2/token")) {
-        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
       }
       if (url.includes("/item_summary/search")) {
         return new Response(
@@ -982,7 +1044,9 @@ describe.sequential("generated API routes", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/oauth2/token")) {
-        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
       }
       if (url.includes("/item_summary/search")) {
         return new Response(
@@ -1057,9 +1121,21 @@ describe.sequential("generated API routes", () => {
         queryNormalization: { source: string };
       };
       results: {
-        items: Array<{ source: string; title: string; brand: string | null; model: string | null; referenceNumber: string | null }>;
+        items: Array<{
+          source: string;
+          title: string;
+          brand: string | null;
+          model: string | null;
+          referenceNumber: string | null;
+        }>;
         local: Array<{ source: string; title: string }>;
-        ebay: Array<{ source: string; title: string; brand: string | null; model: string | null; referenceNumber: string | null }>;
+        ebay: Array<{
+          source: string;
+          title: string;
+          brand: string | null;
+          model: string | null;
+          referenceNumber: string | null;
+        }>;
       };
     }>;
     const searchUrl = fetchMock.mock.calls
@@ -1094,10 +1170,12 @@ describe.sequential("generated API routes", () => {
       model: "Skeleton",
       referenceNumber: "90123QM01"
     });
-    expect(body.data.results.items).toEqual(expect.arrayContaining([
-      expect.objectContaining({ source: "local", title: "Titan blue skeleton automatic watch" }),
-      expect.objectContaining({ source: "ebay", title: "Titan automatic blue skeleton watch" })
-    ]));
+    expect(body.data.results.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: "local", title: "Titan blue skeleton automatic watch" }),
+        expect.objectContaining({ source: "ebay", title: "Titan automatic blue skeleton watch" })
+      ])
+    );
   });
 
   it("searches eBay directly from an uploaded image with search_by_image", async () => {
@@ -1110,7 +1188,9 @@ describe.sequential("generated API routes", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/oauth2/token")) {
-        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
       }
       if (url.includes("/item_summary/search_by_image")) {
         return new Response(
@@ -1202,17 +1282,28 @@ describe.sequential("generated API routes", () => {
       results: {
         items: Array<{ source: string; title: string; visualSimilarity: number | null }>;
         local: Array<{ source: string; title: string; visualSimilarity: number | null }>;
-        ebay: Array<{ source: string; title: string; brand: string | null; model: string | null; referenceNumber: string | null }>;
+        ebay: Array<{
+          source: string;
+          title: string;
+          brand: string | null;
+          model: string | null;
+          referenceNumber: string | null;
+        }>;
       };
     }>;
     const searchUrl = fetchMock.mock.calls
       .map((call) => call[0])
-      .find((value): value is URL => value instanceof URL && value.pathname.includes("/item_summary/search_by_image"));
+      .find(
+        (value): value is URL =>
+          value instanceof URL && value.pathname.includes("/item_summary/search_by_image")
+      );
     const imageSearchCall = fetchMock.mock.calls.find((call) => {
       const value = call[0];
       return value instanceof URL && value.pathname.includes("/item_summary/search_by_image");
     });
-    const imageSearchBody = JSON.parse(String(imageSearchCall?.[1]?.body ?? "{}")) as { image?: string };
+    const imageSearchBody = JSON.parse(String(imageSearchCall?.[1]?.body ?? "{}")) as {
+      image?: string;
+    };
 
     expect(body.data.mode).toBe("image");
     expect(body.data.flow).toBe("Image -> eBay search_by_image + internal visual match");
@@ -1239,10 +1330,15 @@ describe.sequential("generated API routes", () => {
       model: "Submariner",
       referenceNumber: "126610LN"
     });
-    expect(body.data.results.items).toEqual(expect.arrayContaining([
-      expect.objectContaining({ source: "local", title: "Internal Rolex Submariner visual match" }),
-      expect.objectContaining({ source: "ebay", title: "Rolex Submariner 126610LN" })
-    ]));
+    expect(body.data.results.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "local",
+          title: "Internal Rolex Submariner visual match"
+        }),
+        expect.objectContaining({ source: "ebay", title: "Rolex Submariner 126610LN" })
+      ])
+    );
   });
 
   it("detects a search query from an uploaded image", async () => {
@@ -1251,7 +1347,8 @@ describe.sequential("generated API routes", () => {
     process.env.EBAY_ENVIRONMENT = "sandbox";
     process.env.EBAY_MARKETPLACE_ID = "EBAY_US";
     resetEnvForTests();
-    const fetchMock = vi.spyOn(globalThis, "fetch")
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
           status: 200
@@ -1316,11 +1413,12 @@ describe.sequential("generated API routes", () => {
 
     const searchUrl = fetchMock.mock.calls
       .map((call) => call[0])
-      .find((value): value is URL =>
-        value instanceof URL &&
-        value.pathname.includes("/item_summary/search") &&
-        value.searchParams.get("q") === "Rolex Submariner 126610LN" &&
-        value.searchParams.get("limit") === "20"
+      .find(
+        (value): value is URL =>
+          value instanceof URL &&
+          value.pathname.includes("/item_summary/search") &&
+          value.searchParams.get("q") === "Rolex Submariner 126610LN" &&
+          value.searchParams.get("limit") === "20"
       );
     expect(searchUrl?.pathname).toBe("/buy/browse/v1/item_summary/search");
     expect(searchUrl?.searchParams.get("q")).toBe("Rolex Submariner 126610LN");
@@ -1335,7 +1433,7 @@ describe.sequential("generated API routes", () => {
       lowestPrice: 12500,
       highestPrice: 12500,
       liquidityScope: "low",
-      volatility: "medium",
+      volatility: "medium"
     });
     expect(body.data[0]).not.toHaveProperty("similarProducts");
     expect(body.data[0]?.similarityScore).toBeGreaterThan(0);
@@ -1481,7 +1579,9 @@ describe.sequential("generated API routes", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("/oauth2/token")) {
-        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), { status: 200 });
+        return new Response(JSON.stringify({ access_token: "access-token", expires_in: 7200 }), {
+          status: 200
+        });
       }
       if (url.includes("/item_summary/search")) {
         return new Response(JSON.stringify(ebaySearchResponse), { status: 200 });
@@ -1513,7 +1613,11 @@ describe.sequential("generated API routes", () => {
       pipeline: string[];
       quality: { passed: boolean };
       queryEmbeddingDimensions: number;
-      metadata: { analyzedCandidateImages: number; candidateImageEmbeddings: boolean; marketplaceCandidates: { ebay: number } };
+      metadata: {
+        analyzedCandidateImages: number;
+        candidateImageEmbeddings: boolean;
+        marketplaceCandidates: { ebay: number };
+      };
       results: {
         items: Array<{
           id: string;
@@ -1739,7 +1843,15 @@ describe.sequential("generated API routes", () => {
       .field("condition", "very_good")
       .field("region", "United States")
       .expect(201);
-    const body = response.body as DataResponse<Array<{ title: string; brand: string; model: string; currentPrice: number; condition: string }>>;
+    const body = response.body as DataResponse<
+      Array<{
+        title: string;
+        brand: string;
+        model: string;
+        currentPrice: number;
+        condition: string;
+      }>
+    >;
 
     expect(body.data).toHaveLength(1);
     expect(body.data[0]).toMatchObject({
@@ -1821,9 +1933,10 @@ describe.sequential("generated API routes", () => {
       externalId: "v1|loc|0",
       location: "New York, NY, 10007, US"
     });
-    const ebaySearchCall = fetchMock.mock.calls.find((call) =>
-      String(call[0]).includes("/item_summary/search") &&
-      String(call[0]).includes("deliveryPostalCode")
+    const ebaySearchCall = fetchMock.mock.calls.find(
+      (call) =>
+        String(call[0]).includes("/item_summary/search") &&
+        String(call[0]).includes("deliveryPostalCode")
     );
     expect((ebaySearchCall?.[0] as URL).href).toBe(
       "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?q=Rolex+Submariner&limit=5&filter=deliveryPostalCode%3A10007%2CdeliveryCountry%3AUS"
@@ -1886,9 +1999,10 @@ describe.sequential("generated API routes", () => {
       String(call[0]).includes("nominatim.openstreetmap.org/reverse")
     );
     expect(reverseGeocodeCalls).toHaveLength(1);
-    const ebaySearchCall = fetchMock.mock.calls.find((call) =>
-      String(call[0]).includes("/item_summary/search") &&
-      String(call[0]).includes("deliveryPostalCode")
+    const ebaySearchCall = fetchMock.mock.calls.find(
+      (call) =>
+        String(call[0]).includes("/item_summary/search") &&
+        String(call[0]).includes("deliveryPostalCode")
     );
     expect((ebaySearchCall?.[0] as URL).searchParams.get("q")).toBe("watch");
     expect((ebaySearchCall?.[0] as URL).searchParams.get("limit")).toBe("10");
@@ -1954,7 +2068,12 @@ describe.sequential("generated API routes", () => {
       .get("/api/v1/recommended-products")
       .set("Authorization", authorization)
       .expect(200);
-    const recommendations = recommendationsResponse.body as DataResponse<{ items: unknown[]; local: unknown[]; ebay: unknown[]; status: string }>;
+    const recommendations = recommendationsResponse.body as DataResponse<{
+      items: unknown[];
+      local: unknown[];
+      ebay: unknown[];
+      status: string;
+    }>;
     expect(recommendations.data).toMatchObject({
       status: "pending",
       items: [],
@@ -1974,11 +2093,15 @@ describe.sequential("generated API routes", () => {
       .get("/api/v1/subscription/plans")
       .set("Authorization", authorization)
       .expect(200);
-    const plans = plansResponse.body as DataResponse<{ plans: Array<{ id: string; price: number }> }>;
-    expect(plans.data.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "standard", price: 0 }),
-      expect.objectContaining({ id: "elite_collector", price: 29.99 })
-    ]));
+    const plans = plansResponse.body as DataResponse<{
+      plans: Array<{ id: string; price: number }>;
+    }>;
+    expect(plans.data.plans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "standard", price: 0 }),
+        expect.objectContaining({ id: "elite_collector", price: 29.99 })
+      ])
+    );
 
     const checkoutResponse = await request(app)
       .post("/api/v1/subscription/checkout")
@@ -1988,7 +2111,10 @@ describe.sequential("generated API routes", () => {
         cancelUrl: "https://mywatchbox.net/subscription/cancel"
       })
       .expect(201);
-    const checkout = checkoutResponse.body as DataResponse<{ checkoutSessionId: string; url: string }>;
+    const checkout = checkoutResponse.body as DataResponse<{
+      checkoutSessionId: string;
+      url: string;
+    }>;
     expect(checkout.data.checkoutSessionId).toContain("local_");
     expect(checkout.data.url).toBe("https://mywatchbox.net/subscription/success");
 
@@ -2089,13 +2215,25 @@ describe.sequential("generated API routes", () => {
       .expect(201);
     const searchBody = searchResponse.body as DataResponse<{ searchId: string }>;
 
-    let recommendationBody: DataResponse<{ searchId?: string; items?: Array<Record<string, unknown>>; local?: unknown[]; ebay?: unknown[] }> | undefined;
+    let recommendationBody:
+      | DataResponse<{
+          searchId?: string;
+          items?: Array<Record<string, unknown>>;
+          local?: unknown[];
+          ebay?: unknown[];
+        }>
+      | undefined;
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const response = await request(app)
         .get("/api/v1/recommended-products")
         .set("Authorization", authorization)
         .expect(200);
-      recommendationBody = response.body as DataResponse<{ searchId?: string; items?: Array<Record<string, unknown>>; local?: unknown[]; ebay?: unknown[] }>;
+      recommendationBody = response.body as DataResponse<{
+        searchId?: string;
+        items?: Array<Record<string, unknown>>;
+        local?: unknown[];
+        ebay?: unknown[];
+      }>;
       if (recommendationBody.data.searchId === searchBody.data.searchId) {
         break;
       }
@@ -2154,14 +2292,16 @@ describe.sequential("generated API routes", () => {
       .get("/api/v1/watch-alert-events")
       .set("Authorization", authorization)
       .expect(200);
-    const events = eventsResponse.body as DataResponse<Array<{
-      data: {
-        type: string;
-        alert: { type: string; query: string };
-        product: { title: string; price: number };
-        productDetails: { title: string; price: number; brand: string; region: string };
-      }
-    }>>;
+    const events = eventsResponse.body as DataResponse<
+      Array<{
+        data: {
+          type: string;
+          alert: { type: string; query: string };
+          product: { title: string; price: number };
+          productDetails: { title: string; price: number; brand: string; region: string };
+        };
+      }>
+    >;
     expect(events.data[0]?.data).toMatchObject({
       type: "new_watch",
       alert: {
@@ -2291,7 +2431,9 @@ describe.sequential("generated API routes", () => {
       sourceUrl: "https://www.ebay.com/itm/987"
     });
     expect(body.data.similarProducts).toHaveLength(5);
-    const itemDetailCall = fetchMock.mock.calls.find((call) => String(call[0]).includes("/buy/browse/v1/item/v1%7C987%7C0"));
+    const itemDetailCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/buy/browse/v1/item/v1%7C987%7C0")
+    );
     expect(itemDetailCall).toBeDefined();
   });
 

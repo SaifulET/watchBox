@@ -9,12 +9,14 @@ import { createLogger, type WatchboxLogger } from "./common/utils/logger.js";
 import { registerSwagger } from "./docs/swagger.js";
 import type { RabbitConnection } from "./infrastructure/rabbitmq/connection.js";
 import type { RedisClient } from "./infrastructure/redis/client.js";
+import type { RealtimePublisher } from "./realtime/socket-realtime.service.js";
 import { registerRoutes, type RouteDependencies } from "./routes/index.js";
 
 export type AppDependencies = {
   logger: WatchboxLogger;
   redis?: RedisClient;
   rabbitMq?: RabbitConnection;
+  realtime?: RealtimePublisher;
 };
 
 declare global {
@@ -43,15 +45,17 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
   );
   app.use(requestContextMiddleware);
   app.use(createSecurityMiddleware(env));
-  app.use(express.json({
-    limit: "1mb",
-    verify: (req, _res, buffer) => {
-      const expressReq = req as Request;
-      if (expressReq.originalUrl === `${env.API_PREFIX}/webhooks/stripe`) {
-        expressReq.rawBody = Buffer.from(buffer);
+  app.use(
+    express.json({
+      limit: "1mb",
+      verify: (req, _res, buffer) => {
+        const expressReq = req as Request;
+        if (expressReq.originalUrl === `${env.API_PREFIX}/webhooks/stripe`) {
+          expressReq.rawBody = Buffer.from(buffer);
+        }
       }
-    }
-  }));
+    })
+  );
   app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
   const routeDependencies: RouteDependencies = {};
@@ -60,6 +64,9 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
   }
   if (overrides.rabbitMq) {
     routeDependencies.rabbitMq = overrides.rabbitMq;
+  }
+  if (overrides.realtime) {
+    routeDependencies.realtime = overrides.realtime;
   }
 
   registerRoutes(app, routeDependencies);

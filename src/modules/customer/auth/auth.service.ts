@@ -7,6 +7,10 @@ import {
   ResourceNotFoundError
 } from "../../../common/errors/app-error.js";
 import type { DomainEventPublisher } from "../../../common/services/domain-event-publisher.js";
+import {
+  adminPermissions,
+  resolveAdminPermissions
+} from "../../../common/permissions/admin-permissions.js";
 import { RateLimiterService } from "../../../common/services/rate-limiter.service.js";
 import { getAuthConfig } from "../../../config/auth.config.js";
 import { getEmailConfig } from "../../../config/email.config.js";
@@ -87,7 +91,7 @@ const accessTtlSeconds = 15 * 60;
 const resetTtlMinutes = 15;
 const verificationTtlMilliseconds = 60 * 1000;
 const verificationTtlMinutes = 1;
-const bootstrapAdminPermissions = ["admin:dashboard", "admin:settings", "admin:users"];
+const bootstrapAdminPermissions = [...adminPermissions];
 
 const isDuplicateKeyError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -138,7 +142,7 @@ const serializeAdmin = (account: AdminAccountDocument) => ({
   email: account.email,
   displayName: account.displayName,
   status: account.status,
-  permissions: account.permissions,
+  permissions: resolveAdminPermissions(account.permissions, account.roles),
   roles: account.roles,
   mfaEnabled: account.mfaEnabled,
   createdAt: account.createdAt.toISOString(),
@@ -579,7 +583,7 @@ export class AdminAuthService extends CustomerAuthService {
         passwordHash,
         displayName: input.displayName,
         permissions: input.permissions ?? (hadExistingAdmin ? [] : bootstrapAdminPermissions),
-        roles: input.roles ?? (hadExistingAdmin ? ["admin"] : ["super-admin"])
+        roles: input.roles ?? (hadExistingAdmin ? ["admin"] : ["SUPER_ADMIN"])
       });
       const auth = await this.createSession(account._id, "admin", fingerprint);
       await this.publish("admin.registered", account._id, {
@@ -789,7 +793,10 @@ export class AdminAuthService extends CustomerAuthService {
     if (!account) {
       throw new ResourceNotFoundError("Admin account not found.");
     }
-    return { permissions: account.permissions, roles: account.roles };
+    return {
+      permissions: resolveAdminPermissions(account.permissions, account.roles),
+      roles: account.roles
+    };
   }
 
   private createMfaCode(): string {
