@@ -54,7 +54,15 @@ const isPublic = (endpoint: Endpoint): boolean =>
   endpoint.path.includes("verify-email") ||
   endpoint.path.includes("verify-reset-code") ||
   endpoint.path.includes("mfa/challenge") ||
-  endpoint.path.startsWith("/api/v1/webhooks");
+  endpoint.path.includes("/oauth/callback") ||
+  endpoint.path.includes("/oauth/declined") ||
+  endpoint.path.startsWith("/api/v1/webhooks") ||
+  endpoint.path.startsWith("/health") ||
+  endpoint.path.startsWith("/internal") ||
+  endpoint.path === "/api/v1" ||
+  endpoint.path === "/api/v1/admin" ||
+  endpoint.path === "/api/v1/payments/config" ||
+  endpoint.path.startsWith("/api/v1/content/");
 
 const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined => {
   if (!["POST", "PATCH", "PUT"].includes(endpoint.method)) {
@@ -141,6 +149,36 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   }
   if (endpoint.path.includes("/reports")) {
     return { reason: "suspicious", message: "Please review this item." };
+  }
+  if (endpoint.path.includes("/ebay/disconnect") || endpoint.path.includes("/publish-to-ebay")) {
+    return {};
+  }
+  if (endpoint.path.includes("/ebay/search-by-location") || endpoint.path.includes("/chrono24/search-by-location")) {
+    return { keyword: "Rolex Submariner", latitude: 40.7128, longitude: -74.006, radiusMiles: 50 };
+  }
+  if (endpoint.path.includes("/saved-products") && endpoint.method === "POST") {
+    return { title: "Rolex Submariner Date", price: 12500, currency: "USD", source: "ebay", externalId: "v1|123456789|0" };
+  }
+  if (endpoint.path.includes("/watch-alerts") && endpoint.method === "POST") {
+    return { title: "Rolex Submariner Alert", brand: "Rolex", model: "Submariner", maxPrice: 13000, currency: "USD" };
+  }
+  if (endpoint.path.includes("/subscription/checkout")) {
+    return { planId: "pro_monthly", successUrl: "https://mywatchbox.net/success", cancelUrl: "https://mywatchbox.net/cancel" };
+  }
+  if (endpoint.path.includes("/subscription/portal")) {
+    return { returnUrl: "https://mywatchbox.net/profile" };
+  }
+  if (endpoint.path.includes("/payments/products/") && endpoint.path.includes("/payment-intent")) {
+    return { amount: 12500, currency: "USD" };
+  }
+  if (endpoint.path.includes("/orders/") && endpoint.path.includes("/confirm-payment")) {
+    return { paymentIntentId: "pi_123456789" };
+  }
+  if (endpoint.path.includes("/ai/analyze-image") || endpoint.path.includes("/ai/search") || endpoint.path.includes("/image-search/")) {
+    return { source: "upload", platform: "all" };
+  }
+  if (endpoint.path.includes("/admin/administrators") && endpoint.method === "POST") {
+    return { email: "admin2@example.com", name: "Admin Two", role: "moderator" };
   }
   if (endpoint.method === "PATCH") {
     return { name: "Updated value", status: "active" };
@@ -270,6 +308,39 @@ const successResponse = (endpoint: Endpoint): Record<string, unknown> => {
         delivery: "email",
         expiresInMinutes: 15,
         developmentToken: "development-only-token"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
+  if (endpoint.path.includes("/ebay/connect")) {
+    return {
+      success: true,
+      data: {
+        authorizationUrl: "https://auth.ebay.com/oauth2/authorize?client_id=example&response_type=code&redirect_uri=https://api.mywatchbox.net/api/v1/ebay/oauth/callback&scope=https://api.ebay.com/oauth/api_scope"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
+  if (endpoint.path.includes("/ebay/status")) {
+    return {
+      success: true,
+      data: {
+        connected: true,
+        ebayUsername: "watch_dealer_nyc",
+        expiresAt: "2026-12-31T23:59:59.000Z"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
+  if (endpoint.path.includes("/payments/config")) {
+    return {
+      success: true,
+      data: {
+        publishableKey: "pk_test_sample_key",
+        currency: "usd"
       },
       meta: { requestId: "request-id" }
     };

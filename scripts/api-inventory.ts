@@ -1,4 +1,4 @@
-﻿export type ApiInventoryStatus = "NOT_STARTED" | "IN_PROGRESS" | "IMPLEMENTED" | "VERIFIED";
+export type ApiInventoryStatus = "NOT_STARTED" | "IN_PROGRESS" | "IMPLEMENTED" | "VERIFIED";
 
 export type RequiredApiEndpoint = {
   method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
@@ -49,7 +49,25 @@ const verifiedRoutes = new Set<string>([
 ]);
 
 const inferAuth = (path: string): string => {
-  if (path.includes("/auth/login") || path.includes("/auth/register") || path.includes("/auth/refresh") || path.includes("forgot-password") || path.includes("reset-password") || path.includes("verify-email") || path.includes("verify-reset-code") || path.includes("mfa/challenge")) {
+  if (
+    path.includes("/auth/login") ||
+    path.includes("/auth/register") ||
+    path.includes("/auth/refresh") ||
+    path.includes("forgot-password") ||
+    path.includes("reset-password") ||
+    path.includes("verify-email") ||
+    path.includes("verify-reset-code") ||
+    path.includes("mfa/challenge") ||
+    path.includes("/oauth/callback") ||
+    path.includes("/oauth/declined") ||
+    path.startsWith("/api/v1/webhooks") ||
+    path.startsWith("/health") ||
+    path.startsWith("/internal") ||
+    path === "/api/v1" ||
+    path === "/api/v1/admin" ||
+    path === "/api/v1/payments/config" ||
+    path.startsWith("/api/v1/content/")
+  ) {
     return "Public";
   }
   if (path.startsWith("/api/v1/admin")) {
@@ -429,9 +447,86 @@ export const requiredApiEndpoints: RequiredApiEndpoint[] = [
   endpoint("GET", "/api/v1/admin/audit-logs/export"),
   endpoint("GET", "/api/v1/admin/audit-logs/:auditLogId"),
   endpoint("POST", "/api/v1/webhooks/stripe"),
+  endpoint("GET", "/api/v1/webhooks/ebay"),
   endpoint("POST", "/api/v1/webhooks/ebay"),
   endpoint("POST", "/api/v1/webhooks/email"),
   endpoint("POST", "/api/v1/webhooks/push"),
+  // eBay Customer & Dealer Integration
+  endpoint("GET", "/api/v1/ebay/connect"),
+  endpoint("GET", "/api/v1/ebay/status"),
+  endpoint("POST", "/api/v1/ebay/disconnect"),
+  endpoint("GET", "/api/v1/ebay/oauth/callback"),
+  endpoint("GET", "/api/v1/ebay/oauth/declined"),
+  endpoint("POST", "/api/v1/dealer/listings/:listingId/publish-to-ebay"),
+  // Marketplaces Aggregated Search & eBay Integration
+  endpoint("GET", "/api/v1/marketplaces/search"),
+  endpoint("GET", "/api/v1/marketplaces/ebay/search"),
+  endpoint("POST", "/api/v1/marketplaces/ebay/search-by-location"),
+  endpoint("GET", "/api/v1/marketplaces/ebay/analytics"),
+  endpoint("GET", "/api/v1/marketplaces/ebay/seller-verification"),
+  endpoint("GET", "/api/v1/marketplaces/ebay/market-insights"),
+  endpoint("POST", "/api/v1/marketplaces/ebay/listings/:listingId/share"),
+  endpoint("GET", "/api/v1/marketplaces/ebay/connection"),
+  // Chrono24 Marketplace Integration
+  endpoint("GET", "/api/v1/marketplaces/chrono24/search"),
+  endpoint("POST", "/api/v1/marketplaces/chrono24/search"),
+  endpoint("POST", "/api/v1/marketplaces/chrono24/search-by-location"),
+  endpoint("GET", "/api/v1/marketplaces/chrono24/analytics"),
+  endpoint("GET", "/api/v1/marketplaces/chrono24/market-insights"),
+  endpoint("GET", "/api/v1/marketplaces/chrono24/products/:id/similar"),
+  endpoint("GET", "/api/v1/marketplaces/chrono24/products/:id/recommendations"),
+  endpoint("GET", "/api/v1/marketplaces/chrono24/products/:id"),
+  // AI & Visual Search
+  endpoint("POST", "/api/v1/ai/analyze-image"),
+  endpoint("POST", "/api/v1/ai/search"),
+  endpoint("POST", "/api/v1/image-search/ebay-direct"),
+  endpoint("POST", "/api/v1/image-search/marketplaces-direct"),
+  endpoint("POST", "/api/v1/image-search/visual"),
+  endpoint("GET", "/api/v1/products/:source/:productId/details"),
+  // User Profile & Social Location
+  endpoint("GET", "/api/v1/users/nearby"),
+  endpoint("GET", "/api/v1/users/me/avatar"),
+  endpoint("POST", "/api/v1/users/me/avatar"),
+  // Saved Products & Personal Recommendations
+  endpoint("GET", "/api/v1/saved-products"),
+  endpoint("POST", "/api/v1/saved-products"),
+  endpoint("GET", "/api/v1/recommended-products"),
+  // In-App Customer Subscriptions
+  endpoint("GET", "/api/v1/subscription/plans"),
+  endpoint("GET", "/api/v1/subscription"),
+  endpoint("POST", "/api/v1/subscription/checkout"),
+  endpoint("POST", "/api/v1/subscription/portal"),
+  // Purchases, Stripe Config & Product Status
+  endpoint("GET", "/api/v1/payments/config"),
+  endpoint("GET", "/api/v1/payments/products/:productId/status"),
+  endpoint("GET", "/api/v1/listings/:productId/status"),
+  endpoint("POST", "/api/v1/payments/products/:productId/payment-intent"),
+  endpoint("POST", "/api/v1/orders/:orderId/confirm-payment"),
+  // Real-time Watch Price Alerts
+  endpoint("POST", "/api/v1/watch-alerts"),
+  endpoint("GET", "/api/v1/watch-alerts"),
+  endpoint("DELETE", "/api/v1/watch-alerts/:alertId"),
+  endpoint("POST", "/api/v1/watch-alerts/run"),
+  endpoint("GET", "/api/v1/watch-alert-events"),
+  // Listing Image Uploads & Management
+  endpoint("GET", "/api/v1/listings/:listingId/images"),
+  endpoint("POST", "/api/v1/listings/:listingId/images"),
+  endpoint("POST", "/api/v1/listings/:listingId/images/upload"),
+  // Admin Extensions
+  endpoint("POST", "/api/v1/admin/auth/register"),
+  endpoint("POST", "/api/v1/admin/settings/content/images"),
+  endpoint("POST", "/api/v1/admin/settings/content/pages/:slug"),
+  endpoint("GET", "/api/v1/admin/subscriptions/settings"),
+  endpoint("PATCH", "/api/v1/admin/subscriptions/settings"),
+  endpoint("GET", "/api/v1/admin/subscriptions/actions"),
+  endpoint("GET", "/api/v1/admin/bulk-email/recipients"),
+  // Health & Gateway Probes
+  endpoint("GET", "/health"),
+  endpoint("GET", "/health/live"),
+  endpoint("GET", "/health/ready"),
+  endpoint("GET", "/internal"),
+  endpoint("GET", "/api/v1"),
+  endpoint("GET", "/api/v1/admin")
 ];
 
 
