@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { AuthenticationError } from "../../../common/errors/app-error.js";
+import { AuthenticationError, ValidationError } from "../../../common/errors/app-error.js";
 import { sendSuccess } from "../../../common/utils/api-response.js";
 import type { UserService } from "./users.service.js";
 import type {
@@ -32,10 +32,27 @@ export class UserController {
   };
 
   public updateMe = async (req: Request, res: Response): Promise<void> => {
+    let input = (req.body ?? {}) as UpdateProfileInput;
+    if (req.file) {
+      const avatarResult = await this.service.uploadAvatar(actorId(req), req.file);
+      input = {
+        ...input,
+        avatarUrl: avatarResult.avatarUrl ?? undefined,
+        avatarKey: avatarResult.avatarKey ?? undefined
+      };
+    }
+    if (Object.keys(input).length === 0) {
+      throw new ValidationError([
+        {
+          path: "profile",
+          message: "At least one profile field or image is required."
+        }
+      ]);
+    }
     sendSuccess(
       res,
       req.requestId,
-      await this.service.updateMe(actorId(req), req.body as UpdateProfileInput)
+      await this.service.updateMe(actorId(req), input)
     );
   };
 
