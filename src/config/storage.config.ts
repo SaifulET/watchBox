@@ -8,6 +8,8 @@ export const getStorageConfig = () => {
     bucket: env.S3_BUCKET,
     region: env.S3_REGION,
     accessKeyId: env.S3_ACCESS_KEY_ID,
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    publicBaseUrl: env.S3_PUBLIC_BASE_URL,
+    localUploadDir: env.LOCAL_UPLOAD_DIR
   };
 };

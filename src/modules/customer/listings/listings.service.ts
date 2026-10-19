@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
-import { deleteObject, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
+import { deleteObject, resolveStoredObjectUrl, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import {
   GeneratedApiRecordModel,
   type GeneratedApiRecordDocument
@@ -45,7 +45,7 @@ const cleanListingData = (body: Record<string, unknown>): Record<string, unknown
 const publicListingData = (data: Record<string, unknown>): Record<string, unknown> => {
   const imageUrls = Array.isArray(data.images)
     ? data.images
-        .map((image) => (isListingImage(image) ? image.url : undefined))
+        .map((image) => (isListingImage(image) ? resolveStoredObjectUrl(image.key, image.url) : undefined))
         .filter((url): url is string => Boolean(url))
     : [];
   const output = { ...data };

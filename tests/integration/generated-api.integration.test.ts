@@ -294,6 +294,13 @@ describe.sequential("generated API routes", () => {
     const listing = listingResponse.body as RecordResponse;
     expect(listing.data.data.image).toBe(replacement.data.image);
     expect(listing.data.data.images).toBeUndefined();
+
+    const imagePath = new URL(replacement.data.image, "http://localhost:4000").pathname;
+    const imageResponse = await request(app).get(imagePath).buffer(true).expect(200);
+    expect(imageResponse.headers["content-type"]).toMatch(/^image\/png/);
+    expect(Buffer.from(imageResponse.body).equals(png)).toBe(true);
+
+    await request(app).get(`${imagePath}.`).buffer(true).expect(200);
   });
 
   it("creates and updates a listing with an inline image file", async () => {

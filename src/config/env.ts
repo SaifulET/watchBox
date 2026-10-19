@@ -37,6 +37,8 @@ const envSchema = z.object({
   S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY_ID: z.string().default("watchbox"),
   S3_SECRET_ACCESS_KEY: z.string().default("watchbox-secret"),
+  S3_PUBLIC_BASE_URL: optionalEnvUrl,
+  LOCAL_UPLOAD_DIR: z.string().min(1).default("storage/uploads"),
   ATLAS_SEARCH_INDEX: z.string().default("listings_search"),
   ATLAS_VECTOR_INDEX: z.string().default("listing_embeddings_vector"),
   EBAY_CLIENT_ID: optionalEnvString,

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
-import { deleteObject, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
+import { deleteObject, resolveStoredObjectUrl, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import {
   GeneratedApiRecordModel,
   type GeneratedApiRecordDocument
@@ -42,7 +42,7 @@ export class ListingImagesService {
     const listing = await this.requireOwnedListing(userId, listingId);
     const image = existingImages(listing)[0];
     return {
-      image: image?.url ?? null
+      image: image ? resolveStoredObjectUrl(image.key, image.url) : null
     };
   }
 
