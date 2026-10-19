@@ -80,9 +80,7 @@ Request body:
 {
   "email": "customer@example.com",
   "password": "customer-password",
-  "displayName": "Customer One",
-  "latitude": 23.7806,
-  "longitude": 90.4074
+  "displayName": "Customer One"
 }
 ```
 Success response:
@@ -94,8 +92,6 @@ Success response:
       "id": "64f000000000000000000001",
       "email": "customer@example.com",
       "displayName": "Customer One",
-      "latitude": 23.7806,
-      "longitude": 90.4074,
       "darkMode": false,
       "notificationPreferences": {
         "emailAlerts": true
@@ -616,57 +612,6 @@ Error response:
         "message": "Required"
       }
     ]
-  },
-  "meta": {
-    "requestId": "request-id"
-  }
-}
-```
-### GET /api/v1/users/nearby
-Auth: Bearer token required (Customer)
-Request:
-```http
-GET {{baseUrl}}/api/v1/users/nearby?lat=23.7808&lng=90.4076
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
-Query parameters:
-`lat`/`latitude` and `lng`/`longitude` are supported. `lan` is also accepted as a longitude alias.
-
-Success response:
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "64f000000000000000000001",
-      "email": "customer@example.com",
-      "displayName": "Customer One",
-      "status": "active",
-      "emailVerified": false,
-      "darkMode": false,
-      "latitude": 23.7806,
-      "longitude": 90.4074,
-      "preferences": {
-        "currency": "USD"
-      },
-      "createdAt": "2026-08-24T00:00:00.000Z",
-      "updatedAt": "2026-08-24T00:00:00.000Z",
-      "distanceMeters": 28
-    }
-  ],
-  "meta": {
-    "requestId": "request-id"
-  }
-}
-```
-Error response:
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Request validation failed."
   },
   "meta": {
     "requestId": "request-id"
@@ -4752,8 +4697,8 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "source": "upload",
+  "platform": "all"
 }
 ```
 Success response:
@@ -4765,8 +4710,8 @@ Success response:
     "resource": "upload-url",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "source": "upload",
+      "platform": "all"
     }
   },
   "meta": {
@@ -4993,8 +4938,8 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "source": "upload",
+  "platform": "all"
 }
 ```
 Success response:
@@ -5006,8 +4951,8 @@ Success response:
     "resource": "feedback",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "source": "upload",
+      "platform": "all"
     }
   },
   "meta": {
@@ -9268,11 +9213,10 @@ Error response:
 }
 ```
 ### GET /api/v1/content/terms
-Auth: Bearer token required (Customer)
+Auth: No auth
 Request:
 ```http
 GET {{baseUrl}}/api/v1/content/terms
-Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 ```
 Request body:
@@ -9313,11 +9257,10 @@ Error response:
 }
 ```
 ### GET /api/v1/content/privacy-policy
-Auth: Bearer token required (Customer)
+Auth: No auth
 Request:
 ```http
 GET {{baseUrl}}/api/v1/content/privacy-policy
-Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 ```
 Request body:
@@ -9358,11 +9301,10 @@ Error response:
 }
 ```
 ### GET /api/v1/content/about
-Auth: Bearer token required (Customer)
+Auth: No auth
 Request:
 ```http
 GET {{baseUrl}}/api/v1/content/about
-Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 ```
 Request body:
@@ -9403,11 +9345,10 @@ Error response:
 }
 ```
 ### GET /api/v1/content/support
-Auth: Bearer token required (Customer)
+Auth: No auth
 Request:
 ```http
 GET {{baseUrl}}/api/v1/content/support
-Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 ```
 Request body:
@@ -11577,8 +11518,9 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "email": "admin2@example.com",
+  "name": "Admin Two",
+  "role": "moderator"
 }
 ```
 Success response:
@@ -11590,8 +11532,9 @@ Success response:
     "resource": "administrators",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "email": "admin2@example.com",
+      "name": "Admin Two",
+      "role": "moderator"
     }
   },
   "meta": {
@@ -11674,8 +11617,9 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "email": "admin2@example.com",
+  "name": "Admin Two",
+  "role": "moderator"
 }
 ```
 Success response:
@@ -11687,8 +11631,9 @@ Success response:
     "resource": "roles",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "email": "admin2@example.com",
+      "name": "Admin Two",
+      "role": "moderator"
     }
   },
   "meta": {
@@ -11915,8 +11860,9 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "email": "admin2@example.com",
+  "name": "Admin Two",
+  "role": "moderator"
 }
 ```
 Success response:
@@ -11928,8 +11874,9 @@ Success response:
     "resource": "activate",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "email": "admin2@example.com",
+      "name": "Admin Two",
+      "role": "moderator"
     }
   },
   "meta": {
@@ -11967,8 +11914,9 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "email": "admin2@example.com",
+  "name": "Admin Two",
+  "role": "moderator"
 }
 ```
 Success response:
@@ -11980,8 +11928,9 @@ Success response:
     "resource": "suspend",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "email": "admin2@example.com",
+      "name": "Admin Two",
+      "role": "moderator"
     }
   },
   "meta": {
@@ -12072,8 +12021,9 @@ Content-Type: application/json
 Request body:
 ```json
 {
-  "name": "Example",
-  "description": "Example request body"
+  "email": "admin2@example.com",
+  "name": "Admin Two",
+  "role": "moderator"
 }
 ```
 Success response:
@@ -12085,8 +12035,9 @@ Success response:
     "resource": "revoke-sessions",
     "status": "active",
     "data": {
-      "name": "Example",
-      "description": "Example request body"
+      "email": "admin2@example.com",
+      "name": "Admin Two",
+      "role": "moderator"
     }
   },
   "meta": {
@@ -17165,6 +17116,51 @@ Error response:
   }
 }
 ```
+### GET /api/v1/webhooks/ebay
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/api/v1/webhooks/ebay
+x-watchbox-signature: {{webhookSignature}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
 ### POST /api/v1/webhooks/ebay
 Auth: No auth
 Request:
@@ -17316,6 +17312,3119 @@ Success response:
     }
   },
   "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/ebay/connect
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/ebay/connect
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/ebay/status
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/ebay/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/ebay/disconnect
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/ebay/disconnect
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "disconnect",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/ebay/oauth/callback
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/api/v1/ebay/oauth/callback
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/ebay/oauth/declined
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/api/v1/ebay/oauth/declined
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/dealer/listings/:listingId/publish-to-ebay
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/dealer/listings/{{listingId}}/publish-to-ebay
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Date",
+  "brand": "Rolex",
+  "model": "Submariner",
+  "price": 12500,
+  "currency": "USD",
+  "condition": "excellent"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "publish-to-ebay",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Date",
+      "brand": "Rolex",
+      "model": "Submariner",
+      "price": 12500,
+      "currency": "USD",
+      "condition": "excellent"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/search
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/search
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/ebay/search
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/ebay/search
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/marketplaces/ebay/search-by-location
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/marketplaces/ebay/search-by-location
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "keyword": "Rolex Submariner",
+  "latitude": 40.7128,
+  "longitude": -74.006,
+  "radiusMiles": 50
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "search-by-location",
+    "status": "active",
+    "data": {
+      "keyword": "Rolex Submariner",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "radiusMiles": 50
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/ebay/analytics
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/ebay/analytics
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/ebay/seller-verification
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/ebay/seller-verification
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/ebay/market-insights
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/ebay/market-insights
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/marketplaces/ebay/listings/:listingId/share
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/marketplaces/ebay/listings/{{listingId}}/share
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Date",
+  "brand": "Rolex",
+  "model": "Submariner",
+  "price": 12500,
+  "currency": "USD",
+  "condition": "excellent"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "share",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Date",
+      "brand": "Rolex",
+      "model": "Submariner",
+      "price": 12500,
+      "currency": "USD",
+      "condition": "excellent"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/ebay/connection
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/ebay/connection
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/chrono24/search
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/chrono24/search
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/marketplaces/chrono24/search
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/marketplaces/chrono24/search
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "name": "Example",
+  "description": "Example request body"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "search",
+    "status": "active",
+    "data": {
+      "name": "Example",
+      "description": "Example request body"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/marketplaces/chrono24/search-by-location
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/marketplaces/chrono24/search-by-location
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "keyword": "Rolex Submariner",
+  "latitude": 40.7128,
+  "longitude": -74.006,
+  "radiusMiles": 50
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "search-by-location",
+    "status": "active",
+    "data": {
+      "keyword": "Rolex Submariner",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "radiusMiles": 50
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/chrono24/analytics
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/chrono24/analytics
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/chrono24/market-insights
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/chrono24/market-insights
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/chrono24/products/:id/similar
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}/similar
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "similar",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/chrono24/products/:id/recommendations
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}/recommendations
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "recommendations",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/marketplaces/chrono24/products/:id
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "id",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/ai/analyze-image
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/ai/analyze-image
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "source": "upload",
+  "platform": "all"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "analyze-image",
+    "status": "active",
+    "data": {
+      "source": "upload",
+      "platform": "all"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/ai/search
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/ai/search
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "source": "upload",
+  "platform": "all"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "search",
+    "status": "active",
+    "data": {
+      "source": "upload",
+      "platform": "all"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/image-search/ebay-direct
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/image-search/ebay-direct
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "source": "upload",
+  "platform": "all"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "ebay-direct",
+    "status": "active",
+    "data": {
+      "source": "upload",
+      "platform": "all"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/image-search/marketplaces-direct
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/image-search/marketplaces-direct
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "source": "upload",
+  "platform": "all"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "marketplaces-direct",
+    "status": "active",
+    "data": {
+      "source": "upload",
+      "platform": "all"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/image-search/visual
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/image-search/visual
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "source": "upload",
+  "platform": "all"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "visual",
+    "status": "active",
+    "data": {
+      "source": "upload",
+      "platform": "all"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/products/:source/:productId/details
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/products/{{source}}/{{productId}}/details
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "details",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/users/nearby
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/users/nearby
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/users/me/avatar
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/users/me/avatar
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/users/me/avatar
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/users/me/avatar
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "name": "Example",
+  "description": "Example request body"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "avatar",
+    "status": "active",
+    "data": {
+      "name": "Example",
+      "description": "Example request body"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/saved-products
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/saved-products
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/saved-products
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/saved-products
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Date",
+  "price": 12500,
+  "currency": "USD",
+  "source": "ebay",
+  "externalId": "v1|123456789|0"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "saved-products",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Date",
+      "price": 12500,
+      "currency": "USD",
+      "source": "ebay",
+      "externalId": "v1|123456789|0"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/recommended-products
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/recommended-products
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/subscription/plans
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/subscription/plans
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/subscription
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/subscription
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/subscription/checkout
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/subscription/checkout
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "planId": "pro_monthly",
+  "successUrl": "https://mywatchbox.net/success",
+  "cancelUrl": "https://mywatchbox.net/cancel"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "checkout",
+    "status": "active",
+    "data": {
+      "planId": "pro_monthly",
+      "successUrl": "https://mywatchbox.net/success",
+      "cancelUrl": "https://mywatchbox.net/cancel"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/subscription/portal
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/subscription/portal
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "returnUrl": "https://mywatchbox.net/profile"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "portal",
+    "status": "active",
+    "data": {
+      "returnUrl": "https://mywatchbox.net/profile"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/payments/config
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/api/v1/payments/config
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/payments/products/:productId/status
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/payments/products/{{productId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "status",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/listings/:productId/status
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/listings/{{productId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "status",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/payments/products/:productId/payment-intent
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/payments/products/{{productId}}/payment-intent
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "amount": 12500,
+  "currency": "USD"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "payment-intent",
+    "status": "active",
+    "data": {
+      "amount": 12500,
+      "currency": "USD"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/orders/:orderId/confirm-payment
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/orders/{{orderId}}/confirm-payment
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "listingId": "{{listingId}}",
+  "offerAmount": 12000,
+  "currency": "USD"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "confirm-payment",
+    "status": "active",
+    "data": {
+      "listingId": "{{listingId}}",
+      "offerAmount": 12000,
+      "currency": "USD"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/watch-alerts
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/watch-alerts
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Alert",
+  "brand": "Rolex",
+  "model": "Submariner",
+  "maxPrice": 13000,
+  "currency": "USD"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "watch-alerts",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Alert",
+      "brand": "Rolex",
+      "model": "Submariner",
+      "maxPrice": 13000,
+      "currency": "USD"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/watch-alerts
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/watch-alerts
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### DELETE /api/v1/watch-alerts/:alertId
+Auth: Bearer token required (Customer)
+Request:
+```http
+DELETE {{baseUrl}}/api/v1/watch-alerts/{{alertId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "alertId",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/watch-alerts/run
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/watch-alerts/run
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Alert",
+  "brand": "Rolex",
+  "model": "Submariner",
+  "maxPrice": 13000,
+  "currency": "USD"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "run",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Alert",
+      "brand": "Rolex",
+      "model": "Submariner",
+      "maxPrice": 13000,
+      "currency": "USD"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/watch-alert-events
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/watch-alert-events
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/listings/:listingId/images
+Auth: Bearer token required (Customer)
+Request:
+```http
+GET {{baseUrl}}/api/v1/listings/{{listingId}}/images
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "images",
+    "status": "active",
+    "data": {}
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/listings/:listingId/images
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/listings/{{listingId}}/images
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Date",
+  "brand": "Rolex",
+  "model": "Submariner",
+  "price": 12500,
+  "currency": "USD",
+  "condition": "excellent"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "images",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Date",
+      "brand": "Rolex",
+      "model": "Submariner",
+      "price": 12500,
+      "currency": "USD",
+      "condition": "excellent"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/listings/:listingId/images/upload
+Auth: Bearer token required (Customer)
+Request:
+```http
+POST {{baseUrl}}/api/v1/listings/{{listingId}}/images/upload
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "title": "Rolex Submariner Date",
+  "brand": "Rolex",
+  "model": "Submariner",
+  "price": 12500,
+  "currency": "USD",
+  "condition": "excellent"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "upload",
+    "status": "active",
+    "data": {
+      "title": "Rolex Submariner Date",
+      "brand": "Rolex",
+      "model": "Submariner",
+      "price": 12500,
+      "currency": "USD",
+      "condition": "excellent"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/admin/auth/register
+Auth: No auth
+Request:
+```http
+POST {{baseUrl}}/api/v1/admin/auth/register
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "email": "customer@example.com",
+  "password": "customer-password",
+  "displayName": "Customer One"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "account": {
+      "id": "64f000000000000000000001",
+      "email": "admin@example.com",
+      "displayName": "Admin One"
+    },
+    "sessionId": "64f000000000000000000002",
+    "tokens": {
+      "accessToken": "jwt-access-token",
+      "refreshToken": "jwt-refresh-token",
+      "tokenType": "Bearer",
+      "expiresIn": 900
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/admin/settings/content/images
+Auth: Bearer token required (Admin)
+Request:
+```http
+POST {{baseUrl}}/api/v1/admin/settings/content/images
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "name": "Example",
+  "description": "Example request body"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "images",
+    "status": "active",
+    "data": {
+      "name": "Example",
+      "description": "Example request body"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### POST /api/v1/admin/settings/content/pages/:slug
+Auth: Bearer token required (Admin)
+Request:
+```http
+POST {{baseUrl}}/api/v1/admin/settings/content/pages/{{slug}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "name": "Example",
+  "description": "Example request body"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "slug",
+    "status": "active",
+    "data": {
+      "name": "Example",
+      "description": "Example request body"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/admin/subscriptions/settings
+Auth: Bearer token required (Admin)
+Request:
+```http
+GET {{baseUrl}}/api/v1/admin/subscriptions/settings
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### PATCH /api/v1/admin/subscriptions/settings
+Auth: Bearer token required (Admin)
+Request:
+```http
+PATCH {{baseUrl}}/api/v1/admin/subscriptions/settings
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+{
+  "name": "Updated value",
+  "status": "active"
+}
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "64f000000000000000000001",
+    "resource": "settings",
+    "status": "active",
+    "data": {
+      "name": "Updated value",
+      "status": "active"
+    }
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/admin/subscriptions/actions
+Auth: Bearer token required (Admin)
+Request:
+```http
+GET {{baseUrl}}/api/v1/admin/subscriptions/actions
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/admin/bulk-email/recipients
+Auth: Bearer token required (Admin)
+Request:
+```http
+GET {{baseUrl}}/api/v1/admin/bulk-email/recipients
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /health
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/health
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /health/live
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/health/live
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /health/ready
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/health/ready
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /internal
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/internal
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/api/v1
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
+    "requestId": "request-id"
+  }
+}
+```
+Error response:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "path": "field",
+        "message": "Required"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "request-id"
+  }
+}
+```
+### GET /api/v1/admin
+Auth: No auth
+Request:
+```http
+GET {{baseUrl}}/api/v1/admin
+Content-Type: application/json
+```
+Request body:
+```json
+null
+```
+Success response:
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 1,
     "requestId": "request-id"
   }
 }

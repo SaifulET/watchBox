@@ -435,81 +435,527 @@ const routeMeta = {
     feature: 'AdminDashboard / AdminController.toggleImageSearch() / toggleAds()',
     desc: 'Enables or disables platform features dynamically without redeploying.',
     auth: 'Admin Bearer'
+  },
+  // eBay Customer & Dealer Integration
+  'GET /api/v1/ebay/connect': {
+    title: 'Get eBay OAuth URL / Initiate Connection',
+    feature: 'ProfileTab (Connect eBay Button) / EbayApiService.connect()',
+    desc: 'Returns the eBay User Consent OAuth URL. When opened, the user authorizes The Watch Box to manage their listings.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/ebay/status': {
+    title: 'Check eBay Account Connection Status',
+    feature: 'ProfileTab (eBay Status Badge) / EbayApiService.getStatus()',
+    desc: 'Returns whether the current customer has an active, valid eBay OAuth token, eBay username, and expiration.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/ebay/disconnect': {
+    title: 'Disconnect eBay Account',
+    feature: 'ProfileTab (Disconnect eBay Dialog)',
+    desc: 'Revokes the stored eBay OAuth credentials for this customer and disconnects their account.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/ebay/oauth/callback': {
+    title: 'eBay OAuth Callback Receiver',
+    feature: 'DeepLink / Webhook Callback',
+    desc: 'Public OAuth redirect URL where eBay sends the authorization code upon user consent. Exchanges code for token.',
+    auth: 'Public'
+  },
+  'GET /api/v1/ebay/oauth/declined': {
+    title: 'eBay OAuth Declined Handler',
+    feature: 'DeepLink / OAuth Cancellation',
+    desc: 'Receives redirect when user declines eBay authorization consent.',
+    auth: 'Public'
+  },
+  'POST /api/v1/dealer/listings/:listingId/publish-to-ebay': {
+    title: 'Publish Watch Listing to eBay Marketplace',
+    feature: 'ListingDetailScreen (Sync to eBay Button)',
+    desc: 'Pushes an in-app watch listing to eBay as an active inventory item using eBay Inventory & Merchant APIs.',
+    auth: 'Customer Bearer (Dealer)'
+  },
+  // Marketplaces Aggregated Search & eBay Integration
+  'GET /api/v1/marketplaces/search': {
+    title: 'Multi-Marketplace Unified Search',
+    feature: 'SearchTab / WatchSearchController',
+    desc: 'Aggregates search results across eBay, Chrono24, and internal inventory simultaneously.',
+    auth: 'Customer Bearer (or Public with rate limit)'
+  },
+  'GET /api/v1/marketplaces/ebay/search': {
+    title: 'eBay Real-Time Marketplace Search',
+    feature: 'SearchTab (eBay Filter Checked)',
+    desc: 'Queries eBay Browse API in real-time with filters for brand, model, price, condition, and currency.',
+    auth: 'Customer Bearer / Public'
+  },
+  'POST /api/v1/marketplaces/ebay/search-by-location': {
+    title: 'eBay Proximity / Radius Search',
+    feature: 'SearchTab (Near Me Filter / Location Radius)',
+    desc: 'Finds eBay watch listings within a specific geographic coordinate radius (latitude, longitude, radiusMiles).',
+    auth: 'Customer Bearer / Public'
+  },
+  'GET /api/v1/marketplaces/ebay/analytics': {
+    title: 'eBay Pricing Analytics & Market Velocity',
+    feature: 'PriceAnalyticsTab (eBay Market Trend Chart)',
+    desc: 'Calculates average sale price, volume, and days-on-market for watches sold on eBay.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/ebay/seller-verification': {
+    title: 'Verify eBay Seller Trust & Feedback Score',
+    feature: 'ListingDetailScreen (Seller Reputation Card)',
+    desc: 'Fetches seller positive feedback percentage, total feedback score, and verified dealer badges.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/ebay/market-insights': {
+    title: 'eBay Luxury Watch Market Insights',
+    feature: 'MarketplaceInsightsScreen / Daily Watch Report',
+    desc: 'Summarizes high-demand luxury watch models, price fluctuations, and trading liquidity on eBay.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/marketplaces/ebay/listings/:listingId/share': {
+    title: 'Share Listing to eBay External Channel',
+    feature: 'ListingDetailScreen (Share Options)',
+    desc: 'Generates affiliate share link or exports listing details directly to eBay.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/ebay/connection': {
+    title: 'Test eBay API Gateway Health & Token',
+    feature: 'System Probe / Diagnostic',
+    desc: 'Verifies backend connectivity with eBay Developer Sandbox/Production endpoints.',
+    auth: 'Customer Bearer / Admin'
+  },
+  // Chrono24 Marketplace Integration
+  'GET /api/v1/marketplaces/chrono24/search': {
+    title: 'Chrono24 Direct Listing Search',
+    feature: 'SearchTab (Chrono24 Filter Checked)',
+    desc: 'Searches luxury watch listings on Chrono24 with price, condition, year, and location filters.',
+    auth: 'Customer Bearer / Public'
+  },
+  'POST /api/v1/marketplaces/chrono24/search': {
+    title: 'Chrono24 Visual Image Search',
+    feature: 'SearchTab (Visual Image Search -> Chrono24)',
+    desc: 'Uploads watch photo to find matching luxury listings on Chrono24.',
+    auth: 'Customer Bearer / Public'
+  },
+  'POST /api/v1/marketplaces/chrono24/search-by-location': {
+    title: 'Chrono24 Location & Regional Dealer Search',
+    feature: 'SearchTab (Nearby Chrono24 Dealers)',
+    desc: 'Finds Chrono24 verified dealer listings within geographic coordinates.',
+    auth: 'Customer Bearer / Public'
+  },
+  'GET /api/v1/marketplaces/chrono24/analytics': {
+    title: 'Chrono24 Watch Price Index Analytics',
+    feature: 'PriceAnalyticsTab (Chrono24 Benchmark)',
+    desc: 'Provides Chrono24 market trends, valuation historical charts, and price performance indices.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/chrono24/market-insights': {
+    title: 'Chrono24 Global Market Insights',
+    feature: 'MarketplaceInsightsScreen',
+    desc: 'Returns global market demand, brand market share, and fast-moving reference numbers on Chrono24.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/chrono24/products/:id/similar': {
+    title: 'Chrono24 Similar Reference Watches',
+    feature: 'WatchDetailScreen (More Like This Carousel)',
+    desc: 'Returns similar watch models based on brand, dial color, and price segment from Chrono24.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/chrono24/products/:id/recommendations': {
+    title: 'Chrono24 AI Recommendations',
+    feature: 'WatchDetailScreen (Collector Recommendations)',
+    desc: 'Curated list of complementary watches and alternative models from Chrono24.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/marketplaces/chrono24/products/:id': {
+    title: 'Chrono24 Full Product Details',
+    feature: 'WatchDetailScreen (External Chrono24 Card)',
+    desc: 'Fetches detailed watch specifications (case size, movement, box/papers) from Chrono24.',
+    auth: 'Customer Bearer'
+  },
+  // AI & Visual Search
+  'POST /api/v1/ai/analyze-image': {
+    title: 'AI Watch Vision Analyzer (Dial, Bezel, Hands)',
+    feature: 'VisualSearchScreen / CameraAIController',
+    desc: 'Sends watch photo to Gemini AI Vision to detect brand, model, dial color, reference number, and authenticity indicators.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/ai/search': {
+    title: 'AI Multi-Platform Image Search',
+    feature: 'VisualSearchScreen (Scan & Search)',
+    desc: 'Combines AI vision extraction with multi-marketplace aggregated queries across eBay and Chrono24.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/image-search/ebay-direct': {
+    title: 'Direct eBay Image Similarity Search',
+    feature: 'VisualSearchScreen (eBay Tab)',
+    desc: 'Direct visual similarity search targeting eBay Image Search API.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/image-search/marketplaces-direct': {
+    title: 'Direct Multi-Marketplace Visual Search',
+    feature: 'VisualSearchScreen (All Platforms Tab)',
+    desc: 'Searches multiple external marketplaces simultaneously using uploaded watch photograph.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/image-search/visual': {
+    title: 'Visual Feature Vector Embedding Search',
+    feature: 'VisualSearchScreen',
+    desc: 'Matches visual embedding vectors against internal watch catalog database.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/products/:source/:productId/details': {
+    title: 'Get Unified External Product Details',
+    feature: 'WatchDetailScreen (Cross-Platform Inspector)',
+    desc: 'Fetches normalized watch details from any external source (ebay, chrono24, grailzee).',
+    auth: 'Customer Bearer'
+  },
+  // User Profile
+  'GET /api/v1/users/nearby': {
+    title: 'Find Nearby Watch Collectors & Dealers',
+    feature: 'CommunityScreen / Location Filter',
+    desc: 'Finds watch enthusiasts and verified dealers located in the same city or radius.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/users/me/avatar': {
+    title: 'Get User Avatar Image URL',
+    feature: 'ProfileTab (Avatar Image Loader)',
+    desc: 'Returns the direct URL and cloud storage key of the user profile avatar.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/users/me/avatar': {
+    title: 'Upload Profile Avatar (Direct Multipart/Form-Data)',
+    feature: 'ProfileTab (Pick Image from Gallery / Camera)',
+    desc: 'Direct multipart upload of user profile image. Resizes and stores in S3/Cloud Storage.',
+    auth: 'Customer Bearer'
+  },
+  // Saved Products
+  'GET /api/v1/saved-products': {
+    title: 'List User Saved Watch Products',
+    feature: 'SavedTab / BookmarksList',
+    desc: 'Returns all saved external and internal watch listings for the authenticated user.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/saved-products': {
+    title: 'Save Watch Product to Bookmarks',
+    feature: 'WatchDetailScreen / Heart Button',
+    desc: 'Bookmarks a watch from eBay, Chrono24, or trader listing into user saved collection.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/recommended-products': {
+    title: 'Get Personalized Watch Recommendations',
+    feature: 'HomeTab (Recommended for You Reel)',
+    desc: 'Returns AI-recommended watch listings based on user saved items and recent searches.',
+    auth: 'Customer Bearer'
+  },
+  // Direct In-App Subscriptions
+  'GET /api/v1/subscription/plans': {
+    title: 'Get Available Subscription Plans',
+    feature: 'SubscriptionPlansScreen',
+    desc: 'Returns subscription plans with pricing, feature list, and Stripe Price IDs.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/subscription': {
+    title: 'Get Active Subscription Status',
+    feature: 'ProfileTab / Subscription Status Gauge',
+    desc: 'Returns customer current subscription plan, status (active, canceled), and renewal date.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/subscription/checkout': {
+    title: 'Initiate Stripe Subscription Checkout',
+    feature: 'SubscriptionPlansScreen (Subscribe Button)',
+    desc: 'Creates a Stripe Checkout Session for subscription upgrades.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/subscription/portal': {
+    title: 'Create Stripe Customer Billing Portal Session',
+    feature: 'ProfileTab (Manage Billing / Invoices)',
+    desc: 'Generates a Stripe Customer Portal link where user can manage credit cards and invoices.',
+    auth: 'Customer Bearer'
+  },
+  // Payments & Orders
+  'GET /api/v1/payments/config': {
+    title: 'Get Public Stripe Configuration',
+    feature: 'StripePaymentSheet / AppInit',
+    desc: 'Returns Stripe publishable key and supported payment currencies.',
+    auth: 'Public'
+  },
+  'GET /api/v1/payments/products/:productId/status': {
+    title: 'Check Product Payment & Escrow Status',
+    feature: 'ListingDetailScreen (Buy Now / Reserved Status)',
+    desc: 'Checks if an item has a pending payment or is reserved by another buyer.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/payments/products/:productId/payment-intent': {
+    title: 'Create Direct Product Payment Intent',
+    feature: 'BuyNowSheet / PaymentController',
+    desc: 'Creates a Stripe PaymentIntent for instant watch listing purchase.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/orders/:orderId/confirm-payment': {
+    title: 'Confirm Order Payment Fulfillment',
+    feature: 'OrderSuccessScreen',
+    desc: 'Confirms that the buyer payment intent succeeded and places the order into Escrow.',
+    auth: 'Customer Bearer'
+  },
+  // Watch Alerts
+  'POST /api/v1/watch-alerts': {
+    title: 'Create Real-Time Watch Price Alert',
+    feature: 'WatchAlertsScreen (Create New Alert Dialog)',
+    desc: 'Sets up a background monitoring trigger for a specific brand/model below a target price.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/watch-alerts': {
+    title: 'List Active Watch Price Alerts',
+    feature: 'WatchAlertsScreen / AlertsListView',
+    desc: 'Returns all configured price drop alerts for the user.',
+    auth: 'Customer Bearer'
+  },
+  'DELETE /api/v1/watch-alerts/:alertId': {
+    title: 'Delete Watch Price Alert',
+    feature: 'WatchAlertsScreen (Swipe to Delete)',
+    desc: 'Removes a price alert trigger.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/watch-alerts/run': {
+    title: 'Trigger Instant Alert Match Scan',
+    feature: 'WatchAlertsScreen (Manual Refresh / Sync)',
+    desc: 'Forces immediate scan of eBay and marketplace inventory for price alert matches.',
+    auth: 'Customer Bearer'
+  },
+  'GET /api/v1/watch-alert-events': {
+    title: 'List Watch Alert Trigger History',
+    feature: 'WatchAlertsScreen (Alert History Log)',
+    desc: 'Returns recent notifications generated by price alert matches.',
+    auth: 'Customer Bearer'
+  },
+  // Listing Images
+  'GET /api/v1/listings/:listingId/images': {
+    title: 'List Images for Watch Listing',
+    feature: 'CreateListingScreen (Photo Gallery)',
+    desc: 'Lists all uploaded photos, thumbnails, and display order for a watch listing.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/listings/:listingId/images': {
+    title: 'Upload Listing Photo (Multipart/Form-Data)',
+    feature: 'CreateListingScreen (Add Photo)',
+    desc: 'Direct multipart upload of a watch photograph to a listing.',
+    auth: 'Customer Bearer'
+  },
+  'POST /api/v1/listings/:listingId/images/upload': {
+    title: 'Upload Listing Photo Alternative Endpoint',
+    feature: 'CreateListingScreen (Add Photo)',
+    desc: 'Alias for listing photo multipart upload.',
+    auth: 'Customer Bearer'
+  },
+  // Webhooks
+  'GET /api/v1/webhooks/ebay': {
+    title: 'eBay Marketplace Deletion / Challenge Verification',
+    feature: 'eBay Webhook Infrastructure',
+    desc: 'Responds to eBay automated cryptographic challenge hash for webhook endpoint verification.',
+    auth: 'Public'
+  },
+  // Admin Extensions
+  'POST /api/v1/admin/auth/register': {
+    title: 'Register New Administrator Account',
+    feature: 'Admin Panel Initial Setup',
+    desc: 'Registers initial superadmin or requires existing admin privilege to provision staff accounts.',
+    auth: 'Admin Bearer / Setup'
+  },
+  'POST /api/v1/admin/settings/content/images': {
+    title: 'Admin Upload Content / CMS Image',
+    feature: 'Admin CMS (Article & Page Image Upload)',
+    desc: 'Uploads banners and illustrations used in mobile app terms, privacy, and guide pages.',
+    auth: 'Admin Bearer'
+  },
+  'GET /api/v1/admin/subscriptions/settings': {
+    title: 'Get Global Subscription System Settings',
+    feature: 'Admin Panel (Subscription Configuration)',
+    desc: 'Returns Stripe live/test mode flags, default trial periods, and currency configs.',
+    auth: 'Admin Bearer'
+  },
+  'PATCH /api/v1/admin/subscriptions/settings': {
+    title: 'Update Global Subscription System Settings',
+    feature: 'Admin Panel (Subscription Configuration)',
+    desc: 'Updates trial lengths, currency toggles, and webhook secret settings.',
+    auth: 'Admin Bearer'
+  },
+  'GET /api/v1/admin/subscriptions/actions': {
+    title: 'Get Subscription Audit Actions',
+    feature: 'Admin Panel (Billing Audit Trail)',
+    desc: 'Returns timeline of subscription upgrades, downgrades, cancellations, and manual grants.',
+    auth: 'Admin Bearer'
+  },
+  'GET /api/v1/admin/bulk-email/recipients': {
+    title: 'List Eligible Bulk Email Recipients',
+    feature: 'Admin Panel (Campaign Audience Builder)',
+    desc: 'Filters user lists by tier, activity, and notification opt-ins for email blasts.',
+    auth: 'Admin Bearer'
+  },
+  // System Health
+  'GET /health': {
+    title: 'System Health Check & Uptime Probe',
+    feature: 'Load Balancer / Monitoring',
+    desc: 'Returns HTTP 200 with server status and uptime in seconds.',
+    auth: 'Public'
+  },
+  'GET /health/live': {
+    title: 'Kubernetes Liveness Probe',
+    feature: 'DevOps / Kubernetes Liveness',
+    desc: 'Confirms that the Node.js process is responsive.',
+    auth: 'Public'
+  },
+  'GET /health/ready': {
+    title: 'Kubernetes Readiness Probe (Mongo, Redis, RabbitMQ)',
+    feature: 'DevOps / Kubernetes Readiness',
+    desc: 'Performs round-trip ping checks to MongoDB, Redis, and RabbitMQ to confirm service readiness.',
+    auth: 'Public'
+  },
+  'GET /internal': {
+    title: 'Internal API Service Metadata',
+    feature: 'Internal Service Discovery',
+    desc: 'Returns internal API name and version.',
+    auth: 'Public'
+  },
+  'GET /api/v1': {
+    title: 'Customer API Gateway Root',
+    feature: 'API Gateway Discovery',
+    desc: 'Returns API metadata, status, and version.',
+    auth: 'Public'
+  },
+  'GET /api/v1/admin': {
+    title: 'Admin API Gateway Root',
+    feature: 'Admin Gateway Discovery',
+    desc: 'Returns Admin API metadata, status, and version.',
+    auth: 'Public'
   }
 };
 
 function getFolderForPath(method, fullPath) {
   const p = fullPath.replace('{{baseUrl}}', '');
   
+  // 17. System Health & Gateway Probes
+  if (p.startsWith('/health') || p.startsWith('/internal') || p === '/api/v1' || p === '/api/v1/admin') {
+    return ['17. System Health & Gateway', '17.1 Health & Service Probes'];
+  }
+
+  // 14. Admin Panel & Controls
   if (p.startsWith('/api/v1/admin')) {
     if (p.startsWith('/api/v1/admin/auth')) return ['14. Admin Panel & Controls', '14.1 Admin Authentication'];
     if (p.startsWith('/api/v1/admin/dashboard')) return ['14. Admin Panel & Controls', '14.2 Dashboard Analytics & Metrics'];
     if (p.startsWith('/api/v1/admin/users')) return ['14. Admin Panel & Controls', '14.3 User Management'];
-    if (p.startsWith('/api/v1/admin/subscriptions')) return ['14. Admin Panel & Controls', '14.4 Plans & Pricing Management'];
-    if (p.startsWith('/api/v1/admin/marketplaces')) return ['14. Admin Panel & Controls', '14.5 Marketplace Integration Controls'];
-    if (p.startsWith('/api/v1/admin/campaigns') || p.startsWith('/api/v1/admin/bulk-email')) return ['14. Admin Panel & Controls', '14.6 Social Campaigns & Automation'];
-    if (p.startsWith('/api/v1/admin/earnings')) return ['14. Admin Panel & Controls', '14.7 Financial Earnings & Billing Logs'];
-    if (p.startsWith('/api/v1/admin/settings')) return ['14. Admin Panel & Controls', '14.8 Feature Toggles & System Settings'];
-    return ['14. Admin Panel & Controls', '14.9 Audit Logs & Monitoring'];
+    if (p.startsWith('/api/v1/admin/administrators')) return ['14. Admin Panel & Controls', '14.4 Administrators & RBAC Roles'];
+    if (p.startsWith('/api/v1/admin/subscriptions')) return ['14. Admin Panel & Controls', '14.5 Plans & Pricing Management'];
+    if (p.startsWith('/api/v1/admin/earnings')) return ['14. Admin Panel & Controls', '14.6 Financial Earnings & Billing Logs'];
+    if (p.startsWith('/api/v1/admin/marketplaces')) return ['14. Admin Panel & Controls', '14.7 Marketplace Integration Controls'];
+    if (p.startsWith('/api/v1/admin/campaigns') || p.startsWith('/api/v1/admin/bulk-email')) return ['14. Admin Panel & Controls', '14.8 Social Campaigns & Bulk Email'];
+    if (p.startsWith('/api/v1/admin/support') || p.startsWith('/api/v1/admin/settings/content')) return ['14. Admin Panel & Controls', '14.9 Support Tickets & Content Management'];
+    if (p.startsWith('/api/v1/admin/settings')) return ['14. Admin Panel & Controls', '14.10 Feature Toggles & System Settings'];
+    return ['14. Admin Panel & Controls', '14.11 Audit Logs & Monitoring'];
   }
 
+  // 15. Platform Webhooks
   if (p.startsWith('/api/v1/webhooks')) {
     return ['15. Platform Webhooks', '15.1 Webhook Receivers'];
   }
 
+  // 16. eBay & External Marketplaces
+  if (
+    p.startsWith('/api/v1/ebay') ||
+    p.startsWith('/api/v1/dealer') ||
+    p.startsWith('/api/v1/marketplaces/ebay') ||
+    p.startsWith('/api/v1/marketplaces/chrono24') ||
+    p === '/api/v1/marketplaces/search' ||
+    p === '/api/v1/image-search/ebay-direct'
+  ) {
+    if (p.startsWith('/api/v1/ebay') || p.startsWith('/api/v1/dealer') || p === '/api/v1/marketplaces/ebay/connection') {
+      return ['16. eBay & External Marketplaces', '16.1 eBay Account OAuth & Dealer Sync'];
+    }
+    if (p.startsWith('/api/v1/marketplaces/ebay') || p === '/api/v1/image-search/ebay-direct') {
+      return ['16. eBay & External Marketplaces', '16.2 eBay Aggregated Search & Analytics'];
+    }
+    if (p.startsWith('/api/v1/marketplaces/chrono24')) {
+      return ['16. eBay & External Marketplaces', '16.3 Chrono24 Marketplace & Listings'];
+    }
+    return ['16. eBay & External Marketplaces', '16.4 Unified Marketplace Search'];
+  }
+
+  // 01. Authentication & Sessions
   if (p.startsWith('/api/v1/auth')) {
     return ['01. Authentication & Sessions', '01.1 Customer Auth'];
   }
 
+  // 02. User Profile & Preferences
   if (p.startsWith('/api/v1/users')) {
     return ['02. User Profile & Preferences', '02.1 Profile & Settings'];
   }
 
+  // 03. Search & Discovery
   if (p.startsWith('/api/v1/search')) {
     return ['03. Search & Discovery', '03.1 Aggregated Search'];
   }
 
+  // 04. Image Search & AI Detection
+  if (p.startsWith('/api/v1/ai') || p.includes('/auto-detect') || p.startsWith('/api/v1/products/')) {
+    return ['04. Image Search & AI Detection', '04.2 AI Watch Analyzer & Auto-Detect'];
+  }
   if (p.startsWith('/api/v1/image-search')) {
     return ['04. Image Search & AI Detection', '04.1 Visual Similarity Search'];
   }
 
-  if (p.startsWith('/api/v1/brands') || p.startsWith('/api/v1/watch-models') || p.startsWith('/api/v1/marketplaces') || (p.startsWith('/api/v1/listings') && method === 'GET' && !p.includes('/images') && !p.includes('/analytics'))) {
+  // 08. Saved Searches & Search Alerts
+  if (p.startsWith('/api/v1/watch-alerts') || p.startsWith('/api/v1/watch-alert-events')) {
+    return ['08. Saved Searches & Search Alerts', '08.2 Watch Price Alerts & Automated Matching'];
+  }
+  if (p.startsWith('/api/v1/saved-searches')) {
+    return ['08. Saved Searches & Search Alerts', '08.1 Saved Search Queries'];
+  }
+
+  // 07. Bookmarks & Watchlists
+  if (p.startsWith('/api/v1/saved-products') || p.startsWith('/api/v1/recommended-products')) {
+    return ['07. Bookmarks & Watchlists', '07.2 Saved Products & Recommended'];
+  }
+  if (p.startsWith('/api/v1/watchlists') || p.endsWith('/save') || p.includes('/save') || p.startsWith('/api/v1/me/saved-listings')) {
+    return ['07. Bookmarks & Watchlists', '07.1 Saved Listings & Watchlists'];
+  }
+
+  // 09. Notifications & Price Drop Alerts
+  if (p.startsWith('/api/v1/notifications') || p.startsWith('/api/v1/notification-preferences') || p.startsWith('/api/v1/devices')) {
+    return ['09. Notifications & Price Drop Alerts', '09.1 Push Notifications & Feeds'];
+  }
+
+  // 11. In-App Orders & Transactions
+  if (p.startsWith('/api/v1/payments') || p.startsWith('/api/v1/orders') || p.startsWith('/api/v1/me/orders') || p.startsWith('/api/v1/sellers') || p.startsWith('/api/v1/reviews') || p.endsWith('/status')) {
+    return ['11. In-App Orders & Transactions', '11.1 Orders & Payments'];
+  }
+
+  // 12. Subscriptions & Quota (5 Searches/mo Check)
+  if (p.startsWith('/api/v1/subscriptions') || p.startsWith('/api/v1/subscription')) {
+    return ['12. Subscriptions & Quota (5 Searches/mo Check)', '12.1 Plans & Quota Checks'];
+  }
+
+  // 10. Peer-to-Peer Marketplace & Trader Listings
+  if (p.includes('/images') && p.startsWith('/api/v1/listings')) {
+    return ['10. Peer-to-Peer Marketplace & Trader Listings', '10.2 Listing Photo Uploads & Galleries'];
+  }
+  if (p.startsWith('/api/v1/trader-collection') || p.startsWith('/api/v1/traders') || p.startsWith('/api/v1/me/listings') || p.startsWith('/api/v1/me/sales') || (p.startsWith('/api/v1/listings') && method !== 'GET')) {
+    return ['10. Peer-to-Peer Marketplace & Trader Listings', '10.1 Trader Listings & Management'];
+  }
+
+  // 05. Watch Details & Catalog
+  if (p.startsWith('/api/v1/brands') || p.startsWith('/api/v1/watch-models') || p.startsWith('/api/v1/marketplaces') || (p.startsWith('/api/v1/listings') && method === 'GET')) {
     if (p.includes('/outbound-link') || p.includes('/price-history') || p.includes('/similar') || p.includes('/seller') || p === '/api/v1/listings/{{listingId}}' || p === '/api/v1/listings/:listingId' || p === '/api/v1/listings') {
       return ['05. Watch Details & Catalog', '05.1 Catalog & Product Info'];
     }
     return ['05. Watch Details & Catalog', '05.2 Brands & Model Variants'];
   }
 
+  // 06. Price Trend & Market Analytics
   if (p.startsWith('/api/v1/analytics') || p.startsWith('/api/v1/recommendations') || p.startsWith('/api/v1/portfolio')) {
     return ['06. Price Trend & Market Analytics', '06.1 Market Insights & Trends'];
   }
 
-  if (p.startsWith('/api/v1/saved-searches')) {
-    return ['08. Saved Searches & Search Alerts', '08.1 Saved Search Queries'];
-  }
-
-  if (p.startsWith('/api/v1/watchlists') || p.endsWith('/save') || p.includes('/save') || p.startsWith('/api/v1/me/saved-listings')) {
-    return ['07. Bookmarks & Watchlists', '07.1 Saved Listings & Watchlists'];
-  }
-
-  if (p.startsWith('/api/v1/notifications') || p.startsWith('/api/v1/notification-preferences') || p.startsWith('/api/v1/devices')) {
-    return ['09. Notifications & Price Drop Alerts', '09.1 Push Notifications & Feeds'];
-  }
-
-  if (p.startsWith('/api/v1/orders') || p.startsWith('/api/v1/me/orders') || p.startsWith('/api/v1/sellers') || p.startsWith('/api/v1/reviews')) {
-    return ['11. In-App Orders & Transactions', '11.1 Orders & Payments'];
-  }
-
-  if (p.startsWith('/api/v1/subscriptions')) {
-    return ['12. Subscriptions & Quota (5 Searches/mo Check)', '12.1 Plans & Quota Checks'];
-  }
-
+  // 13. Support, Content & Reports
   if (p.startsWith('/api/v1/support') || p.startsWith('/api/v1/reports') || p.startsWith('/api/v1/me/reports') || p.startsWith('/api/v1/content')) {
     return ['13. Support, Content & Reports', '13.1 Help & Static Content'];
-  }
-
-  if (p.startsWith('/api/v1/trader-collection') || p.startsWith('/api/v1/traders') || p.startsWith('/api/v1/me/listings') || p.startsWith('/api/v1/me/sales') || p.startsWith('/api/v1/listings')) {
-    return ['10. Peer-to-Peer Marketplace & Trader Listings', '10.1 Trader Listings & Management'];
   }
 
   return ['99. Miscellaneous', '99.1 General'];
@@ -655,6 +1101,19 @@ const finalCollection = {
     { key: 'reportId', value: '64f000000000000000000012', type: 'string' },
     { key: 'campaignId', value: '64f000000000000000000013', type: 'string' },
     { key: 'marketplaceId', value: '64f000000000000000000014', type: 'string' },
+    { key: 'productId', value: '64f000000000000000000015', type: 'string' },
+    { key: 'source', value: 'ebay', type: 'string' },
+    { key: 'searchId', value: '64f000000000000000000016', type: 'string' },
+    { key: 'alertId', value: '64f000000000000000000017', type: 'string' },
+    { key: 'promotionId', value: '64f000000000000000000018', type: 'string' },
+    { key: 'transactionId', value: '64f000000000000000000019', type: 'string' },
+    { key: 'paymentId', value: '64f000000000000000000020', type: 'string' },
+    { key: 'adminId', value: '64f000000000000000000021', type: 'string' },
+    { key: 'imageId', value: '64f000000000000000000022', type: 'string' },
+    { key: 'portfolioItemId', value: '64f000000000000000000023', type: 'string' },
+    { key: 'userId', value: '64f000000000000000000024', type: 'string' },
+    { key: 'featureKey', value: 'enable_image_search', type: 'string' },
+    { key: 'id', value: '1234567890', type: 'string' },
     { key: 'token', value: '', type: 'string' },
     { key: 'webhookSignature', value: '', type: 'string' }
   ],

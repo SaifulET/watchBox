@@ -31,7 +31,12 @@ export const createUsersRouter = (dependencies: RouteDependencies = {}): Router 
   router.use(customerAuth);
   router.get("/nearby", validate({ query: nearbyUsersQuerySchema }), asyncHandler(controller.nearby));
   router.get("/me", asyncHandler(controller.me));
-  router.patch("/me", validate({ body: updateProfileSchema }), asyncHandler(controller.updateMe));
+  router.patch(
+    "/me",
+    requireSingleImage(["image", "profileImage", "avatar"]),
+    validate({ body: updateProfileSchema }),
+    asyncHandler(controller.updateMe)
+  );
   router.delete("/me", asyncHandler(controller.deleteMe));
   router.get("/me/activity", asyncHandler(controller.activity));
   router.get("/me/stats", asyncHandler(controller.stats));
