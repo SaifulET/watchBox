@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { asyncHandler } from "../common/middleware/async-handler.js";
+import { validate } from "../common/middleware/validate.js";
 import { sendSuccess } from "../common/utils/api-response.js";
 import { createAiRouter } from "../modules/customer/ai/ai.routes.js";
 import { createCustomerAuthRouter } from "../modules/customer/auth/auth.routes.js";
@@ -8,6 +10,9 @@ import { createListingImagesRouter } from "../modules/customer/listings/listing-
 import { createEbayWebhookRouter } from "../modules/customer/marketplaces/ebay-webhook.routes.js";
 import { createListingsRouter } from "../modules/customer/listings/listings.routes.js";
 import { createMarketplacesRouter } from "../modules/customer/marketplaces/marketplaces.routes.js";
+import { MarketplaceController } from "../modules/customer/marketplaces/marketplaces.controller.js";
+import { MarketplaceService } from "../modules/customer/marketplaces/marketplaces.service.js";
+import { marketplaceAggregateSearchQuerySchema } from "../modules/customer/marketplaces/marketplaces.validation.js";
 import { createNotificationPreferencesRouter } from "../modules/customer/notification-preferences/notification-preferences.routes.js";
 import { createPurchasesRouter } from "../modules/customer/purchases/purchases.routes.js";
 import { createSavedRouter } from "../modules/customer/saved/saved.routes.js";
@@ -36,6 +41,12 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/admin/settings/content", createAdminContentRouter());
   router.use("/listings", createListingsRouter());
   router.use("/listings", createListingImagesRouter());
+  const marketplaceController = new MarketplaceController(new MarketplaceService(dependencies.redis));
+  router.get(
+    "/search",
+    validate({ query: marketplaceAggregateSearchQuerySchema }),
+    asyncHandler(marketplaceController.searchAll)
+  );
   router.use("/marketplaces", createMarketplacesRouter(dependencies));
   router.use(createSavedRouter());
   router.use(createSubscriptionsRouter());

@@ -25,7 +25,8 @@ import { validateWebhookSignature } from "./webhook-signature.middleware.js";
 const alreadyImplemented = (path: string): boolean =>
   path.includes("/auth/") ||
   path.startsWith("/api/v1/users/me") ||
-  path === "/api/v1/notification-preferences";
+  path === "/api/v1/notification-preferences" ||
+  path === "/api/v1/search";
 
 const jobSegments = new Set([
   "upload-urls",
