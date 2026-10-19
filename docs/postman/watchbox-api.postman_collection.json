@@ -7665,7 +7665,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -7708,7 +7708,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7718,7 +7718,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"upload-url\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"upload-url\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -8067,7 +8067,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -8111,7 +8111,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8121,7 +8121,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"feedback\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"feedback\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -15232,16 +15232,6 @@
             "content",
             "terms"
           ]
-        },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
         }
       },
       "response": [
@@ -15265,16 +15255,6 @@
                 "v1",
                 "content",
                 "terms"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{accessToken}}",
-                  "type": "string"
-                }
               ]
             }
           },
@@ -15305,16 +15285,6 @@
             "content",
             "privacy-policy"
           ]
-        },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
         }
       },
       "response": [
@@ -15338,16 +15308,6 @@
                 "v1",
                 "content",
                 "privacy-policy"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{accessToken}}",
-                  "type": "string"
-                }
               ]
             }
           },
@@ -15378,16 +15338,6 @@
             "content",
             "about"
           ]
-        },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
         }
       },
       "response": [
@@ -15411,16 +15361,6 @@
                 "v1",
                 "content",
                 "about"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{accessToken}}",
-                  "type": "string"
-                }
               ]
             }
           },
@@ -15451,16 +15391,6 @@
             "content",
             "support"
           ]
-        },
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{accessToken}}",
-              "type": "string"
-            }
-          ]
         }
       },
       "response": [
@@ -15484,16 +15414,6 @@
                 "v1",
                 "content",
                 "support"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{accessToken}}",
-                  "type": "string"
-                }
               ]
             }
           },
@@ -19071,7 +18991,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19114,7 +19034,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -19124,7 +19044,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"administrators\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"administrators\",\n    \"status\": \"active\",\n    \"data\": {\n      \"email\": \"admin2@example.com\",\n      \"name\": \"Admin Two\",\n      \"role\": \"moderator\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -19238,7 +19158,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19282,7 +19202,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -19292,7 +19212,7 @@
           },
           "status": "OK",
           "code": 201,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"roles\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"roles\",\n    \"status\": \"active\",\n    \"data\": {\n      \"email\": \"admin2@example.com\",\n      \"name\": \"Admin Two\",\n      \"role\": \"moderator\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -19650,7 +19570,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19695,7 +19615,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -19705,7 +19625,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"activate\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"activate\",\n    \"status\": \"active\",\n    \"data\": {\n      \"email\": \"admin2@example.com\",\n      \"name\": \"Admin Two\",\n      \"role\": \"moderator\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -19745,7 +19665,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19790,7 +19710,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -19800,7 +19720,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"suspend\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"suspend\",\n    \"status\": \"active\",\n    \"data\": {\n      \"email\": \"admin2@example.com\",\n      \"name\": \"Admin Two\",\n      \"role\": \"moderator\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -19915,7 +19835,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -19960,7 +19880,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"name\": \"Admin Two\",\n  \"role\": \"moderator\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -19970,7 +19890,7 @@
           },
           "status": "OK",
           "code": 200,
-          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"revoke-sessions\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"revoke-sessions\",\n    \"status\": \"active\",\n    \"data\": {\n      \"email\": \"admin2@example.com\",\n      \"name\": \"Admin Two\",\n      \"role\": \"moderator\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     },
@@ -28844,6 +28764,67 @@
       ]
     },
     {
+      "name": "GET /api/v1/webhooks/ebay",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-watchbox-signature",
+            "value": "{{webhookSignature}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/webhooks/ebay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "webhooks",
+            "ebay"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-watchbox-signature",
+                "value": "{{webhookSignature}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/webhooks/ebay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "webhooks",
+                "ebay"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
       "name": "POST /api/v1/webhooks/ebay",
       "request": {
         "method": "POST",
@@ -29077,6 +29058,4988 @@
           "status": "OK",
           "code": 201,
           "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"push\",\n    \"status\": \"active\",\n    \"data\": {\n      \"id\": \"evt_123\",\n      \"type\": \"event.received\",\n      \"data\": {\n        \"example\": true\n      }\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/ebay/connect",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ebay/connect",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ebay",
+            "connect"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ebay/connect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ebay",
+                "connect"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/ebay/status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ebay/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ebay",
+            "status"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ebay/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ebay",
+                "status"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/ebay/disconnect",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ebay/disconnect",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ebay",
+            "disconnect"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ebay/disconnect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ebay",
+                "disconnect"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"disconnect\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/ebay/oauth/callback",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ebay/oauth/callback",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ebay",
+            "oauth",
+            "callback"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ebay/oauth/callback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ebay",
+                "oauth",
+                "callback"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/ebay/oauth/declined",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ebay/oauth/declined",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ebay",
+            "oauth",
+            "declined"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ebay/oauth/declined",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ebay",
+                "oauth",
+                "declined"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/dealer/listings/:listingId/publish-to-ebay",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/dealer/listings/{{listingId}}/publish-to-ebay",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "dealer",
+            "listings",
+            "{{listingId}}",
+            "publish-to-ebay"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dealer/listings/{{listingId}}/publish-to-ebay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dealer",
+                "listings",
+                "{{listingId}}",
+                "publish-to-ebay"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"publish-to-ebay\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Date\",\n      \"brand\": \"Rolex\",\n      \"model\": \"Submariner\",\n      \"price\": 12500,\n      \"currency\": \"USD\",\n      \"condition\": \"excellent\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/search",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "search"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "search"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/ebay/search",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "search"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "search"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/marketplaces/ebay/search-by-location",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/search-by-location",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "search-by-location"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"keyword\": \"Rolex Submariner\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.006,\n  \"radiusMiles\": 50\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/search-by-location",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "search-by-location"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"Rolex Submariner\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.006,\n  \"radiusMiles\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"search-by-location\",\n    \"status\": \"active\",\n    \"data\": {\n      \"keyword\": \"Rolex Submariner\",\n      \"latitude\": 40.7128,\n      \"longitude\": -74.006,\n      \"radiusMiles\": 50\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/ebay/analytics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/analytics",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "analytics"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/analytics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "analytics"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/ebay/seller-verification",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/seller-verification",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "seller-verification"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/seller-verification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "seller-verification"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/ebay/market-insights",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/market-insights",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "market-insights"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/market-insights",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "market-insights"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/marketplaces/ebay/listings/:listingId/share",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/listings/{{listingId}}/share",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "listings",
+            "{{listingId}}",
+            "share"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/listings/{{listingId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "listings",
+                "{{listingId}}",
+                "share"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"share\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Date\",\n      \"brand\": \"Rolex\",\n      \"model\": \"Submariner\",\n      \"price\": 12500,\n      \"currency\": \"USD\",\n      \"condition\": \"excellent\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/ebay/connection",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/connection",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "ebay",
+            "connection"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/ebay/connection",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "ebay",
+                "connection"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/chrono24/search",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "search"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "search"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/marketplaces/chrono24/search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "search"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "search"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"search\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/marketplaces/chrono24/search-by-location",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/search-by-location",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "search-by-location"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"keyword\": \"Rolex Submariner\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.006,\n  \"radiusMiles\": 50\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/search-by-location",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "search-by-location"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"Rolex Submariner\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.006,\n  \"radiusMiles\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"search-by-location\",\n    \"status\": \"active\",\n    \"data\": {\n      \"keyword\": \"Rolex Submariner\",\n      \"latitude\": 40.7128,\n      \"longitude\": -74.006,\n      \"radiusMiles\": 50\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/chrono24/analytics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/analytics",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "analytics"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/analytics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "analytics"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/chrono24/market-insights",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/market-insights",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "market-insights"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/market-insights",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "market-insights"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/chrono24/products/:id/similar",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}/similar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "products",
+            "{{id}}",
+            "similar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}/similar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "products",
+                "{{id}}",
+                "similar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"similar\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/chrono24/products/:id/recommendations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}/recommendations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "products",
+            "{{id}}",
+            "recommendations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}/recommendations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "products",
+                "{{id}}",
+                "recommendations"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"recommendations\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/marketplaces/chrono24/products/:id",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "marketplaces",
+            "chrono24",
+            "products",
+            "{{id}}"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketplaces/chrono24/products/{{id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketplaces",
+                "chrono24",
+                "products",
+                "{{id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"id\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/ai/analyze-image",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ai/analyze-image",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ai",
+            "analyze-image"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/analyze-image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "analyze-image"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"analyze-image\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/ai/search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ai/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "ai",
+            "search"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "search"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"search\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/image-search/ebay-direct",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/image-search/ebay-direct",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "image-search",
+            "ebay-direct"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/image-search/ebay-direct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "image-search",
+                "ebay-direct"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"ebay-direct\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/image-search/marketplaces-direct",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/image-search/marketplaces-direct",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "image-search",
+            "marketplaces-direct"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/image-search/marketplaces-direct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "image-search",
+                "marketplaces-direct"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"marketplaces-direct\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/image-search/visual",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/image-search/visual",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "image-search",
+            "visual"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/image-search/visual",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "image-search",
+                "visual"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"upload\",\n  \"platform\": \"all\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"visual\",\n    \"status\": \"active\",\n    \"data\": {\n      \"source\": \"upload\",\n      \"platform\": \"all\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/products/:source/:productId/details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/products/{{source}}/{{productId}}/details",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "products",
+            "{{source}}",
+            "{{productId}}",
+            "details"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products/{{source}}/{{productId}}/details",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{source}}",
+                "{{productId}}",
+                "details"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"details\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/users/nearby",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/nearby",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "nearby"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/nearby",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "nearby"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/users/me/avatar",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me/avatar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me",
+            "avatar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me",
+                "avatar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/users/me/avatar",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me/avatar",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me",
+            "avatar"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me",
+                "avatar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"avatar\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/saved-products",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/saved-products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "saved-products"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-products"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/saved-products",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/saved-products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "saved-products"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"source\": \"ebay\",\n  \"externalId\": \"v1|123456789|0\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-products"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"source\": \"ebay\",\n  \"externalId\": \"v1|123456789|0\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"saved-products\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Date\",\n      \"price\": 12500,\n      \"currency\": \"USD\",\n      \"source\": \"ebay\",\n      \"externalId\": \"v1|123456789|0\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/recommended-products",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/recommended-products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "recommended-products"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/recommended-products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "recommended-products"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/subscription/plans",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/subscription/plans",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "subscription",
+            "plans"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscription/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscription",
+                "plans"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/subscription",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/subscription",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "subscription"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscription"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/subscription/checkout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/subscription/checkout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "subscription",
+            "checkout"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"pro_monthly\",\n  \"successUrl\": \"https://mywatchbox.net/success\",\n  \"cancelUrl\": \"https://mywatchbox.net/cancel\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscription/checkout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscription",
+                "checkout"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": \"pro_monthly\",\n  \"successUrl\": \"https://mywatchbox.net/success\",\n  \"cancelUrl\": \"https://mywatchbox.net/cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"checkout\",\n    \"status\": \"active\",\n    \"data\": {\n      \"planId\": \"pro_monthly\",\n      \"successUrl\": \"https://mywatchbox.net/success\",\n      \"cancelUrl\": \"https://mywatchbox.net/cancel\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/subscription/portal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/subscription/portal",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "subscription",
+            "portal"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"returnUrl\": \"https://mywatchbox.net/profile\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subscription/portal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subscription",
+                "portal"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"returnUrl\": \"https://mywatchbox.net/profile\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"portal\",\n    \"status\": \"active\",\n    \"data\": {\n      \"returnUrl\": \"https://mywatchbox.net/profile\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/payments/config",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/payments/config",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "payments",
+            "config"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "config"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/payments/products/:productId/status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/payments/products/{{productId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "payments",
+            "products",
+            "{{productId}}",
+            "status"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/products/{{productId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "products",
+                "{{productId}}",
+                "status"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"status\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/listings/:productId/status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings/{{productId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings",
+            "{{productId}}",
+            "status"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{productId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{productId}}",
+                "status"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"status\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/payments/products/:productId/payment-intent",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/payments/products/{{productId}}/payment-intent",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "payments",
+            "products",
+            "{{productId}}",
+            "payment-intent"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 12500,\n  \"currency\": \"USD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/products/{{productId}}/payment-intent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "products",
+                "{{productId}}",
+                "payment-intent"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 12500,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"payment-intent\",\n    \"status\": \"active\",\n    \"data\": {\n      \"amount\": 12500,\n      \"currency\": \"USD\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/orders/:orderId/confirm-payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/confirm-payment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            "{{orderId}}",
+            "confirm-payment"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"offerAmount\": 12000,\n  \"currency\": \"USD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/confirm-payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "confirm-payment"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"offerAmount\": 12000,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"confirm-payment\",\n    \"status\": \"active\",\n    \"data\": {\n      \"listingId\": \"{{listingId}}\",\n      \"offerAmount\": 12000,\n      \"currency\": \"USD\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/watch-alerts",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/watch-alerts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "watch-alerts"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Alert\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"maxPrice\": 13000,\n  \"currency\": \"USD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/watch-alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "watch-alerts"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Alert\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"maxPrice\": 13000,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"watch-alerts\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Alert\",\n      \"brand\": \"Rolex\",\n      \"model\": \"Submariner\",\n      \"maxPrice\": 13000,\n      \"currency\": \"USD\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/watch-alerts",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/watch-alerts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "watch-alerts"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/watch-alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "watch-alerts"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "DELETE /api/v1/watch-alerts/:alertId",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/watch-alerts/{{alertId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "watch-alerts",
+            "{{alertId}}"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/watch-alerts/{{alertId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "watch-alerts",
+                "{{alertId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"alertId\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/watch-alerts/run",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/watch-alerts/run",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "watch-alerts",
+            "run"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Alert\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"maxPrice\": 13000,\n  \"currency\": \"USD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/watch-alerts/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "watch-alerts",
+                "run"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Alert\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"maxPrice\": 13000,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"run\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Alert\",\n      \"brand\": \"Rolex\",\n      \"model\": \"Submariner\",\n      \"maxPrice\": 13000,\n      \"currency\": \"USD\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/watch-alert-events",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/watch-alert-events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "watch-alert-events"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/watch-alert-events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "watch-alert-events"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/listings/:listingId/images",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/images",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings",
+            "{{listingId}}",
+            "images"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{listingId}}",
+                "images"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"images\",\n    \"status\": \"active\",\n    \"data\": {}\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/listings/:listingId/images",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/images",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings",
+            "{{listingId}}",
+            "images"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{listingId}}",
+                "images"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"images\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Date\",\n      \"brand\": \"Rolex\",\n      \"model\": \"Submariner\",\n      \"price\": 12500,\n      \"currency\": \"USD\",\n      \"condition\": \"excellent\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/listings/:listingId/images/upload",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/images/upload",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings",
+            "{{listingId}}",
+            "images",
+            "upload"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/images/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{listingId}}",
+                "images",
+                "upload"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Rolex Submariner Date\",\n  \"brand\": \"Rolex\",\n  \"model\": \"Submariner\",\n  \"price\": 12500,\n  \"currency\": \"USD\",\n  \"condition\": \"excellent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"upload\",\n    \"status\": \"active\",\n    \"data\": {\n      \"title\": \"Rolex Submariner Date\",\n      \"brand\": \"Rolex\",\n      \"model\": \"Submariner\",\n      \"price\": 12500,\n      \"currency\": \"USD\",\n      \"condition\": \"excellent\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/admin/auth/register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"customer-password\",\n  \"displayName\": \"Customer One\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"customer-password\",\n  \"displayName\": \"Customer One\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"account\": {\n      \"id\": \"64f000000000000000000001\",\n      \"email\": \"admin@example.com\",\n      \"displayName\": \"Admin One\"\n    },\n    \"sessionId\": \"64f000000000000000000002\",\n    \"tokens\": {\n      \"accessToken\": \"jwt-access-token\",\n      \"refreshToken\": \"jwt-refresh-token\",\n      \"tokenType\": \"Bearer\",\n      \"expiresIn\": 900\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/admin/settings/content/images",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/settings/content/images",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "settings",
+            "content",
+            "images"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/settings/content/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "settings",
+                "content",
+                "images"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"images\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /api/v1/admin/settings/content/pages/:slug",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/settings/content/pages/{{slug}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "settings",
+            "content",
+            "pages",
+            "{{slug}}"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/settings/content/pages/{{slug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "settings",
+                "content",
+                "pages",
+                "{{slug}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example\",\n  \"description\": \"Example request body\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"slug\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Example\",\n      \"description\": \"Example request body\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/admin/subscriptions/settings",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/subscriptions/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "subscriptions",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/subscriptions/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "subscriptions",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "PATCH /api/v1/admin/subscriptions/settings",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/subscriptions/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "subscriptions",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Updated value\",\n  \"status\": \"active\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/subscriptions/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "subscriptions",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated value\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"64f000000000000000000001\",\n    \"resource\": \"settings\",\n    \"status\": \"active\",\n    \"data\": {\n      \"name\": \"Updated value\",\n      \"status\": \"active\"\n    }\n  },\n  \"meta\": {\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/admin/subscriptions/actions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/subscriptions/actions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "subscriptions",
+            "actions"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/subscriptions/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "subscriptions",
+                "actions"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/admin/bulk-email/recipients",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/bulk-email/recipients",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin",
+            "bulk-email",
+            "recipients"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/bulk-email/recipients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "bulk-email",
+                "recipients"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /health/live",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/health/live",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health",
+            "live"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "live"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /health/ready",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/health/ready",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health",
+            "ready"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /internal",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/internal",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "internal"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /api/v1/admin",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "admin"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"data\": [],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"totalPages\": 1,\n    \"requestId\": \"request-id\"\n  }\n}"
         }
       ]
     }

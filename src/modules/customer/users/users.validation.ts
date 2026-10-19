@@ -9,9 +9,11 @@ export const updateProfileSchema = z
   .object({
     displayName: z.string().trim().min(2).max(120).optional(),
     phone: z.string().trim().min(3).max(40).optional(),
-    country: z.string().trim().min(2).max(80).optional()
+    country: z.string().trim().min(2).max(80).optional(),
+    avatarUrl: z.string().trim().min(1).max(2048).optional(),
+    avatarKey: z.string().trim().min(1).max(512).optional()
   })
-  .refine((value) => Object.keys(value).length > 0, "At least one profile field is required.");
+  .default({});
 
 export const updatePreferencesSchema = z
   .object({
