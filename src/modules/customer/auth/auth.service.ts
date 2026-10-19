@@ -122,6 +122,8 @@ const serializeCustomer = (account: CustomerAccountDocument) => ({
   id: account._id.toString(),
   email: account.email,
   displayName: account.displayName,
+  ...(account.phone ? { phone: account.phone } : {}),
+  ...(account.country ? { country: account.country } : {}),
   ...(typeof account.latitude === "number" ? { latitude: account.latitude } : {}),
   ...(typeof account.longitude === "number" ? { longitude: account.longitude } : {}),
   status: account.status,
@@ -199,6 +201,8 @@ export class CustomerAuthService {
         email: input.email,
         passwordHash,
         displayName: input.displayName,
+        ...(input.phone ? { phone: input.phone } : {}),
+        ...(input.country ? { country: input.country } : {}),
         ...(input.latitude !== undefined && input.longitude !== undefined
           ? {
               latitude: input.latitude,

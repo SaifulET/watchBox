@@ -10,7 +10,9 @@ const longitude = z.number().min(-180).max(180);
 const registerBaseSchema = z.object({
   email,
   password,
-  displayName: z.string().trim().min(2).max(120)
+  displayName: z.string().trim().min(2).max(120),
+  phone: z.string().trim().min(3).max(40).optional(),
+  country: z.string().trim().min(2).max(80).optional()
 });
 
 export const registerSchema = z

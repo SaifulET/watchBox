@@ -19,7 +19,7 @@ export class CustomerAccountRepository {
   public create(
     input: Pick<
       CustomerAccount,
-      "email" | "passwordHash" | "displayName" | "latitude" | "longitude" | "location"
+      "email" | "passwordHash" | "displayName" | "latitude" | "longitude" | "location" | "phone" | "country"
     >
   ) {
     return CustomerAccountModel.create(input);
