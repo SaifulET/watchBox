@@ -38,6 +38,7 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().default("watchbox"),
   S3_SECRET_ACCESS_KEY: z.string().default("watchbox-secret"),
   S3_PUBLIC_BASE_URL: optionalEnvUrl,
+  S3_SIGNED_GET_EXPIRES_IN: z.coerce.number().int().positive().max(604800).default(604800),
   LOCAL_UPLOAD_DIR: z.string().min(1).default("storage/uploads"),
   ATLAS_SEARCH_INDEX: z.string().default("listings_search"),
   ATLAS_VECTOR_INDEX: z.string().default("listing_embeddings_vector"),

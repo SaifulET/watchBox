@@ -7,6 +7,7 @@ import { createApp } from "../../src/app.js";
 import { resetEnvForTests } from "../../src/config/env.js";
 import {
   getObjectUrl,
+  getReadableObjectUrl,
   normalizeObjectKey,
   objectKeyFromInternalUploadUrl,
   resolveStoredObjectUrl,
@@ -25,7 +26,9 @@ const originalEnv = {
   apiPublicUrl: process.env.API_PUBLIC_URL,
   s3Endpoint: process.env.S3_ENDPOINT,
   s3Bucket: process.env.S3_BUCKET,
-  s3Region: process.env.S3_REGION
+  s3Region: process.env.S3_REGION,
+  s3AccessKeyId: process.env.S3_ACCESS_KEY_ID,
+  s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY
 };
 
 const restoreEnvValue = (name: string, value: string | undefined): void => {
@@ -44,6 +47,8 @@ const restoreEnv = (): void => {
   restoreEnvValue("S3_ENDPOINT", originalEnv.s3Endpoint);
   restoreEnvValue("S3_BUCKET", originalEnv.s3Bucket);
   restoreEnvValue("S3_REGION", originalEnv.s3Region);
+  restoreEnvValue("S3_ACCESS_KEY_ID", originalEnv.s3AccessKeyId);
+  restoreEnvValue("S3_SECRET_ACCESS_KEY", originalEnv.s3SecretAccessKey);
   resetEnvForTests();
 };
 
@@ -64,15 +69,31 @@ describe("object storage URLs", () => {
     ).toBe("listings/abc/images/watch.jpg");
   });
 
-  it("builds proxy URLs for S3 when no CloudFront base URL is configured", () => {
+  it("builds virtual-hosted S3 URLs instead of the API host", () => {
     process.env.STORAGE_PROVIDER = "s3";
-    process.env.API_PUBLIC_URL = "https://api.mywatchbox.net";
+    process.env.API_PUBLIC_URL = "http://localhost:4000";
+    process.env.S3_BUCKET = "watchboxmarketplace";
+    process.env.S3_REGION = "us-east-1";
     delete process.env.S3_PUBLIC_BASE_URL;
     delete process.env.S3_ENDPOINT;
     resetEnvForTests();
 
     expect(getObjectUrl("listings/abc/images/watch.jpg.")).toBe(
-      "https://api.mywatchbox.net/internal/uploads/listings/abc/images/watch.jpg"
+      "https://watchboxmarketplace.s3.us-east-1.amazonaws.com/listings/abc/images/watch.jpg"
+    );
+  });
+
+  it("returns a short S3 object URL without query parameters", async () => {
+    process.env.STORAGE_PROVIDER = "s3";
+    process.env.API_PUBLIC_URL = "http://localhost:4000";
+    process.env.S3_BUCKET = "watchboxmarketplace";
+    process.env.S3_REGION = "us-east-1";
+    delete process.env.S3_PUBLIC_BASE_URL;
+    delete process.env.S3_ENDPOINT;
+    resetEnvForTests();
+
+    await expect(getReadableObjectUrl("listings/abc/images/watch.jpg")).resolves.toBe(
+      "https://watchboxmarketplace.s3.us-east-1.amazonaws.com/listings/abc/images/watch.jpg"
     );
   });
 
@@ -86,18 +107,18 @@ describe("object storage URLs", () => {
     );
   });
 
-  it("rewrites stored local proxy URLs from the object key", () => {
+  it("rewrites stored local proxy URLs from the object key", async () => {
     process.env.STORAGE_PROVIDER = "s3";
-    process.env.API_PUBLIC_URL = "https://api.mywatchbox.net";
+    process.env.API_PUBLIC_URL = "http://localhost:4000";
     process.env.S3_PUBLIC_BASE_URL = "https://cdn.mywatchbox.net";
     resetEnvForTests();
 
-    expect(
+    await expect(
       resolveStoredObjectUrl(
         "listings/abc/images/watch.jpg",
-        "https://api.mywatchbox.net/internal/uploads/listings/abc/images/watch.jpg."
+        "http://localhost:4000/internal/uploads/listings/abc/images/watch.jpg."
       )
-    ).toBe("https://cdn.mywatchbox.net/listings/abc/images/watch.jpg");
+    ).resolves.toBe("https://cdn.mywatchbox.net/listings/abc/images/watch.jpg");
   });
 });
 

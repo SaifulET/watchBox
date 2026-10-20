@@ -23,6 +23,7 @@ x-watchbox-env: &watchbox-env
   S3_ACCESS_KEY_ID: "${S3_ACCESS_KEY_ID:-watchbox}"
   S3_SECRET_ACCESS_KEY: "${S3_SECRET_ACCESS_KEY:-watchbox-secret}"
   S3_PUBLIC_BASE_URL: "${S3_PUBLIC_BASE_URL:-}"
+  S3_SIGNED_GET_EXPIRES_IN: "${S3_SIGNED_GET_EXPIRES_IN:-604800}"
   LOCAL_UPLOAD_DIR: "${LOCAL_UPLOAD_DIR:-storage/uploads}"
   ATLAS_SEARCH_INDEX: "${ATLAS_SEARCH_INDEX:-listings_search}"
   ATLAS_VECTOR_INDEX: "${ATLAS_VECTOR_INDEX:-listing_embeddings_vector}"

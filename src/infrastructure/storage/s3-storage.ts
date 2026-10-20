@@ -1,4 +1,5 @@
 import { mkdir, readFile, unlink, writeFile, access } from "node:fs/promises";
+import { Agent as HttpsAgent } from "node:https";
 import path from "node:path";
 import {
   DeleteObjectCommand,
@@ -10,6 +11,7 @@ import {
   S3ServiceException,
   type S3ClientConfig
 } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ResourceNotFoundError } from "../../common/errors/app-error.js";
 import { getEnv } from "../../config/env.js";
@@ -71,29 +73,53 @@ export const objectKeyFromInternalUploadUrl = (url: string): string | undefined 
   }
 };
 
-export const resolveStoredObjectUrl = (key?: string | null, fallbackUrl?: string | null): string | null => {
+export const resolveStoredObjectUrl = async (
+  key?: string | null,
+  fallbackUrl?: string | null
+): Promise<string | null> => {
   if (key && key.trim()) {
-    return getObjectUrl(key);
+    return getReadableObjectUrl(key);
   }
   if (!fallbackUrl) {
     return null;
   }
   const extractedKey = objectKeyFromInternalUploadUrl(fallbackUrl);
   if (extractedKey) {
-    return getObjectUrl(extractedKey);
+    return getReadableObjectUrl(extractedKey);
   }
   return fallbackUrl.replace(/\.+$/, "");
 };
 
+let cachedObjectStorageClient: ObjectStorageClient | undefined;
+let cachedObjectStorageClientKey: string | undefined;
+
 export const createObjectStorageClient = (logger?: WatchboxLogger): ObjectStorageClient => {
   const config = getStorageConfig();
+  const cacheKey = [
+    config.provider,
+    config.region,
+    config.bucket,
+    config.endpoint ?? "",
+    config.accessKeyId
+  ].join(":");
+  if (cachedObjectStorageClient && cachedObjectStorageClientKey === cacheKey) {
+    return cachedObjectStorageClient;
+  }
+
   const clientConfig: S3ClientConfig = {
     region: config.region,
     forcePathStyle: config.provider !== "s3",
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey
-    }
+    },
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
+    requestHandler: new NodeHttpHandler({
+      connectionTimeout: 3000,
+      requestTimeout: 20_000,
+      httpsAgent: new HttpsAgent({ keepAlive: true, maxSockets: 50 })
+    })
   };
 
   if (config.endpoint) {
@@ -101,7 +127,9 @@ export const createObjectStorageClient = (logger?: WatchboxLogger): ObjectStorag
   }
 
   logger?.info({ provider: config.provider, bucket: config.bucket }, "Object storage configured");
-  return new S3Client(clientConfig);
+  cachedObjectStorageClient = new S3Client(clientConfig);
+  cachedObjectStorageClientKey = cacheKey;
+  return cachedObjectStorageClient;
 };
 
 export const checkObjectBucket = async (client: ObjectStorageClient): Promise<boolean> => {
@@ -117,8 +145,35 @@ export const getObjectUrl = (key: string): string => {
     return `${config.publicBaseUrl.replace(/\/+$/, "")}/${encodedKey}`;
   }
 
-  return `${getEnv().API_PUBLIC_URL.replace(/\/+$/, "")}/internal/uploads/${encodedKey}`;
+  if (config.provider === "local") {
+    return `${getEnv().API_PUBLIC_URL.replace(/\/+$/, "")}/internal/uploads/${encodedKey}`;
+  }
+
+  if (config.provider === "minio") {
+    const endpoint = (config.endpoint ?? "http://localhost:9000").replace(/\/+$/, "");
+    return `${endpoint}/${config.bucket}/${encodedKey}`;
+  }
+
+  return `https://${config.bucket}.s3.${config.region}.amazonaws.com/${encodedKey}`;
 };
+
+export const createPresignedGetUrl = async (input: {
+  key: string;
+  expiresInSeconds?: number;
+}): Promise<string> => {
+  const config = getStorageConfig();
+  const client = createObjectStorageClient();
+  const command = new GetObjectCommand({
+    Bucket: config.bucket,
+    Key: assertSafeObjectKey(input.key)
+  });
+
+  return getSignedUrl(client, command, {
+    expiresIn: input.expiresInSeconds ?? config.signedGetUrlExpiresIn
+  });
+};
+
+export const getReadableObjectUrl = async (key: string): Promise<string> => getObjectUrl(key);
 
 export const createPresignedPutUrl = async (input: {
   key: string;

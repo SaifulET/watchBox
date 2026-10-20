@@ -20,15 +20,13 @@ export const authenticateAccessToken = async (
   const customers = new CustomerAccountRepository();
   const admins = new AdminAccountRepository();
   const verified = tokens.verifyAccessToken(token, audience);
-  const session = await sessions.findActiveById(verified.sessionId, audience);
+  const [session, account] = await Promise.all([
+    sessions.findActiveById(verified.sessionId, audience),
+    audience === "customer" ? customers.findById(verified.subject) : admins.findById(verified.subject)
+  ]);
   if (!session || session.accountId.toString() !== verified.subject) {
     throw new AuthenticationError("The session is no longer active.");
   }
-
-  const account =
-    audience === "customer"
-      ? await customers.findById(verified.subject)
-      : await admins.findById(verified.subject);
   if (!account || account.status !== "active") {
     throw new AuthenticationError("The account is no longer active.");
   }

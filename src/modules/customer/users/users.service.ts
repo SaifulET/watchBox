@@ -11,6 +11,7 @@ import {
   assertObjectExists,
   createPresignedPutUrl,
   getObjectUrl,
+  getReadableObjectUrl,
   uploadObject
 } from "../../../infrastructure/storage/s3-storage.js";
 import type { RedisClient } from "../../../infrastructure/redis/client.js";
@@ -237,7 +238,7 @@ export class UserService {
     return {
       avatarKey,
       uploadUrl,
-      avatarUrl: getObjectUrl(avatarKey),
+      avatarUrl: await getReadableObjectUrl(avatarKey),
       method: "PUT",
       headers: {
         "Content-Type": contentType
@@ -250,7 +251,9 @@ export class UserService {
     const account = await this.requireAccount(userId);
     return {
       avatarKey: account.avatarKey ?? null,
-      avatarUrl: account.avatarUrl ?? null
+      avatarUrl: account.avatarKey
+        ? await getReadableObjectUrl(account.avatarKey)
+        : (account.avatarUrl ?? null)
     };
   }
 
@@ -303,7 +306,7 @@ export class UserService {
       }
     }
 
-    const avatarUrl = getObjectUrl(input.avatarKey);
+    const avatarUrl = await getReadableObjectUrl(input.avatarKey);
     const updated = await this.customers.updateById(userId, {
       $set: { avatarKey: input.avatarKey, avatarUrl }
     });

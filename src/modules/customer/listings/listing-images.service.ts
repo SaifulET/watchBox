@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
 import { deleteObject, resolveStoredObjectUrl, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import {
@@ -26,6 +27,38 @@ const imageExtensionByMimeType: Record<string, string> = {
   "image/gif": "gif"
 };
 
+const listingImageMaxEdge = 1600;
+const skipOptimizeBelowBytes = 250 * 1024;
+
+export const optimizeListingImage = async (
+  file: Express.Multer.File
+): Promise<{ buffer: Buffer; contentType: string; extension: string }> => {
+  const extension = imageExtensionByMimeType[file.mimetype];
+  if (!extension) {
+    throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif files are supported.");
+  }
+  if (file.mimetype === "image/gif") {
+    return { buffer: file.buffer, contentType: file.mimetype, extension };
+  }
+  if (file.mimetype === "image/jpeg" && file.buffer.length <= skipOptimizeBelowBytes) {
+    return { buffer: file.buffer, contentType: file.mimetype, extension };
+  }
+
+  const optimized = await sharp(file.buffer)
+    .rotate()
+    .resize(listingImageMaxEdge, listingImageMaxEdge, {
+      fit: "inside",
+      withoutEnlargement: true
+    })
+    .jpeg({ quality: 74, chromaSubsampling: "4:2:0" })
+    .toBuffer();
+
+  if (optimized.length >= file.buffer.length && file.mimetype === "image/jpeg") {
+    return { buffer: file.buffer, contentType: file.mimetype, extension };
+  }
+  return { buffer: optimized, contentType: "image/jpeg", extension: "jpg" };
+};
+
 const isListingImage = (value: unknown): value is ListingImage =>
   typeof value === "object" &&
   value !== null &&
@@ -42,7 +75,7 @@ export class ListingImagesService {
     const listing = await this.requireOwnedListing(userId, listingId);
     const image = existingImages(listing)[0];
     return {
-      image: image ? resolveStoredObjectUrl(image.key, image.url) : null
+      image: image ? await resolveStoredObjectUrl(image.key, image.url) : null
     };
   }
 
@@ -55,24 +88,20 @@ export class ListingImagesService {
     if (!file) {
       throw new ConflictError("Image file is required.");
     }
-    const extension = imageExtensionByMimeType[file.mimetype];
-    if (!extension) {
-      throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif files are supported.");
-    }
-
+    const optimized = await optimizeListingImage(file);
     const images = existingImages(listing);
     const imageId = randomUUID();
-    const key = `listings/${listingId}/images/${imageId}.${extension}`;
+    const key = `listings/${listingId}/images/${imageId}.${optimized.extension}`;
     const url = await uploadObject({
       key,
-      body: file.buffer,
-      contentType: file.mimetype
+      body: optimized.buffer,
+      contentType: optimized.contentType
     });
     const image: ListingImage = {
       id: imageId,
       key,
       url,
-      contentType: file.mimetype,
+      contentType: optimized.contentType,
       sortOrder: 0,
       createdAt: new Date().toISOString()
     };
