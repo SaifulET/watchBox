@@ -1,18 +1,12 @@
 import { randomUUID } from "node:crypto";
+import mongoose from "mongoose";
 import { ConflictError, ResourceNotFoundError } from "../../../common/errors/app-error.js";
-import { deleteObject, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
+import { deleteObject, getObjectUrl, uploadObject } from "../../../infrastructure/storage/s3-storage.js";
 import {
   GeneratedApiRecordModel,
   type GeneratedApiRecordDocument
 } from "../../generated-api/generated-api.model.js";
-import type { ListingImage } from "./listing-images.service.js";
-
-const imageExtensionByMimeType: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif"
-};
+import { optimizeListingImage, type ListingImage } from "./listing-images.service.js";
 
 const protectedImageFields = new Set(["image", "imageUrl", "images"]);
 
@@ -45,7 +39,7 @@ const cleanListingData = (body: Record<string, unknown>): Record<string, unknown
 const publicListingData = (data: Record<string, unknown>): Record<string, unknown> => {
   const imageUrls = Array.isArray(data.images)
     ? data.images
-        .map((image) => (isListingImage(image) ? image.url : undefined))
+        .map((image) => (isListingImage(image) ? getObjectUrl(image.key) : undefined))
         .filter((url): url is string => Boolean(url))
     : [];
   const output = { ...data };
@@ -72,9 +66,25 @@ export class ListingsService {
     file: Express.Multer.File | undefined
   ) {
     const data = cleanListingData(body);
-    await this.assertUniqueTitle(data.title);
+    const listingId = new mongoose.Types.ObjectId();
+    let image: ListingImage | undefined;
+    try {
+      [, image] = await Promise.all([
+        this.assertUniqueTitle(data.title),
+        file ? this.buildListingImage(listingId.toString(), file) : Promise.resolve(undefined)
+      ]);
+    } catch (error) {
+      if (image) {
+        void deleteObject(image.key);
+      }
+      throw error;
+    }
+    if (image) {
+      data.images = [image];
+    }
 
     const listing = await GeneratedApiRecordModel.create({
+      _id: listingId,
       resource: "listings",
       ownerId: userId,
       scope: {},
@@ -91,34 +101,7 @@ export class ListingsService {
       ]
     });
 
-    if (!file) {
-      return serializeListing(listing);
-    }
-
-    const image = await this.uploadReplacementImage(listing._id.toString(), file, []);
-    const updated = await GeneratedApiRecordModel.findByIdAndUpdate(
-      listing._id,
-      {
-        $set: {
-          data: {
-            ...listing.data,
-            images: [image]
-          }
-        },
-        $push: {
-          history: {
-            action: "listings.images.created",
-            actorId: userId,
-            actorType: "customer",
-            at: new Date(),
-            metadata: { image }
-          }
-        }
-      },
-      { new: true }
-    );
-
-    return serializeListing(updated ?? listing);
+    return serializeListing(listing);
   }
 
   public async updateListing(
@@ -169,34 +152,33 @@ export class ListingsService {
     return serializeListing(updated ?? listing);
   }
 
+  private async buildListingImage(listingId: string, file: Express.Multer.File): Promise<ListingImage> {
+    const optimized = await optimizeListingImage(file);
+    const imageId = randomUUID();
+    const key = `listings/${listingId}/images/${imageId}.${optimized.extension}`;
+    const url = await uploadObject({
+      key,
+      body: optimized.buffer,
+      contentType: optimized.contentType
+    });
+    return {
+      id: imageId,
+      key,
+      url,
+      contentType: optimized.contentType,
+      sortOrder: 0,
+      createdAt: new Date().toISOString()
+    };
+  }
+
   private async uploadReplacementImage(
     listingId: string,
     file: Express.Multer.File,
     imagesToDelete: ListingImage[]
   ): Promise<ListingImage> {
-    const extension = imageExtensionByMimeType[file.mimetype];
-    if (!extension) {
-      throw new ConflictError("Only image/jpeg, image/png, image/webp, and image/gif files are supported.");
-    }
-
-    const imageId = randomUUID();
-    const key = `listings/${listingId}/images/${imageId}.${extension}`;
-    const url = await uploadObject({
-      key,
-      body: file.buffer,
-      contentType: file.mimetype
-    });
-
-    await Promise.all(imagesToDelete.map((image) => deleteObject(image.key)));
-
-    return {
-      id: imageId,
-      key,
-      url,
-      contentType: file.mimetype,
-      sortOrder: 0,
-      createdAt: new Date().toISOString()
-    };
+    const image = await this.buildListingImage(listingId, file);
+    void Promise.all(imagesToDelete.map((existingImage) => deleteObject(existingImage.key)));
+    return image;
   }
 
   private async requireOwnedListing(
@@ -225,7 +207,6 @@ export class ListingsService {
       deletedAt: null,
       "data.title": title.trim()
     })
-      .collation({ locale: "en", strength: 2 })
       .select("_id")
       .lean();
 

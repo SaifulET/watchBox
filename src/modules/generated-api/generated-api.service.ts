@@ -6,7 +6,11 @@ import {
   deleteMessageAttachments,
   storeMessageAttachments
 } from "../../common/services/message-attachment-storage.js";
-import { createPresignedPutUrl, getObjectUrl } from "../../infrastructure/storage/s3-storage.js";
+import {
+  createPresignedPutUrl,
+  getReadableObjectUrl,
+  resolveStoredObjectUrl
+} from "../../infrastructure/storage/s3-storage.js";
 import type { RedisClient } from "../../infrastructure/redis/client.js";
 import { realtimeEventsForMutation } from "../../realtime/realtime-events.js";
 import type { RealtimePublisher } from "../../realtime/socket-realtime.service.js";
@@ -53,7 +57,7 @@ type OwnerAccountLookup = {
   deletedAt?: unknown;
 };
 
-type SerializedRecord = ReturnType<typeof serializeRecord> & {
+type SerializedRecord = Awaited<ReturnType<typeof serializeRecord>> & {
   owner?: BasicOwnerInfo | null;
 };
 
@@ -84,40 +88,49 @@ type ListQuery = {
   [key: string]: unknown;
 };
 
-const listingImageUrl = (value: unknown): string | undefined => {
+const listingImageRef = (value: unknown): { key?: string; url?: string } => {
   if (typeof value === "string") {
-    return value;
+    return { url: value };
   }
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    const url = (value as Record<string, unknown>).url;
-    if (typeof url === "string") {
-      return url;
-    }
+    const record = value as Record<string, unknown>;
+    return {
+      ...(typeof record.key === "string" ? { key: record.key } : {}),
+      ...(typeof record.url === "string" ? { url: record.url } : {})
+    };
   }
-  return undefined;
+  return {};
 };
 
-const serializeData = (record: GeneratedApiRecordDocument): Record<string, unknown> => {
+const serializeData = async (record: GeneratedApiRecordDocument): Promise<Record<string, unknown>> => {
   if (record.resource !== "listings") {
     return record.data;
   }
 
   const data = { ...record.data };
-  const imageUrl = Array.isArray(record.data.images)
-    ? record.data.images.map(listingImageUrl).find((url): url is string => Boolean(url))
-    : undefined;
+  let imageUrl: string | null = null;
+  if (Array.isArray(record.data.images)) {
+    for (const image of record.data.images) {
+      const ref = listingImageRef(image);
+      const resolved = await resolveStoredObjectUrl(ref.key, ref.url);
+      if (resolved) {
+        imageUrl = resolved;
+        break;
+      }
+    }
+  }
 
   delete data.images;
-  data.image = imageUrl ?? null;
+  data.image = imageUrl;
   return data;
 };
 
-const serializeRecord = (record: GeneratedApiRecordDocument) => ({
+const serializeRecord = async (record: GeneratedApiRecordDocument) => ({
   id: record._id.toString(),
   resource: record.resource,
   ownerId: record.ownerId ?? null,
   scope: record.scope,
-  data: serializeData(record),
+  data: await serializeData(record),
   status: record.status,
   createdAt: record.createdAt.toISOString(),
   updatedAt: record.updatedAt.toISOString()
@@ -302,7 +315,7 @@ export class GeneratedApiService {
     }
     const record = await this.repository.create(createInput);
     await this.afterMutation(definition, record._id.toString(), params, actor, body);
-    return serializeRecord(record);
+    return await serializeRecord(record);
   }
 
   public async update(
@@ -320,7 +333,7 @@ export class GeneratedApiService {
       actor.audience
     );
     await this.afterMutation(definition, updated._id.toString(), params, actor, body);
-    return serializeRecord(updated);
+    return await serializeRecord(updated);
   }
 
   public async remove(
@@ -364,7 +377,7 @@ export class GeneratedApiService {
     return {
       accepted: true,
       action: definition.action,
-      record: serializeRecord(updated)
+      record: await serializeRecord(updated)
     };
   }
 
@@ -393,7 +406,7 @@ export class GeneratedApiService {
       const uploadUrl = await createPresignedPutUrl({ key, contentType, expiresInSeconds });
       uploads.push({
         key,
-        imageUrl: getObjectUrl(key),
+        imageUrl: await getReadableObjectUrl(key),
         uploadUrl,
         method: "PUT",
         headers: {
@@ -423,7 +436,7 @@ export class GeneratedApiService {
       action: definition.action,
       uploads,
       upload: uploads[0] ?? null,
-      record: serializeRecord(updated)
+      record: await serializeRecord(updated)
     };
   }
 
@@ -507,7 +520,7 @@ export class GeneratedApiService {
     records: GeneratedApiRecordDocument[]
   ): Promise<SerializedRecord[]> {
     const ownerMap = await this.ownerMap(records);
-    return records.map((record) => this.serializeRecordWithOwnerMap(record, ownerMap));
+    return Promise.all(records.map((record) => this.serializeRecordWithOwnerMap(record, ownerMap)));
   }
 
   private async serializeRecord(record: GeneratedApiRecordDocument): Promise<SerializedRecord> {
@@ -518,11 +531,11 @@ export class GeneratedApiService {
     return this.serializeRecordWithOwnerMap(record, ownerMap);
   }
 
-  private serializeRecordWithOwnerMap(
+  private async serializeRecordWithOwnerMap(
     record: GeneratedApiRecordDocument,
     ownerMap: Map<string, BasicOwnerInfo>
-  ): SerializedRecord {
-    const serialized = serializeRecord(record);
+  ): Promise<SerializedRecord> {
+    const serialized = await serializeRecord(record);
     if (record.resource !== "listings") {
       return serialized;
     }
@@ -649,7 +662,7 @@ export class GeneratedApiService {
       accepted: true,
       action: definition.action,
       message,
-      record: serializeRecord(updated)
+      record: await serializeRecord(updated)
     };
   }
 
