@@ -57,6 +57,17 @@ export const createApp = (overrides: Partial<AppDependencies> = {}): Express => 
     })
   );
   app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+// 🐞 Debug response middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const status = res.statusCode;
+    const emoji = status >= 500 ? '💥' : status >= 400 ? '⚠️' : status >= 300 ? '🔄' : '✅';
+    logger.debug(`${emoji} ${req.method} ${req.originalUrl} → ${status} (${duration}ms)`);
+  });
+  next();
+});
 
   const routeDependencies: RouteDependencies = {};
   if (overrides.redis) {
