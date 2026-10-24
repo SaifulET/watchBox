@@ -67,7 +67,8 @@ const inferAuth = (path: string): string => {
     path === "/api/v1" ||
     path === "/api/v1/admin" ||
     path === "/api/v1/payments/config" ||
-    path.startsWith("/api/v1/content/")
+    path.startsWith("/api/v1/content/") ||
+    path.startsWith("/api/v1/public/")
   ) {
     return "Public";
   }
@@ -291,6 +292,9 @@ export const requiredApiEndpoints: RequiredApiEndpoint[] = [
   endpoint("GET", "/api/v1/content/privacy-policy"),
   endpoint("GET", "/api/v1/content/about"),
   endpoint("GET", "/api/v1/content/support"),
+  endpoint("GET", "/api/v1/content/account-deletion"),
+  endpoint("POST", "/api/v1/public/contact"),
+  endpoint("POST", "/api/v1/public/account-deletion"),
   endpoint("POST", "/api/v1/admin/auth/login"),
   endpoint("POST", "/api/v1/admin/auth/refresh"),
   endpoint("POST", "/api/v1/admin/auth/logout"),

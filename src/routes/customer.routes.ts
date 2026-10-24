@@ -5,6 +5,7 @@ import { sendSuccess } from "../common/utils/api-response.js";
 import { createAiRouter } from "../modules/customer/ai/ai.routes.js";
 import { createCustomerAuthRouter } from "../modules/customer/auth/auth.routes.js";
 import { createAdminContentRouter, createPublicContentRouter } from "../modules/customer/content/content.routes.js";
+import { createPublicPagesRouter } from "../modules/public-pages/public-pages.routes.js";
 import { createDealerEbayRouter, createEbayRouter } from "../modules/customer/ebay/ebay.routes.js";
 import { createListingImagesRouter } from "../modules/customer/listings/listing-images.routes.js";
 import { createEbayWebhookRouter } from "../modules/customer/marketplaces/ebay-webhook.routes.js";
@@ -38,6 +39,7 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/users", createUsersRouter(dependencies));
   router.use(createAiRouter(dependencies));
   router.use("/content", createPublicContentRouter());
+  router.use("/public", createPublicPagesRouter(dependencies));
   router.use("/admin/settings/content", createAdminContentRouter());
   router.use("/listings", createListingsRouter());
   router.use("/listings", createListingImagesRouter());

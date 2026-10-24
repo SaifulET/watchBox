@@ -25,6 +25,7 @@ import { validateWebhookSignature } from "./webhook-signature.middleware.js";
 const alreadyImplemented = (path: string): boolean =>
   path.includes("/auth/") ||
   path.startsWith("/api/v1/users/me") ||
+  path.startsWith("/api/v1/public") ||
   path === "/api/v1/notification-preferences" ||
   path === "/api/v1/search";
 
@@ -113,7 +114,10 @@ const isPublicEndpoint = (method: string, fullPath: string): boolean => {
   if (method === "GET" && publicGetPrefixes.some((prefix) => fullPath.startsWith(prefix))) {
     return true;
   }
-  return method === "POST" && fullPath === "/api/v1/listings/:listingId/view";
+  return (
+    method === "POST" &&
+    (fullPath === "/api/v1/listings/:listingId/view" || fullPath === "/api/v1/support/tickets")
+  );
 };
 
 const routeAuth = (method: string, fullPath: string): GeneratedEndpointDefinition["auth"] => {

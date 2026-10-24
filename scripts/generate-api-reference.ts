@@ -62,7 +62,8 @@ const isPublic = (endpoint: Endpoint): boolean =>
   endpoint.path === "/api/v1" ||
   endpoint.path === "/api/v1/admin" ||
   endpoint.path === "/api/v1/payments/config" ||
-  endpoint.path.startsWith("/api/v1/content/");
+  endpoint.path.startsWith("/api/v1/content/") ||
+  endpoint.path.startsWith("/api/v1/public/");
 
 const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined => {
   if (!["POST", "PATCH", "PUT"].includes(endpoint.method)) {
@@ -116,6 +117,21 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   }
   if (endpoint.path.includes("change-password")) {
     return { currentPassword: "current-password", newPassword: "new-password" };
+  }
+  if (endpoint.path === "/api/v1/public/contact") {
+    return {
+      name: "Alex Collector",
+      email: "customer@example.com",
+      subject: "Question about my listing",
+      message: "I need help updating my watch listing photos."
+    };
+  }
+  if (endpoint.path === "/api/v1/public/account-deletion") {
+    return {
+      email: "customer@example.com",
+      password: "customer-password",
+      confirmation: "DELETE"
+    };
   }
   if (endpoint.path.includes("mfa/verify")) {
     return { code: "{{mfaCode}}" };

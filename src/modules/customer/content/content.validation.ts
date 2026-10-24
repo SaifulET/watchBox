@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type ContentSlug = "terms" | "privacy-policy" | "about";
+export type ContentSlug = "terms" | "privacy-policy" | "about" | "account-deletion";
 
 const slugAliases: Record<string, ContentSlug> = {
   terms: "terms",
@@ -9,7 +9,10 @@ const slugAliases: Record<string, ContentSlug> = {
   "privacy-policy": "privacy-policy",
   privacy: "privacy-policy",
   about: "about",
-  "about-us": "about"
+  "about-us": "about",
+  "account-deletion": "account-deletion",
+  "delete-account": "account-deletion",
+  "account-deletion-method": "account-deletion"
 };
 
 export const normalizeContentSlug = (value: string): ContentSlug | undefined =>
@@ -25,7 +28,7 @@ export const contentParamsSchema = z.object({
       if (!slug) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Content slug must be terms, privacy-policy, or about."
+          message: "Content slug must be terms, privacy-policy, about, or account-deletion."
         });
         return z.NEVER;
       }

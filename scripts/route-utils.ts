@@ -51,7 +51,8 @@ const publicGetPrefixes = [
   "/api/v1/traders",
   "/api/v1/marketplaces",
   "/api/v1/search",
-  "/api/v1/content"
+  "/api/v1/content",
+  "/api/v1/public"
 ];
 
 const inferAuth = (path: string, method: string): string => {
@@ -90,6 +91,9 @@ const inferAuth = (path: string, method: string): string => {
     return "Public";
   }
   if (method === "POST" && path === "/api/v1/listings/:listingId/view") {
+    return "Public";
+  }
+  if (path.startsWith("/api/v1/public")) {
     return "Public";
   }
   if (path.startsWith("/api/v1")) {
