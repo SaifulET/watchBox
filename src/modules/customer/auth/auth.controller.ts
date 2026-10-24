@@ -7,6 +7,7 @@ import type {
   AdminRegisterInput,
   AdminVerifyResetCodeInput,
   ChangePasswordInput,
+  CustomerResetPasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RefreshInput,
@@ -14,7 +15,8 @@ import type {
   ResetPasswordInput,
   SessionParamsInput,
   VerifyEmailConfirmInput,
-  VerifyEmailRequestInput
+  VerifyEmailRequestInput,
+  VerifyPasswordResetInput
 } from "./auth.validation.js";
 import type { AdminAuthService, CustomerAuthService } from "./auth.service.js";
 
@@ -44,15 +46,23 @@ export class CustomerAuthController {
     const result = await this.service.register(req.body as RegisterInput, fingerprintFromRequest(req));
     res.once("finish", () => {
       void this.service
-        .sendRegistrationEmailVerification(result.emailVerification)
+        .sendRegistrationEmailVerification(result.pendingVerification)
         .catch((error: unknown) => {
           req.log?.error(
-            { err: error, requestId: req.requestId, accountId: result.emailVerification.accountId },
+            { err: error, requestId: req.requestId, accountId: result.pendingVerification.accountId },
             "Failed to send registration email verification"
           );
         });
     });
-    sendSuccess(res, req.requestId, result.auth, 201);
+    sendSuccess(
+      res,
+      req.requestId,
+      {
+        ...result.auth,
+        emailVerification: result.emailVerification
+      },
+      201
+    );
   };
 
   public login = async (req: Request, res: Response): Promise<void> => {
@@ -95,8 +105,13 @@ export class CustomerAuthController {
     sendSuccess(res, req.requestId, result);
   };
 
+  public verifyPasswordResetOtp = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.service.verifyPasswordResetOtp(req.body as VerifyPasswordResetInput);
+    sendSuccess(res, req.requestId, result);
+  };
+
   public resetPassword = async (req: Request, res: Response): Promise<void> => {
-    const result = await this.service.resetPassword(req.body as ResetPasswordInput);
+    const result = await this.service.resetCustomerPassword(req.body as CustomerResetPasswordInput);
     sendSuccess(res, req.requestId, result);
   };
 

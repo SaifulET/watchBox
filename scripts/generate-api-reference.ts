@@ -85,17 +85,27 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   if (endpoint.path.endsWith("/auth/refresh")) {
     return { refreshToken: "{{refreshToken}}" };
   }
-  if (endpoint.path.includes("verify-email/request") || endpoint.path.includes("forgot-password")) {
+  if (
+    endpoint.path.includes("verify-email/request") ||
+    (endpoint.path.includes("forgot-password") && !endpoint.path.includes("/verify"))
+  ) {
     return { email: "customer@example.com" };
   }
   if (endpoint.path.includes("mfa/challenge")) {
     return { email: "admin@example.com" };
   }
-  if (endpoint.path.includes("verify-email/confirm")) {
-    return { token: "{{token}}" };
+  if (endpoint.path.includes("verify-email/confirm") || endpoint.path.includes("forgot-password/verify")) {
+    return { email: "customer@example.com", otp: "123456" };
   }
   if (endpoint.path.includes("verify-reset-code")) {
     return { token: "{{token}}" };
+  }
+  if (endpoint.path.includes("/auth/reset-password") && !endpoint.path.includes("/admin/")) {
+    return {
+      email: "customer@example.com",
+      newPassword: "new-password",
+      confirmPassword: "new-password"
+    };
   }
   if (endpoint.path.includes("reset-password")) {
     return {
@@ -294,8 +304,18 @@ const successResponse = (endpoint: Endpoint): Record<string, unknown> => {
       success: true,
       data: {
         delivery: "email",
-        expiresInMinutes: 1,
-        developmentToken: "development-only-token"
+        expiresInMinutes: 10,
+        developmentOtp: "123456"
+      },
+      meta: { requestId: "request-id" }
+    };
+  }
+
+  if (endpoint.path.includes("forgot-password/verify")) {
+    return {
+      success: true,
+      data: {
+        verified: true
       },
       meta: { requestId: "request-id" }
     };
@@ -307,7 +327,7 @@ const successResponse = (endpoint: Endpoint): Record<string, unknown> => {
       data: {
         delivery: "email",
         expiresInMinutes: 15,
-        developmentToken: "development-only-token"
+        developmentOtp: "123456"
       },
       meta: { requestId: "request-id" }
     };

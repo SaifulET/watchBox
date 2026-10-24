@@ -141,17 +141,59 @@ export class AccountTokenRepository {
     return AccountTokenModel.create(input);
   }
 
-  public async consumeActive(
+  public async findActive(
     accountKind: AccountKind,
     purpose: AccountTokenPurpose,
-    tokenHash: string
+    tokenHash: string,
+    accountId?: string | Types.ObjectId
   ): Promise<AccountTokenDocument | null> {
-    const token = await AccountTokenModel.findOne({
+    return AccountTokenModel.findOne({
       accountKind,
       purpose,
       tokenHash,
       consumedAt: null,
-      expiresAt: mongoose.trusted({ $gt: new Date() })
+      expiresAt: mongoose.trusted({ $gt: new Date() }),
+      ...(accountId ? { accountId } : {})
+    });
+  }
+
+  public async consumeActive(
+    accountKind: AccountKind,
+    purpose: AccountTokenPurpose,
+    tokenHash: string,
+    accountId?: string | Types.ObjectId
+  ): Promise<AccountTokenDocument | null> {
+    const token = await this.findActive(accountKind, purpose, tokenHash, accountId);
+    if (!token) {
+      return null;
+    }
+    token.consumedAt = new Date();
+    await token.save();
+    return token;
+  }
+
+  public async markVerified(token: AccountTokenDocument): Promise<AccountTokenDocument> {
+    token.metadata = {
+      ...token.metadata,
+      verified: true,
+      verifiedAt: new Date().toISOString()
+    };
+    await token.save();
+    return token;
+  }
+
+  public async consumeVerifiedByAccount(
+    accountKind: AccountKind,
+    purpose: AccountTokenPurpose,
+    accountId: string | Types.ObjectId
+  ): Promise<AccountTokenDocument | null> {
+    const token = await AccountTokenModel.findOne({
+      accountKind,
+      purpose,
+      accountId,
+      consumedAt: null,
+      expiresAt: mongoose.trusted({ $gt: new Date() }),
+      "metadata.verified": true
     });
     if (!token) {
       return null;

@@ -23,13 +23,15 @@ import type {
   AdminMfaChallengeInput,
   AdminMfaVerifyInput,
   ChangePasswordInput,
+  CustomerResetPasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RefreshInput,
   RegisterInput,
   ResetPasswordInput,
   VerifyEmailConfirmInput,
-  VerifyEmailRequestInput
+  VerifyEmailRequestInput,
+  VerifyPasswordResetInput
 } from "./auth.validation.js";
 import type {
   AccountTokenDocument,
@@ -71,12 +73,23 @@ type LoginResult<TAccount> = {
 type PendingEmailVerification = {
   accountId: string;
   email: string;
-  token: string;
+  otp: string;
+};
+
+type OtpDeliveryResponse = {
+  delivery: string;
+  expiresInMinutes: number;
+  developmentOtp?: string;
 };
 
 type RegisterResult<TAccount> = {
   auth: LoginResult<TAccount>;
-  emailVerification: PendingEmailVerification;
+  emailVerification: {
+    email: string;
+    delivery: string;
+    expiresInMinutes: number;
+  };
+  pendingVerification: PendingEmailVerification;
 };
 
 type SessionResponse = {
@@ -89,8 +102,8 @@ type SessionResponse = {
 
 const accessTtlSeconds = 15 * 60;
 const resetTtlMinutes = 15;
-const verificationTtlMilliseconds = 60 * 1000;
-const verificationTtlMinutes = 1;
+const verificationTtlMinutes = 10;
+const verificationTtlMilliseconds = verificationTtlMinutes * 60 * 1000;
 const bootstrapAdminPermissions = [...adminPermissions];
 
 const isDuplicateKeyError = (error: unknown): boolean =>
@@ -218,7 +231,7 @@ export class CustomerAuthService {
         email: account.email,
         displayName: account.displayName
       });
-      const verificationToken = await this.createAccountToken(
+      const otp = await this.createAccountOtp(
         "customer",
         account._id,
         "email-verification",
@@ -228,9 +241,14 @@ export class CustomerAuthService {
       return {
         auth: { account: serializeCustomer(account), ...auth },
         emailVerification: {
+          email: account.email,
+          delivery: "email",
+          expiresInMinutes: verificationTtlMinutes
+        },
+        pendingVerification: {
           accountId: account._id.toString(),
           email: account.email,
-          token: verificationToken
+          otp
         }
       };
     } catch (error) {
@@ -242,7 +260,7 @@ export class CustomerAuthService {
   }
 
   public async sendRegistrationEmailVerification(input: PendingEmailVerification): Promise<void> {
-    await this.sendEmailVerification(input.email, input.token);
+    await this.sendEmailVerification(input.email, input.otp);
     await this.publish("customer.email-verification-requested", input.accountId, { email: input.email });
   }
 
@@ -286,26 +304,25 @@ export class CustomerAuthService {
     return { revoked: true };
   }
 
-  public async requestEmailVerification(
-    input: VerifyEmailRequestInput
-  ): Promise<{ delivery: string; expiresInMinutes: number; developmentToken?: string }> {
+  public async requestEmailVerification(input: VerifyEmailRequestInput): Promise<OtpDeliveryResponse> {
     const account = await this.customers.findByEmail(input.email);
     if (!account) {
       return { delivery: "email", expiresInMinutes: verificationTtlMinutes };
     }
-    const rawToken = await this.createAccountToken(
+    const otp = await this.createAccountOtp(
       "customer",
       account._id,
       "email-verification",
       verificationTtlMilliseconds
     );
-    await this.sendEmailVerification(account.email, rawToken);
+    await this.sendEmailVerification(account.email, otp);
     await this.publish("customer.email-verification-requested", account._id, { email: account.email });
-    return this.tokenDeliveryResponse(rawToken, verificationTtlMinutes);
+    return this.otpDeliveryResponse(otp, verificationTtlMinutes);
   }
 
   public async confirmEmail(input: VerifyEmailConfirmInput): Promise<{ verified: true }> {
-    const token = await this.consumeToken("customer", "email-verification", input.token);
+    const account = await this.requireCustomerByEmail(input.email);
+    const token = await this.consumeOtp("customer", "email-verification", account._id, input.otp);
     await this.customers.updateById(token.accountId, { $set: { emailVerified: true } });
     await this.publish("customer.email-verified", token.accountId, {});
     return { verified: true };
@@ -314,7 +331,7 @@ export class CustomerAuthService {
   public async forgotPassword(
     input: ForgotPasswordInput,
     fingerprint: RequestFingerprint
-  ): Promise<{ delivery: string; expiresInMinutes: number; developmentToken?: string }> {
+  ): Promise<OtpDeliveryResponse> {
     await this.rateLimiter.consume({
       key: `customer-password-reset:${fingerprint.ipAddress ?? "unknown"}:${input.email}`,
       limit: 3,
@@ -325,19 +342,34 @@ export class CustomerAuthService {
     if (!account) {
       return { delivery: "email", expiresInMinutes: resetTtlMinutes };
     }
-    const rawToken = await this.createAccountToken(
+    const otp = await this.createAccountOtp(
       "customer",
       account._id,
       "password-reset",
       resetTtlMinutes * 60 * 1000
     );
-    await this.sendCustomerPasswordReset(account.email, rawToken);
+    await this.sendCustomerPasswordReset(account.email, otp);
     await this.publish("customer.password-reset-requested", account._id, { email: account.email });
-    return this.tokenDeliveryResponse(rawToken, resetTtlMinutes);
+    return this.otpDeliveryResponse(otp, resetTtlMinutes);
   }
 
-  public async resetPassword(input: ResetPasswordInput): Promise<{ reset: true }> {
-    const token = await this.consumeToken("customer", "password-reset", input.token);
+  public async verifyPasswordResetOtp(
+    input: VerifyPasswordResetInput
+  ): Promise<{ verified: true }> {
+    const account = await this.requireCustomerByEmail(input.email);
+    const token = await this.peekOtp("customer", "password-reset", account._id, input.otp);
+    await this.accountTokens.markVerified(token);
+    return { verified: true };
+  }
+
+  public async resetCustomerPassword(input: CustomerResetPasswordInput): Promise<{ reset: true }> {
+    const account = await this.customers.findByEmail(input.email);
+    const token = account
+      ? await this.accountTokens.consumeVerifiedByAccount("customer", "password-reset", account._id)
+      : null;
+    if (!account || !token) {
+      throw new AuthenticationError("Verify the OTP before resetting your password.");
+    }
     const passwordHash = await this.passwords.hash(input.newPassword);
     await this.customers.updateById(token.accountId, { $set: { passwordHash } });
     await this.sessions.revokeAll(token.accountId, "customer");
@@ -477,6 +509,77 @@ export class CustomerAuthService {
     return token;
   }
 
+  protected createOtpCode(): string {
+    return randomInt(100000, 999999).toString();
+  }
+
+  protected otpHash(accountId: Types.ObjectId | string, otp: string): string {
+    return this.tokens.hashOpaqueToken(`${idString(accountId)}:${otp}`);
+  }
+
+  protected async createAccountOtp(
+    accountKind: AccountKind,
+    accountId: Types.ObjectId,
+    purpose: AccountTokenPurpose,
+    ttlMs: number
+  ): Promise<string> {
+    await this.accountTokens.removeActiveForAccount(accountKind, accountId, purpose);
+    const otp = this.createOtpCode();
+    await this.accountTokens.create({
+      accountId,
+      accountKind,
+      purpose,
+      tokenHash: this.otpHash(accountId, otp),
+      expiresAt: new Date(Date.now() + ttlMs),
+      metadata: { channel: "email-otp" }
+    });
+    return otp;
+  }
+
+  protected async peekOtp(
+    accountKind: AccountKind,
+    purpose: AccountTokenPurpose,
+    accountId: Types.ObjectId | string,
+    otp: string
+  ): Promise<AccountTokenDocument> {
+    const token = await this.accountTokens.findActive(
+      accountKind,
+      purpose,
+      this.otpHash(accountId, otp),
+      accountId
+    );
+    if (!token) {
+      throw new AuthenticationError("The supplied OTP is invalid or expired.");
+    }
+    return token;
+  }
+
+  protected async consumeOtp(
+    accountKind: AccountKind,
+    purpose: AccountTokenPurpose,
+    accountId: Types.ObjectId | string,
+    otp: string
+  ): Promise<AccountTokenDocument> {
+    const token = await this.accountTokens.consumeActive(
+      accountKind,
+      purpose,
+      this.otpHash(accountId, otp),
+      accountId
+    );
+    if (!token) {
+      throw new AuthenticationError("The supplied OTP is invalid or expired.");
+    }
+    return token;
+  }
+
+  protected async requireCustomerByEmail(email: string): Promise<CustomerAccountDocument> {
+    const account = await this.customers.findByEmail(email);
+    if (!account) {
+      throw new AuthenticationError("The supplied OTP is invalid or expired.");
+    }
+    return account;
+  }
+
   protected assertUsableAccount(status: string): void {
     if (status === "suspended") {
       throw new AuthorizationError("This account is suspended.");
@@ -522,23 +625,32 @@ export class CustomerAuthService {
     return response;
   }
 
-  protected async sendEmailVerification(email: string, token: string): Promise<void> {
-    const link = `${getEmailConfig().webAppUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  protected otpDeliveryResponse(otp: string, expiresInMinutes: number): OtpDeliveryResponse {
+    const response: OtpDeliveryResponse = {
+      delivery: "email",
+      expiresInMinutes
+    };
+    if (process.env.NODE_ENV !== "production") {
+      response.developmentOtp = otp;
+    }
+    return response;
+  }
+
+  protected async sendEmailVerification(email: string, otp: string): Promise<void> {
     await this.email?.send({
       to: email,
-      subject: "Verify your WatchBox email",
-      text: `Verify your WatchBox email by opening this link: ${link}`,
-      html: `<p>Verify your WatchBox email by opening this link:</p><p><a href="${link}">${link}</a></p>`
+      subject: "Your WatchBox verification code",
+      text: `Your WatchBox verification code is ${otp}. It expires in ${verificationTtlMinutes} minutes.`,
+      html: `<p>Your WatchBox verification code is <strong>${otp}</strong>.</p><p>It expires in ${verificationTtlMinutes} minutes.</p>`
     });
   }
 
-  protected async sendCustomerPasswordReset(email: string, token: string): Promise<void> {
-    const link = `${getEmailConfig().webAppUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  protected async sendCustomerPasswordReset(email: string, otp: string): Promise<void> {
     await this.email?.send({
       to: email,
-      subject: "Reset your WatchBox password",
-      text: `Reset your WatchBox password by opening this link: ${link}`,
-      html: `<p>Reset your WatchBox password by opening this link:</p><p><a href="${link}">${link}</a></p>`
+      subject: "Your WatchBox password reset code",
+      text: `Your WatchBox password reset code is ${otp}. It expires in ${resetTtlMinutes} minutes.`,
+      html: `<p>Your WatchBox password reset code is <strong>${otp}</strong>.</p><p>It expires in ${resetTtlMinutes} minutes.</p>`
     });
   }
 
@@ -684,7 +796,7 @@ export class AdminAuthService extends CustomerAuthService {
     return { valid: true };
   }
 
-  public override async resetPassword(input: ResetPasswordInput): Promise<{ reset: true }> {
+  public async resetPassword(input: ResetPasswordInput): Promise<{ reset: true }> {
     const token = await this.consumeToken("admin", "admin-password-reset", input.token);
     const passwordHash = await this.passwords.hash(input.newPassword);
     await this.admins.updateById(token.accountId, { $set: { passwordHash } });

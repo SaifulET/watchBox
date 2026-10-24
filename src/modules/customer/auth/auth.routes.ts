@@ -9,14 +9,15 @@ import { CustomerAuthController } from "./auth.controller.js";
 import { CustomerAuthService } from "./auth.service.js";
 import {
   changePasswordSchema,
+  customerResetPasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
-  resetPasswordSchema,
   sessionParamsSchema,
   verifyEmailConfirmSchema,
-  verifyEmailRequestSchema
+  verifyEmailRequestSchema,
+  verifyPasswordResetSchema
 } from "./auth.validation.js";
 
 export const createCustomerAuthRouter = (dependencies: RouteDependencies = {}): Router => {
@@ -53,8 +54,13 @@ export const createCustomerAuthRouter = (dependencies: RouteDependencies = {}): 
     asyncHandler(controller.forgotPassword)
   );
   router.post(
+    "/forgot-password/verify",
+    validate({ body: verifyPasswordResetSchema }),
+    asyncHandler(controller.verifyPasswordResetOtp)
+  );
+  router.post(
     "/reset-password",
-    validate({ body: resetPasswordSchema }),
+    validate({ body: customerResetPasswordSchema }),
     asyncHandler(controller.resetPassword)
   );
   router.post(

@@ -55,6 +55,7 @@ type DataResponse<TData> = {
 type TokenDeliveryResponse = {
   delivery: "email";
   expiresInMinutes: number;
+  developmentOtp?: string;
   developmentToken?: string;
   developmentCode?: string;
 };
@@ -184,15 +185,15 @@ describe("auth APIs", () => {
       .send({ email: "reset@example.com" })
       .expect(200);
     const verificationBody = verification.body as DataResponse<TokenDeliveryResponse>;
-    expect(verificationBody.data.expiresInMinutes).toBe(1);
-    const verificationToken = verificationBody.data.developmentToken;
-    if (!verificationToken) {
-      throw new Error("Expected a development verification token.");
+    expect(verificationBody.data.expiresInMinutes).toBe(10);
+    const verificationOtp = verificationBody.data.developmentOtp;
+    if (!verificationOtp) {
+      throw new Error("Expected a development verification OTP.");
     }
 
     await request(app)
       .post("/api/v1/auth/verify-email/confirm")
-      .send({ token: verificationToken })
+      .send({ email: "reset@example.com", otp: verificationOtp })
       .expect(200);
 
     const reset = await request(app)
@@ -200,15 +201,20 @@ describe("auth APIs", () => {
       .send({ email: "reset@example.com" })
       .expect(200);
     const resetBody = reset.body as DataResponse<TokenDeliveryResponse>;
-    const resetToken = resetBody.data.developmentToken;
-    if (!resetToken) {
-      throw new Error("Expected a development reset token.");
+    const resetOtp = resetBody.data.developmentOtp;
+    if (!resetOtp) {
+      throw new Error("Expected a development reset OTP.");
     }
+
+    await request(app)
+      .post("/api/v1/auth/forgot-password/verify")
+      .send({ email: "reset@example.com", otp: resetOtp })
+      .expect(200);
 
     await request(app)
       .post("/api/v1/auth/reset-password")
       .send({
-        token: resetToken,
+        email: "reset@example.com",
         newPassword: "new-password",
         confirmPassword: "different-password"
       })
@@ -217,7 +223,7 @@ describe("auth APIs", () => {
     await request(app)
       .post("/api/v1/auth/reset-password")
       .send({
-        token: resetToken,
+        email: "reset@example.com",
         newPassword: "new-password",
         confirmPassword: "new-password"
       })

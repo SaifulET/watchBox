@@ -44,17 +44,39 @@ export const refreshSchema = z.object({
   refreshToken: token
 });
 
+const otp = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, "OTP must be a 6-digit code.");
+
 export const verifyEmailRequestSchema = z.object({
   email
 });
 
 export const verifyEmailConfirmSchema = z.object({
-  token
+  email,
+  otp
 });
 
 export const forgotPasswordSchema = z.object({
   email
 });
+
+export const verifyPasswordResetSchema = z.object({
+  email,
+  otp
+});
+
+export const customerResetPasswordSchema = z
+  .object({
+    email,
+    newPassword: password,
+    confirmPassword: password
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match."
+  });
 
 export const resetPasswordSchema = z
   .object({
@@ -95,6 +117,8 @@ export type RefreshInput = z.infer<typeof refreshSchema>;
 export type VerifyEmailRequestInput = z.infer<typeof verifyEmailRequestSchema>;
 export type VerifyEmailConfirmInput = z.infer<typeof verifyEmailConfirmSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type VerifyPasswordResetInput = z.infer<typeof verifyPasswordResetSchema>;
+export type CustomerResetPasswordInput = z.infer<typeof customerResetPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type SessionParamsInput = z.infer<typeof sessionParamsSchema>;
