@@ -59,7 +59,10 @@ export class CustomerAuthController {
       req.requestId,
       {
         ...result.auth,
-        emailVerification: result.emailVerification
+        emailVerification: result.emailVerification,
+        ...(process.env.NODE_ENV !== "production"
+          ? { developmentOtp: result.pendingVerification.otp }
+          : {})
       },
       201
     );

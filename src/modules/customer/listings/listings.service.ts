@@ -22,7 +22,7 @@ const existingImages = (listing: GeneratedApiRecordDocument): ListingImage[] =>
   Array.isArray(listing.data.images) ? listing.data.images.filter(isListingImage) : [];
 
 const normalizeListingField = (key: string, value: unknown): unknown => {
-  if (key === "price" && typeof value === "string") {
+  if ((key === "price" || key === "year") && typeof value === "string") {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : value;
   }
