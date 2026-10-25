@@ -42,7 +42,9 @@ type ClientToServerEvents = {
   stop_typing: (input: { chatId: string }) => void;
   mark_seen: (input: { chatId: string; messageId: string }, ack?: SocketAck) => void;
 };
-type ServerToClientEvents = Record<string, (payload: RealtimeEventPayload) => void>;
+type ServerToClientEvents = {
+  [event: string]: (payload: RealtimeEventPayload | Record<string, unknown>) => void;
+};
 type InterServerEvents = Record<string, never>;
 type SocketData = {
   auth?: AuthenticatedActor;
@@ -167,9 +169,8 @@ export class SocketRealtimeService implements RealtimePublisher {
       void (async () => {
         await join(input.chatId);
         const result = await this.chats.send(userId, input.chatId, input);
-        this.io.to(`chat:${input.chatId}`).emit("receive_message", result.message as RealtimeEventPayload);
-        for (const participantId of result.participantIds) {
-          this.io.to(customerRoom(participantId)).emit("receive_message", result.message as RealtimeEventPayload);
+        for (const participantId of result.participantIds.filter((id) => id !== userId)) {
+          this.io.to(customerRoom(participantId)).emit("receive_message", result.message);
         }
         ack?.({ success: true, data: result.message });
       })().catch((error: unknown) => {
@@ -179,7 +180,7 @@ export class SocketRealtimeService implements RealtimePublisher {
     });
     for (const event of ["typing", "stop_typing"] as const) {
       socket.on(event, (input) => {
-        void join(input.chatId).then((room) => socket.to(room).emit(event, { chatId: input.chatId } as RealtimeEventPayload)).catch(() => undefined);
+        void join(input.chatId).then((room) => socket.to(room).emit(event, { chatId: input.chatId })).catch(() => undefined);
       });
     }
     socket.on("mark_seen", (input, ack) => {
