@@ -3,6 +3,7 @@ import { Server as SocketServer, type Socket } from "socket.io";
 import { authenticateAccessToken } from "../common/auth/authenticate.js";
 import type { AuthenticatedActor } from "../common/auth/auth.types.js";
 import type { WatchboxLogger } from "../common/utils/logger.js";
+import { ChatService, type SendChatMessageInput } from "../modules/customer/chats/chat.service.js";
 
 export type RealtimeEventName =
   | "notification:new"
@@ -14,6 +15,10 @@ export type RealtimeEventName =
   | "support-ticket:created"
   | "support-ticket:closed"
   | "support-message:new"
+  | "receive_message"
+  | "typing"
+  | "stop_typing"
+  | "message_seen"
   | "seller-contact:created";
 
 export type RealtimeEventPayload = {
@@ -29,7 +34,14 @@ export interface RealtimePublisher {
   emitToAdmins(event: RealtimeEventName, payload: RealtimeEventPayload): void;
 }
 
-type ClientToServerEvents = Record<string, never>;
+type SocketAck = (response: { success: boolean; data?: unknown; error?: string }) => void;
+type ClientToServerEvents = {
+  join_chat: (chatId: string, ack?: SocketAck) => void;
+  send_message: (input: SendChatMessageInput & { chatId: string }, ack?: SocketAck) => void;
+  typing: (input: { chatId: string }) => void;
+  stop_typing: (input: { chatId: string }) => void;
+  mark_seen: (input: { chatId: string; messageId: string }, ack?: SocketAck) => void;
+};
 type ServerToClientEvents = Record<string, (payload: RealtimeEventPayload) => void>;
 type InterServerEvents = Record<string, never>;
 type SocketData = {
@@ -87,7 +99,8 @@ export class SocketRealtimeService implements RealtimePublisher {
   public constructor(
     private readonly logger: WatchboxLogger,
     private readonly authenticateSocket: SocketAuthenticator = (token, audience) =>
-      authenticateAccessToken(token, audience)
+      authenticateAccessToken(token, audience),
+    private readonly chats = new ChatService()
   ) {
     this.io = new SocketServer({
       cors: {
@@ -122,6 +135,7 @@ export class SocketRealtimeService implements RealtimePublisher {
       }
 
       void socket.join(auth.audience === "admin" ? adminSupportRoom : customerRoom(auth.id));
+      if (auth.audience === "customer") this.registerChatHandlers(socket, auth.id);
       this.logger.info(
         { socketId: socket.id, actorId: auth.id, audience: auth.audience, sessionId: auth.sessionId },
         "Authenticated socket connected"
@@ -133,6 +147,46 @@ export class SocketRealtimeService implements RealtimePublisher {
           "Authenticated socket disconnected"
         );
       });
+    });
+  }
+
+  private registerChatHandlers(socket: CustomerSocket, userId: string): void {
+    const join = async (chatId: string): Promise<string> => {
+      await this.chats.participants(userId, chatId);
+      const room = `chat:${chatId}`;
+      await socket.join(room);
+      return room;
+    };
+    socket.on("join_chat", (chatId, ack) => {
+      void join(chatId).then(() => ack?.({ success: true })).catch((error: unknown) => {
+        this.logger.warn({ error, userId, chatId }, "Chat room join rejected");
+        ack?.({ success: false, error: "Unable to join conversation." });
+      });
+    });
+    socket.on("send_message", (input, ack) => {
+      void (async () => {
+        await join(input.chatId);
+        const result = await this.chats.send(userId, input.chatId, input);
+        this.io.to(`chat:${input.chatId}`).emit("receive_message", result.message as RealtimeEventPayload);
+        for (const participantId of result.participantIds) {
+          this.io.to(customerRoom(participantId)).emit("receive_message", result.message as RealtimeEventPayload);
+        }
+        ack?.({ success: true, data: result.message });
+      })().catch((error: unknown) => {
+        this.logger.warn({ error, userId, chatId: input.chatId }, "Socket message rejected");
+        ack?.({ success: false, error: "Unable to send message." });
+      });
+    });
+    for (const event of ["typing", "stop_typing"] as const) {
+      socket.on(event, (input) => {
+        void join(input.chatId).then((room) => socket.to(room).emit(event, { chatId: input.chatId } as RealtimeEventPayload)).catch(() => undefined);
+      });
+    }
+    socket.on("mark_seen", (input, ack) => {
+      void this.chats.markSeen(userId, input.chatId, input.messageId).then((result) => {
+        this.io.to(`chat:${input.chatId}`).emit("message_seen", { chatId: input.chatId, messageId: input.messageId } as unknown as RealtimeEventPayload);
+        ack?.({ success: true, data: result.message });
+      }).catch(() => ack?.({ success: false, error: "Unable to mark message as seen." }));
     });
   }
 
