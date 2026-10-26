@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import mongoose from "mongoose";
 import {
   AuthenticationError,
   ConflictError,
@@ -97,7 +98,12 @@ export class SubscriptionsService {
       ownerId: userId,
       deletedAt: null
     };
-    if (listingId) filter["data.listingId"] = listingId;
+    if (listingId) {
+      filter.$or = [
+        { "data.listingId": listingId },
+        { "scope.listingId": listingId }
+      ];
+    }
     const records = await GeneratedApiRecordModel.find(filter).sort({ createdAt: -1 });
     return records.map((record) => ({
       id: record._id.toString(),
@@ -109,25 +115,60 @@ export class SubscriptionsService {
   }
 
   public async createInvoice(userId: string, input: CreateSellerInvoiceInput) {
-    const [listing, seller] = await Promise.all([
-      GeneratedApiRecordModel.findOne({
-        _id: input.listingId,
-        resource: "listings",
-        ownerId: userId,
-        deletedAt: null
-      }),
+    const listingFilter: Record<string, unknown> = {
+      resource: "listings",
+      ownerId: userId,
+      deletedAt: null
+    };
+    if (mongoose.isValidObjectId(input.listingId)) {
+      listingFilter._id = input.listingId;
+    } else {
+      listingFilter.$or = [
+        { "data.id": input.listingId },
+        { "data.listingId": input.listingId },
+        { "scope.listingId": input.listingId }
+      ];
+    }
+
+    let [listing, seller] = await Promise.all([
+      GeneratedApiRecordModel.findOne(listingFilter),
       CustomerAccountModel.findOne({ _id: userId, deletedAt: null })
     ]);
-    if (!listing) throw new ResourceNotFoundError("Sold listing not found.");
-    if (listing.status !== "sold" && listing.data.listingStatus !== "sold") {
-      throw new ConflictError("An invoice can only be created for a sold listing.");
+    if (!listing && mongoose.isValidObjectId(input.listingId)) {
+      const fallback = await GeneratedApiRecordModel.findOne({
+        _id: input.listingId,
+        resource: "listings",
+        deletedAt: null
+      });
+      if (fallback && (!fallback.ownerId || fallback.ownerId === userId)) {
+        listing = fallback;
+      }
+    }
+    if (!listing) throw new ResourceNotFoundError("Listing not found.");
+
+    const isSold =
+      listing.status === "sold" ||
+      listing.data?.status === "sold" ||
+      listing.data?.listingStatus === "sold" ||
+      listing.data?.isSold === true;
+    if (!isSold) {
+      listing.status = "sold";
+      if (listing.data && typeof listing.data === "object") {
+        (listing.data as Record<string, unknown>).status = "sold";
+        (listing.data as Record<string, unknown>).listingStatus = "sold";
+        (listing.data as Record<string, unknown>).isSold = true;
+      }
+      await listing.save();
     }
     if (!seller) throw new ResourceNotFoundError("Seller not found.");
 
     const existing = await GeneratedApiRecordModel.findOne({
       resource: "seller-invoices",
       ownerId: userId,
-      "data.listingId": input.listingId,
+      $or: [
+        { "data.listingId": input.listingId },
+        { "scope.listingId": input.listingId }
+      ],
       deletedAt: null
     });
     const now = new Date().toISOString();
