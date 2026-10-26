@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { AuthenticationError } from "../../../common/errors/app-error.js";
 import { sendSuccess } from "../../../common/utils/api-response.js";
 import type { SubscriptionsService } from "./subscriptions.service.js";
-import type { CheckoutInput, PortalInput } from "./subscriptions.validation.js";
+import type { CheckoutInput, CreateSellerInvoiceInput, PortalInput } from "./subscriptions.validation.js";
 
 const actorId = (req: Request): string => {
   if (!req.auth || req.auth.audience !== "customer") {
@@ -28,6 +28,19 @@ export class SubscriptionsController {
 
   public portal = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(res, req.requestId, await this.service.portal(actorId(req), req.body as PortalInput));
+  };
+
+  public invoices = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.invoices(actorId(req), req.query.listingId?.toString()));
+  };
+
+  public createInvoice = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.createInvoice(actorId(req), req.body as CreateSellerInvoiceInput),
+      201
+    );
   };
 
   public stripeWebhook = async (req: Request, res: Response): Promise<void> => {

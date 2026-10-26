@@ -17,7 +17,11 @@ import {
   GeneratedApiRecordModel,
   type GeneratedApiRecordDocument
 } from "../../generated-api/generated-api.model.js";
-import type { CheckoutInput, PortalInput } from "./subscriptions.validation.js";
+import type {
+  CheckoutInput,
+  CreateSellerInvoiceInput,
+  PortalInput
+} from "./subscriptions.validation.js";
 
 type StripeEvent = {
   id: string;
@@ -85,6 +89,88 @@ export class SubscriptionsService {
       currentDefault: "standard",
       plans: [standardPlan, elitePlan]
     };
+  }
+
+  public async invoices(userId: string, listingId?: string) {
+    const filter: Record<string, unknown> = {
+      resource: "seller-invoices",
+      ownerId: userId,
+      deletedAt: null
+    };
+    if (listingId) filter["data.listingId"] = listingId;
+    const records = await GeneratedApiRecordModel.find(filter).sort({ createdAt: -1 });
+    return records.map((record) => ({
+      id: record._id.toString(),
+      ...record.data,
+      status: record.status,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString()
+    }));
+  }
+
+  public async createInvoice(userId: string, input: CreateSellerInvoiceInput) {
+    const [listing, seller] = await Promise.all([
+      GeneratedApiRecordModel.findOne({
+        _id: input.listingId,
+        resource: "listings",
+        ownerId: userId,
+        deletedAt: null
+      }),
+      CustomerAccountModel.findOne({ _id: userId, deletedAt: null })
+    ]);
+    if (!listing) throw new ResourceNotFoundError("Sold listing not found.");
+    if (listing.status !== "sold" && listing.data.listingStatus !== "sold") {
+      throw new ConflictError("An invoice can only be created for a sold listing.");
+    }
+    if (!seller) throw new ResourceNotFoundError("Seller not found.");
+
+    const existing = await GeneratedApiRecordModel.findOne({
+      resource: "seller-invoices",
+      ownerId: userId,
+      "data.listingId": input.listingId,
+      deletedAt: null
+    });
+    const now = new Date().toISOString();
+    const invoiceNo = existing?.data.invoiceNo ??
+      `INV-${input.listingId.slice(-6).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+    const data = {
+      listingId: input.listingId,
+      invoiceNo,
+      invoice_no: invoiceNo,
+      date: now.split("T")[0],
+      sellerName: seller.displayName,
+      seller_name: seller.displayName,
+      sellerEmail: seller.email,
+      seller_email: seller.email,
+      buyerName: input.buyerName,
+      buyer_name: input.buyerName,
+      buyerEmail: input.buyerEmail,
+      buyer_email: input.buyerEmail,
+      price: input.price,
+      currency: input.currency.toUpperCase(),
+      paymentStatus: "paid",
+      watch: {
+        id: listing._id.toString(),
+        ...listing.data,
+        status: listing.status
+      }
+    };
+    const record = existing
+      ? await GeneratedApiRecordModel.findByIdAndUpdate(
+          existing._id,
+          { $set: { data, status: "paid" }, $push: { history: { action: "seller-invoices.updated", actorId: userId, actorType: "customer", at: new Date(), metadata: { listingId: input.listingId } } } },
+          { new: true }
+        )
+      : await GeneratedApiRecordModel.create({
+          resource: "seller-invoices",
+          ownerId: userId,
+          scope: { listingId: input.listingId },
+          data,
+          status: "paid",
+          history: [{ action: "seller-invoices.created", actorId: userId, actorType: "customer", at: new Date(), metadata: { listingId: input.listingId } }]
+        });
+    if (!record) throw new ResourceNotFoundError("Invoice could not be saved.");
+    return { id: record._id.toString(), ...record.data, status: record.status, createdAt: record.createdAt.toISOString() };
   }
 
   public async status(userId: string) {

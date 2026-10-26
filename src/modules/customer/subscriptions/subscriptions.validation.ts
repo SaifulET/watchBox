@@ -19,3 +19,13 @@ export const portalSchema = z
   .default({});
 
 export type PortalInput = z.infer<typeof portalSchema>;
+
+export const createSellerInvoiceSchema = z.object({
+  listingId: z.string().trim().min(1).max(80),
+  buyerName: z.string().trim().min(1).max(120),
+  buyerEmail: z.string().trim().email().max(254),
+  price: z.coerce.number().positive(),
+  currency: z.string().trim().min(3).max(8).default("USD")
+}).strict();
+
+export type CreateSellerInvoiceInput = z.infer<typeof createSellerInvoiceSchema>;

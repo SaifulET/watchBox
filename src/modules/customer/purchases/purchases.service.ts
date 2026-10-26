@@ -135,8 +135,7 @@ const createSaleArtifacts = async (input: {
     );
   }
 
-  await Promise.all([
-    GeneratedApiRecordModel.updateOne(
+  await GeneratedApiRecordModel.updateOne(
       { resource: "notifications", "scope.idempotencyKey": `sold:${input.saleId}`, deletedAt: null },
       {
         $setOnInsert: {
@@ -157,37 +156,7 @@ const createSaleArtifacts = async (input: {
         }
       },
       { upsert: true }
-    ),
-    GeneratedApiRecordModel.updateOne(
-      { resource: "subscriptions", "scope.idempotencyKey": `invoice:${input.saleId}`, deletedAt: null },
-      {
-        $setOnInsert: {
-          resource: "subscriptions",
-          ownerId: input.sellerId,
-          scope: { idempotencyKey: `invoice:${input.saleId}`, listingId: input.listingId },
-          data: {
-            type: "sale_invoice",
-            invoiceNo: `INV-${input.saleId.slice(-8).toUpperCase()}`,
-            invoice_no: `INV-${input.saleId.slice(-8).toUpperCase()}`,
-            saleId: input.saleId,
-            listingId: input.listingId,
-            buyerName: input.buyerName,
-            buyer_name: input.buyerName,
-            buyerEmail: input.buyerEmail,
-            buyer_email: input.buyerEmail,
-            title: input.title,
-            price: input.total,
-            currency: input.currency,
-            date: input.paidAt,
-            paymentStatus: "paid"
-          },
-          status: "paid",
-          history: [{ action: "subscriptions.invoice-created", actorType: "payment", at: new Date(), metadata: { saleId: input.saleId } }]
-        }
-      },
-      { upsert: true }
-    )
-  ]);
+    );
 };
 
 const serializeRecord = (record: GeneratedApiRecordDocument): SerializedPurchaseRecord => ({
