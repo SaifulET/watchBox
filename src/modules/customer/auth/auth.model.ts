@@ -24,6 +24,8 @@ export type CustomerAccount = {
   preferences: {
     currency: string;
   };
+  availableBalance: number;
+  lifetimeEarnings: number;
   lastLoginAt?: Date;
   deletedAt?: Date;
   createdAt: Date;
@@ -100,6 +102,8 @@ const customerAccountSchema = new Schema<CustomerAccount>(
     preferences: {
       currency: { type: String, default: "USD" }
     },
+    availableBalance: { type: Number, default: 0, min: 0 },
+    lifetimeEarnings: { type: Number, default: 0, min: 0 },
     lastLoginAt: Date,
     deletedAt: Date
   },

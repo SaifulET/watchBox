@@ -101,6 +101,95 @@ const listingImage = (data: Record<string, unknown>): string | null => {
   return null;
 };
 
+const createSaleArtifacts = async (input: {
+  saleId: string;
+  listingId: string;
+  sellerId: string;
+  buyerId: string;
+  buyerName: string;
+  buyerEmail: string;
+  title: string;
+  total: number;
+  currency: string;
+  paidAt: string;
+}): Promise<void> => {
+  const earning = await GeneratedApiRecordModel.updateOne(
+    { resource: "seller-earnings", "scope.idempotencyKey": `sale:${input.saleId}`, deletedAt: null },
+    {
+      $setOnInsert: {
+        resource: "seller-earnings",
+        ownerId: input.sellerId,
+        scope: { idempotencyKey: `sale:${input.saleId}`, listingId: input.listingId },
+        data: { saleId: input.saleId, listingId: input.listingId, amount: input.total, currency: input.currency, status: "available" },
+        status: "available",
+        history: [{ action: "seller-earnings.credited", actorType: "payment", at: new Date(), metadata: { saleId: input.saleId } }]
+      }
+    },
+    { upsert: true }
+  );
+
+  if (earning.upsertedCount === 1) {
+    await CustomerAccountModel.updateOne(
+      { _id: input.sellerId, deletedAt: null },
+      { $inc: { availableBalance: input.total, lifetimeEarnings: input.total } }
+    );
+  }
+
+  await Promise.all([
+    GeneratedApiRecordModel.updateOne(
+      { resource: "notifications", "scope.idempotencyKey": `sold:${input.saleId}`, deletedAt: null },
+      {
+        $setOnInsert: {
+          resource: "notifications",
+          ownerId: input.sellerId,
+          scope: { idempotencyKey: `sold:${input.saleId}`, listingId: input.listingId },
+          data: {
+            type: "watch_sold",
+            title: "Your watch was purchased",
+            message: `${input.buyerName} bought your ${input.title}. ${input.currency} ${input.total.toFixed(2)} was added to your account.`,
+            timestamp: input.paidAt,
+            isRead: false,
+            is_read: 0,
+            listingId: input.listingId
+          },
+          status: "unread",
+          history: [{ action: "notifications.created", actorType: "payment", at: new Date(), metadata: { saleId: input.saleId } }]
+        }
+      },
+      { upsert: true }
+    ),
+    GeneratedApiRecordModel.updateOne(
+      { resource: "subscriptions", "scope.idempotencyKey": `invoice:${input.saleId}`, deletedAt: null },
+      {
+        $setOnInsert: {
+          resource: "subscriptions",
+          ownerId: input.sellerId,
+          scope: { idempotencyKey: `invoice:${input.saleId}`, listingId: input.listingId },
+          data: {
+            type: "sale_invoice",
+            invoiceNo: `INV-${input.saleId.slice(-8).toUpperCase()}`,
+            invoice_no: `INV-${input.saleId.slice(-8).toUpperCase()}`,
+            saleId: input.saleId,
+            listingId: input.listingId,
+            buyerName: input.buyerName,
+            buyer_name: input.buyerName,
+            buyerEmail: input.buyerEmail,
+            buyer_email: input.buyerEmail,
+            title: input.title,
+            price: input.total,
+            currency: input.currency,
+            date: input.paidAt,
+            paymentStatus: "paid"
+          },
+          status: "paid",
+          history: [{ action: "subscriptions.invoice-created", actorType: "payment", at: new Date(), metadata: { saleId: input.saleId } }]
+        }
+      },
+      { upsert: true }
+    )
+  ]);
+};
+
 const serializeRecord = (record: GeneratedApiRecordDocument): SerializedPurchaseRecord => ({
   id: record._id.toString(),
   resource: record.resource,
@@ -675,6 +764,22 @@ export class PurchasesService {
       )
     ]);
 
+    const buyer = order.data.buyer as Record<string, unknown> | undefined;
+    const listingSnapshot = order.data.listing as Record<string, unknown> | undefined;
+    const paidAt = stringValue(updatedOrder?.data.paidAt) ?? new Date().toISOString();
+    await createSaleArtifacts({
+      saleId: order._id.toString(),
+      listingId,
+      sellerId: stringValue(order.data.sellerId) ?? updatedListing?.ownerId ?? "",
+      buyerId: userId,
+      buyerName: stringValue(buyer?.displayName) ?? "A buyer",
+      buyerEmail: stringValue(buyer?.email) ?? "",
+      title: stringValue(listingSnapshot?.title) ?? stringValue(updatedListing?.data.title) ?? "watch",
+      total: numberValue(order.data.total) ?? 0,
+      currency: (stringValue(order.data.currency) ?? "USD").toUpperCase(),
+      paidAt
+    });
+
     return {
       order: serializeRecord(updatedOrder ?? order),
       listing: updatedListing ? serializeRecord(updatedListing) : null
@@ -774,7 +879,7 @@ export class PurchasesService {
     if (!listingId) {
       return;
     }
-    await GeneratedApiRecordModel.findByIdAndUpdate(
+    const soldListing = await GeneratedApiRecordModel.findByIdAndUpdate(
       listingId,
       {
         $set: {
@@ -794,6 +899,20 @@ export class PurchasesService {
       },
       { new: true }
     );
+    const buyer = order.data.buyer as Record<string, unknown> | undefined;
+    const listingSnapshot = order.data.listing as Record<string, unknown> | undefined;
+    const sellerId = stringValue(order.data.sellerId) ?? soldListing?.ownerId;
+    if (sellerId) {
+      await createSaleArtifacts({
+        saleId: order._id.toString(), listingId, sellerId, buyerId,
+        buyerName: stringValue(buyer?.displayName) ?? "A buyer",
+        buyerEmail: stringValue(buyer?.email) ?? "",
+        title: stringValue(listingSnapshot?.title) ?? stringValue(soldListing?.data.title) ?? "watch",
+        total: numberValue(order.data.total) ?? 0,
+        currency: (stringValue(order.data.currency) ?? "USD").toUpperCase(),
+        paidAt
+      });
+    }
   }
 
   private static async applyStripeProductPaymentEvent(
@@ -880,7 +999,7 @@ export class PurchasesService {
     if (!listingId) {
       return;
     }
-    await GeneratedApiRecordModel.findByIdAndUpdate(
+    const soldListing = await GeneratedApiRecordModel.findByIdAndUpdate(
       listingId,
       {
         $set: {
@@ -900,6 +1019,20 @@ export class PurchasesService {
       },
       { new: true }
     );
+    const buyer = productPayment.data.buyer as Record<string, unknown> | undefined;
+    const product = productPayment.data.product as Record<string, unknown> | undefined;
+    const sellerId = stringValue(productPayment.data.sellerId) ?? soldListing?.ownerId;
+    if (sellerId) {
+      await createSaleArtifacts({
+        saleId: productPayment._id.toString(), listingId, sellerId, buyerId,
+        buyerName: stringValue(buyer?.displayName) ?? "A buyer",
+        buyerEmail: stringValue(buyer?.email) ?? "",
+        title: stringValue(product?.title) ?? stringValue(soldListing?.data.title) ?? "watch",
+        total: numberValue(productPayment.data.total) ?? 0,
+        currency: (stringValue(productPayment.data.currency) ?? "USD").toUpperCase(),
+        paidAt
+      });
+    }
   }
 
   private async requirePurchasableListing(
