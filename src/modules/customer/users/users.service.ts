@@ -285,7 +285,9 @@ export class UserService {
       throw new ResourceNotFoundError("User profile not found.");
     }
 
-    await this.publish("customer.avatar-uploaded", userId, { avatarKey, avatarUrl });
+    // The image and profile are already persisted at this point. A temporary
+    // message-broker outage must not turn a successful avatar update into 500.
+    await this.publishBestEffort("customer.avatar-uploaded", userId, { avatarKey, avatarUrl });
     return serializeProfile(updated);
   }
 
@@ -313,7 +315,10 @@ export class UserService {
     if (!updated) {
       throw new ResourceNotFoundError("User profile not found.");
     }
-    await this.publish("customer.avatar-updated", userId, { avatarKey: input.avatarKey, avatarUrl });
+    await this.publishBestEffort("customer.avatar-updated", userId, {
+      avatarKey: input.avatarKey,
+      avatarUrl
+    });
     return serializeProfile(updated);
   }
 
@@ -324,7 +329,7 @@ export class UserService {
     if (!updated) {
       throw new ResourceNotFoundError("User profile not found.");
     }
-    await this.publish("customer.avatar-deleted", userId, {});
+    await this.publishBestEffort("customer.avatar-deleted", userId, {});
     return serializeProfile(updated);
   }
 
@@ -342,5 +347,17 @@ export class UserService {
     payload: Record<string, unknown>
   ): Promise<void> {
     await this.dependencies.events.publish({ type, aggregateId, payload });
+  }
+
+  private async publishBestEffort(
+    type: string,
+    aggregateId: string,
+    payload: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      await this.publish(type, aggregateId, payload);
+    } catch {
+      // Profile persistence is authoritative; domain events are secondary.
+    }
   }
 }

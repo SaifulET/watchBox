@@ -49,7 +49,18 @@ export const requireSingleImage = (fieldName: string | string[] = "image"): Requ
         return;
       }
       if (error) {
-        next(error);
+        if (error instanceof ValidationError) {
+          next(error);
+          return;
+        }
+        next(
+          new ValidationError([
+            {
+              path: primaryFieldName,
+              message: "The multipart image upload is malformed. Please select the image again."
+            }
+          ])
+        );
         return;
       }
       if (!req.file && req.files && !Array.isArray(req.files)) {
