@@ -148,6 +148,8 @@ const serializeCustomer = (account: CustomerAccountDocument) => ({
   preferences: {
     currency: account.preferences.currency
   },
+  availableBalance: account.availableBalance ?? 0,
+  lifetimeEarnings: account.lifetimeEarnings ?? 0,
   createdAt: account.createdAt.toISOString(),
   updatedAt: account.updatedAt.toISOString()
 });
