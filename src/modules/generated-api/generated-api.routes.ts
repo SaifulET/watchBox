@@ -26,8 +26,24 @@ const alreadyImplemented = (path: string): boolean =>
   path.includes("/auth/") ||
   path.startsWith("/api/v1/users/me") ||
   path.startsWith("/api/v1/public") ||
+  path.startsWith("/api/v1/chats") ||
+  path.startsWith("/api/v1/admin/chats") ||
+  path.startsWith("/api/v1/blocks") ||
+  path.startsWith("/api/v1/reports") ||
+  path.startsWith("/api/v1/me/reports") ||
+  path === "/api/v1/admin/reports" ||
+  path === "/api/v1/admin/reports/summary" ||
+  path === "/api/v1/admin/reports/:reportId" ||
+  path === "/api/v1/admin/reports/:reportId/status" ||
+  path === "/api/v1/admin/reports/:reportId/resolve" ||
+  path === "/api/v1/admin/reports/:reportId/dismiss" ||
+  path.startsWith("/api/v1/admin/notifications") ||
+  path === "/api/v1/listings/:listingId/contact-seller" ||
+  path === "/api/v1/listings/:listingId/report" ||
   path === "/api/v1/notification-preferences" ||
-  path === "/api/v1/search";
+  path === "/api/v1/search" ||
+  path === "/api/v1/webhooks/stripe" ||
+  path === "/api/v1/webhooks/revenuecat";
 
 const jobSegments = new Set([
   "upload-urls",

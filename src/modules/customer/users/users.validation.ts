@@ -5,15 +5,74 @@ const queryCoordinate = z.preprocess(
   z.coerce.number()
 );
 
-export const updateProfileSchema = z
-  .object({
-    displayName: z.string().trim().min(2).max(120).optional(),
-    phone: z.string().trim().min(3).max(40).optional(),
-    country: z.string().trim().min(2).max(80).optional(),
-    avatarUrl: z.string().trim().min(1).max(2048).optional(),
-    avatarKey: z.string().trim().min(1).max(512).optional()
-  })
-  .default({});
+const firstValue = (value: unknown): unknown => (Array.isArray(value) ? value[0] : value);
+
+const blankToUndefined = (value: unknown): unknown => {
+  const first = firstValue(value);
+  if (first === null) {
+    return undefined;
+  }
+  if (typeof first === "string" && first.trim() === "") {
+    return undefined;
+  }
+  return first;
+};
+
+const optionalText = (min: number, max: number) =>
+  z.preprocess(blankToUndefined, z.string().trim().min(min).max(max).optional());
+
+const optionalCoordinate = (min: number, max: number) =>
+  z.preprocess(blankToUndefined, z.coerce.number().min(min).max(max).optional());
+
+const profileAliases: Record<string, string[]> = {
+  displayName: ["displayName", "display_name", "name", "fullName", "full_name", "username", "userName"],
+  phone: ["phone", "phoneNumber", "phone_number", "mobile", "mobileNumber"],
+  country: ["country", "countryName", "country_name"],
+  avatarUrl: ["avatarUrl", "avatar_url", "profileImageUrl", "imageUrl"],
+  avatarKey: ["avatarKey", "avatar_key"],
+  latitude: ["latitude", "lat"],
+  longitude: ["longitude", "lng", "lon", "lan"]
+};
+
+const normalizeProfileBody = (value: unknown): Record<string, unknown> => {
+  const body =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const location =
+    typeof body.location === "object" && body.location !== null && !Array.isArray(body.location)
+      ? (body.location as Record<string, unknown>)
+      : {};
+  const normalized: Record<string, unknown> = {};
+  for (const [field, aliases] of Object.entries(profileAliases)) {
+    for (const alias of aliases) {
+      const candidate = blankToUndefined(body[alias] ?? location[alias]);
+      if (candidate !== undefined) {
+        normalized[field] = candidate;
+        break;
+      }
+    }
+  }
+  return normalized;
+};
+
+export const updateProfileSchema = z.preprocess(
+  normalizeProfileBody,
+  z
+    .object({
+      displayName: optionalText(2, 120),
+      phone: optionalText(3, 40),
+      country: optionalText(2, 80),
+      avatarUrl: optionalText(1, 2048),
+      avatarKey: optionalText(1, 512),
+      latitude: optionalCoordinate(-90, 90),
+      longitude: optionalCoordinate(-180, 180)
+    })
+    .refine((value) => (value.latitude === undefined) === (value.longitude === undefined), {
+      path: ["latitude"],
+      message: "Latitude and longitude must be sent together."
+    })
+);
 
 export const updatePreferencesSchema = z
   .object({

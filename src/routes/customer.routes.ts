@@ -20,6 +20,8 @@ import { createSavedRouter } from "../modules/customer/saved/saved.routes.js";
 import { createSubscriptionsRouter } from "../modules/customer/subscriptions/subscriptions.routes.js";
 import { createUsersRouter } from "../modules/customer/users/users.routes.js";
 import { createWatchAlertsRouter } from "../modules/customer/watch-alerts/watch-alerts.routes.js";
+import { createCustomerChatsRouter } from "../modules/chats/customer-chats.routes.js";
+import { createCustomerModerationRouter } from "../modules/moderation/customer-moderation.routes.js";
 import { createGeneratedApiRouter } from "../modules/generated-api/generated-api.routes.js";
 import type { RouteDependencies } from "./index.js";
 
@@ -56,6 +58,8 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use(createWatchAlertsRouter());
   router.use("/notification-preferences", createNotificationPreferencesRouter(dependencies));
   router.use(createEbayWebhookRouter());
+  router.use(createCustomerChatsRouter(dependencies));
+  router.use(createCustomerModerationRouter(dependencies));
   router.use(createGeneratedApiRouter(dependencies));
 
   return router;

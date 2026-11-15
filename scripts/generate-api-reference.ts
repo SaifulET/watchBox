@@ -154,6 +154,12 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   if (endpoint.path.startsWith("/api/v1/webhooks")) {
     return { id: "evt_123", type: "event.received", data: { example: true } };
   }
+  if (endpoint.path === "/api/v1/listings/:listingId/contact-seller" || endpoint.path === "/api/v1/chats") {
+    return { listingId: "{{listingId}}", message: "Is this watch still available?" };
+  }
+  if (endpoint.path.endsWith("/chats/:chatId/messages") || endpoint.path === "/api/v1/admin/chats") {
+    return { message: "I can help with this conversation." };
+  }
   if (endpoint.path.includes("/listings") && endpoint.method === "POST") {
     return {
       title: "Rolex Submariner Date",
@@ -173,8 +179,18 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   if (endpoint.path.includes("/support/tickets") && endpoint.method === "POST") {
     return { subject: "Need help", message: "Please help with my order." };
   }
-  if (endpoint.path.includes("/reports")) {
-    return { reason: "suspicious", message: "Please review this item." };
+  if (endpoint.path === "/api/v1/blocks") {
+    return { userId: "{{userId}}" };
+  }
+  if (endpoint.path.includes("/admin/reports") && endpoint.path.endsWith("/status")) {
+    return { status: "resolved" };
+  }
+  if (endpoint.path.includes("/reports") && endpoint.method === "POST") {
+    return {
+      userId: "{{userId}}",
+      reason: "unprofessional",
+      message: "Please review this user. Proof images are attached."
+    };
   }
   if (endpoint.path.includes("/ebay/disconnect") || endpoint.path.includes("/publish-to-ebay")) {
     return {};
@@ -187,6 +203,18 @@ const exampleBody = (endpoint: Endpoint): Record<string, unknown> | undefined =>
   }
   if (endpoint.path.includes("/watch-alerts") && endpoint.method === "POST") {
     return { title: "Rolex Submariner Alert", brand: "Rolex", model: "Submariner", maxPrice: 13000, currency: "USD" };
+  }
+  if (endpoint.path.includes("/webhooks/revenuecat")) {
+    return {
+      api_version: "1.0",
+      event: {
+        id: "Unique-RevenueCat-Event-Id",
+        type: "INITIAL_PURCHASE",
+        app_user_id: "{{userId}}",
+        product_id: "elite_monthly",
+        expiration_at_ms: 1769817600000
+      }
+    };
   }
   if (endpoint.path.includes("/subscription/checkout")) {
     return { planId: "pro_monthly", successUrl: "https://mywatchbox.net/success", cancelUrl: "https://mywatchbox.net/cancel" };

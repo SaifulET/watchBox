@@ -35,11 +35,13 @@ export class UserController {
     let input = (req.body ?? {}) as UpdateProfileInput;
     if (req.file) {
       const avatarResult = await this.service.uploadAvatar(actorId(req), req.file);
-      input = {
-        ...input,
-        avatarUrl: avatarResult.avatarUrl ?? undefined,
-        avatarKey: avatarResult.avatarKey ?? undefined
-      };
+      input = { ...input };
+      if (avatarResult.avatarUrl) {
+        input.avatarUrl = avatarResult.avatarUrl;
+      }
+      if (avatarResult.avatarKey) {
+        input.avatarKey = avatarResult.avatarKey;
+      }
     }
     if (Object.keys(input).length === 0) {
       throw new ValidationError([

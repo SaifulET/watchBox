@@ -64,6 +64,7 @@ const envSchema = z.object({
   STRIPE_PUBLISHABLE_KEY: optionalEnvString,
   STRIPE_WEBHOOK_SECRET: optionalEnvString,
   STRIPE_ELITE_PRICE_ID: optionalEnvString,
+  REVENUECAT_WEBHOOK_SECRET: optionalEnvString,
   EMAIL_PROVIDER: z.enum(["local", "smtp", "ses", "sendgrid", "mailgun"]).default("local"),
   EMAIL_FROM: z.string().email().default("no-reply@watchbox.local"),
   EMAIL_API_KEY: optionalEnvString,

@@ -5,6 +5,9 @@ import { createAdminAuthRouter } from "../modules/admin/auth/auth.routes.js";
 import { createBulkEmailRouter } from "../modules/admin/bulk-email/bulk-email.routes.js";
 import { createAdminEarningsRouter } from "../modules/admin/earnings/earnings.routes.js";
 import { createAdminSubscriptionsRouter } from "../modules/admin/subscriptions/admin-subscriptions.routes.js";
+import { createAdminChatsRouter } from "../modules/chats/admin-chats.routes.js";
+import { createAdminNotificationsRouter } from "../modules/moderation/admin-notifications.routes.js";
+import { createAdminReportsRouter } from "../modules/moderation/admin-reports.routes.js";
 import { createAdminSupportRouter } from "../modules/admin/support/admin-support.routes.js";
 import { createAdminUsersRouter } from "../modules/admin/users/admin-users.routes.js";
 import type { RouteDependencies } from "./index.js";
@@ -25,6 +28,9 @@ export const createAdminRouter = (dependencies: RouteDependencies = {}): Router 
   router.use("/earnings", createAdminEarningsRouter());
   router.use("/subscriptions", createAdminSubscriptionsRouter());
   router.use("/support", createAdminSupportRouter(dependencies));
+  router.use("/chats", createAdminChatsRouter(dependencies));
+  router.use("/reports", createAdminReportsRouter(dependencies));
+  router.use("/notifications", createAdminNotificationsRouter(dependencies));
   router.use("/users", createAdminUsersRouter(dependencies));
 
   return router;

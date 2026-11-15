@@ -119,7 +119,14 @@ export class UserService {
   }
 
   public async updateMe(userId: string, input: UpdateProfileInput): Promise<CustomerProfile> {
-    const updated = await this.users.updateById(userId, { $set: input });
+    const { latitude, longitude, ...fields } = input;
+    const update: Record<string, unknown> = { ...fields };
+    if (latitude !== undefined && longitude !== undefined) {
+      update.latitude = latitude;
+      update.longitude = longitude;
+      update.location = { type: "Point", coordinates: [longitude, latitude] };
+    }
+    const updated = await this.users.updateById(userId, { $set: update });
     if (!updated) {
       throw new ResourceNotFoundError("User profile not found.");
     }

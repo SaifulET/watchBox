@@ -146,6 +146,7 @@ describe.sequential("generated API routes", () => {
     delete process.env.STRIPE_PUBLISHABLE_KEY;
     delete process.env.STRIPE_WEBHOOK_SECRET;
     delete process.env.STRIPE_ELITE_PRICE_ID;
+    delete process.env.REVENUECAT_WEBHOOK_SECRET;
     resetEnvForTests();
   });
 
@@ -435,6 +436,65 @@ describe.sequential("generated API routes", () => {
       }
     });
     expect(listing?.owner?.id).toBe(listing?.ownerId);
+  });
+
+  it("returns participant names in chat and block lists", async () => {
+    const seller = await registerCustomerProfile("chat-seller@example.com", "Chat Seller");
+    const buyer = await registerCustomerProfile("chat-buyer@example.com", "Chat Buyer");
+
+    const listingResponse = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", `Bearer ${seller.accessToken}`)
+      .send({ title: "Chat Name Watch", brand: "Omega", price: 5000, currency: "USD" })
+      .expect(201);
+    const listing = listingResponse.body as RecordResponse;
+
+    await request(app)
+      .post(`/api/v1/listings/${listing.data.id}/contact-seller`)
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({ message: "Is this available?" })
+      .expect((response) => {
+        expect([200, 201]).toContain(response.status);
+      });
+
+    const chatsResponse = await request(app)
+      .get("/api/v1/chats")
+      .set("Authorization", `Bearer ${seller.accessToken}`)
+      .expect(200);
+    const chats = chatsResponse.body as DataResponse<{
+      items: Array<{
+        buyer: { displayName: string } | null;
+        seller: { displayName: string } | null;
+        lastMessage: { sender: { displayName: string } } | null;
+      }>;
+    }>;
+    expect(chats.data.items[0]).toMatchObject({
+      buyer: { displayName: "Chat Buyer" },
+      seller: { displayName: "Chat Seller" },
+      lastMessage: { sender: { displayName: "Chat Buyer" } }
+    });
+
+    await request(app)
+      .get("/api/v1/blocks")
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .expect(200);
+
+    await request(app)
+      .post("/api/v1/blocks")
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .send({ userId: seller.id })
+      .expect((response) => {
+        expect([200, 201]).toContain(response.status);
+      });
+
+    const blocksResponse = await request(app)
+      .get("/api/v1/blocks")
+      .set("Authorization", `Bearer ${buyer.accessToken}`)
+      .expect(200);
+    const blocks = blocksResponse.body as DataResponse<{
+      items: Array<{ user: { displayName: string } | null }>;
+    }>;
+    expect(blocks.data.items[0]?.user?.displayName).toBe("Chat Seller");
   });
 
   it("creates a direct product payment intent without a frontend order step", async () => {
@@ -2196,6 +2256,77 @@ describe.sequential("generated API routes", () => {
       plan: "elite_collector",
       stripeCustomerId: "cus_test",
       stripeSubscriptionId: "sub_test"
+    });
+  });
+
+  it("accepts RevenueCat subscription webhooks and upgrades the customer plan", async () => {
+    const webhookSecret = "rc_whsec_test_secret";
+    process.env.REVENUECAT_WEBHOOK_SECRET = webhookSecret;
+    resetEnvForTests();
+
+    const accessToken = await registerCustomer();
+    const authorization = `Bearer ${accessToken}`;
+    const account = await CustomerAccountModel.findOne({ email: "generated-customer@example.com" });
+    expect(account).toBeTruthy();
+
+    await request(app)
+      .post("/api/v1/webhooks/revenuecat")
+      .set("Authorization", webhookSecret)
+      .send({
+        api_version: "1.0",
+        event: {
+          id: "RC_INITIAL_PURCHASE_1",
+          type: "INITIAL_PURCHASE",
+          app_user_id: account?._id.toString(),
+          product_id: "elite_monthly",
+          expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          store: "APP_STORE",
+          environment: "SANDBOX"
+        }
+      })
+      .expect(200);
+
+    const statusResponse = await request(app)
+      .get("/api/v1/subscription")
+      .set("Authorization", authorization)
+      .expect(200);
+    const status = statusResponse.body as DataResponse<{
+      plan: string;
+      status: string;
+      provider: string;
+      revenuecatAppUserId: string;
+      revenuecatProductId: string;
+    }>;
+    expect(status.data).toMatchObject({
+      plan: "elite_collector",
+      status: "active",
+      provider: "revenuecat",
+      revenuecatAppUserId: account?._id.toString(),
+      revenuecatProductId: "elite_monthly"
+    });
+
+    await request(app)
+      .post("/api/v1/webhooks/revenuecat")
+      .set("Authorization", webhookSecret)
+      .send({
+        event: {
+          id: "RC_EXPIRATION_1",
+          type: "EXPIRATION",
+          app_user_id: account?._id.toString(),
+          product_id: "elite_monthly",
+          expiration_at_ms: Date.now() - 1000
+        }
+      })
+      .expect(200);
+
+    const expiredResponse = await request(app)
+      .get("/api/v1/subscription")
+      .set("Authorization", authorization)
+      .expect(200);
+    const expired = expiredResponse.body as DataResponse<{ plan: string; status: string }>;
+    expect(expired.data).toMatchObject({
+      plan: "standard",
+      status: "expired"
     });
   });
 

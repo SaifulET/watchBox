@@ -6,6 +6,7 @@ export const getPaymentConfig = () => {
     stripeSecretKey: env.STRIPE_SECRET_KEY,
     stripePublishableKey: env.STRIPE_PUBLISHABLE_KEY,
     stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
-    stripeElitePriceId: env.STRIPE_ELITE_PRICE_ID
+    stripeElitePriceId: env.STRIPE_ELITE_PRICE_ID,
+    revenuecatWebhookSecret: env.REVENUECAT_WEBHOOK_SECRET
   };
 };
