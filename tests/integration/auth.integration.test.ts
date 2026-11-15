@@ -262,6 +262,32 @@ describe("auth APIs", () => {
     const updatedBody = updated.body as DataResponse<{ displayName: string; country: string }>;
     expect(updatedBody.data.displayName).toBe("Updated Profile");
 
+    const aliased = await request(app)
+      .patch("/api/v1/users/me")
+      .set("Authorization", authorization)
+      .send({
+        name: "Alias Name",
+        phoneNumber: "+8801700000000",
+        country: "",
+        latitude: "23.8103",
+        longitude: "90.4125"
+      })
+      .expect(200);
+    const aliasedBody = aliased.body as DataResponse<{
+      displayName: string;
+      phone: string;
+      country: string;
+      latitude: number;
+      longitude: number;
+    }>;
+    expect(aliasedBody.data).toMatchObject({
+      displayName: "Alias Name",
+      phone: "+8801700000000",
+      country: "United States",
+      latitude: 23.8103,
+      longitude: 90.4125
+    });
+
     const preferences = await request(app)
       .patch("/api/v1/users/me/preferences")
       .set("Authorization", authorization)

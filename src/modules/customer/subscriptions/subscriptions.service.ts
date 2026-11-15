@@ -2,7 +2,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import {
   AuthenticationError,
   ConflictError,
-  ResourceNotFoundError
+  ResourceNotFoundError,
+  ValidationError
 } from "../../../common/errors/app-error.js";
 import { getEnv } from "../../../config/env.js";
 import { getPaymentConfig } from "../../../config/payment.config.js";
@@ -18,6 +19,13 @@ import {
   type GeneratedApiRecordDocument
 } from "../../generated-api/generated-api.model.js";
 import type { CheckoutInput, PortalInput } from "./subscriptions.validation.js";
+import {
+  extractRevenueCatEvent,
+  mapRevenueCatEvent,
+  revenueCatUserCandidates,
+  verifyRevenueCatAuthorization,
+  type RevenueCatEvent
+} from "./revenuecat-webhook.js";
 
 type StripeEvent = {
   id: string;
@@ -63,8 +71,17 @@ const numberValue = (value: unknown): number | undefined => {
 const serializeSubscription = (record: GeneratedApiRecordDocument | null) => ({
   plan: record?.data.plan ?? "standard",
   status: record?.status ?? "active",
+  provider:
+    record?.data.provider ??
+    (record?.data.revenuecatAppUserId
+      ? "revenuecat"
+      : record?.data.stripeSubscriptionId
+        ? "stripe"
+        : null),
   stripeCustomerId: record?.data.stripeCustomerId ?? null,
   stripeSubscriptionId: record?.data.stripeSubscriptionId ?? null,
+  revenuecatAppUserId: record?.data.revenuecatAppUserId ?? null,
+  revenuecatProductId: record?.data.revenuecatProductId ?? null,
   currentPeriodEnd: record?.data.currentPeriodEnd ?? null,
   cancelAtPeriodEnd: record?.data.cancelAtPeriodEnd ?? false
 });
@@ -182,6 +199,48 @@ export class SubscriptionsService {
     });
     await this.applyStripeEvent(event);
     return { received: true, duplicate: false, eventId: event.id, type: event.type };
+  }
+
+  public async handleRevenueCatWebhook(authorization: string | undefined, parsedBody: unknown) {
+    const env = getEnv();
+    const config = getPaymentConfig();
+    verifyRevenueCatAuthorization(authorization, config.revenuecatWebhookSecret, env.NODE_ENV);
+    const event = extractRevenueCatEvent(parsedBody);
+    if (!event) {
+      throw new ValidationError([{ field: "event", message: "RevenueCat webhook event is required." }]);
+    }
+    const eventId = event.id ?? `rc_${event.type}_${event.app_user_id ?? "unknown"}`;
+    const existingEvent = await GeneratedApiRecordModel.findOne({
+      resource: "revenuecat-events",
+      "scope.eventId": eventId,
+      deletedAt: null
+    }).select("_id");
+    if (existingEvent) {
+      return { received: true, duplicate: true, eventId, type: event.type };
+    }
+    await GeneratedApiRecordModel.create({
+      resource: "revenuecat-events",
+      scope: { eventId, type: event.type },
+      data: event as unknown as Record<string, unknown>,
+      status: "received",
+      history: [
+        {
+          action: "revenuecat-events.received",
+          actorType: "revenuecat",
+          at: new Date(),
+          metadata: { eventId, type: event.type }
+        }
+      ]
+    });
+    const applied = await this.applyRevenueCatEvent(event);
+    return {
+      received: true,
+      duplicate: false,
+      eventId,
+      type: event.type,
+      applied: applied.applied,
+      userId: applied.userId
+    };
   }
 
   private verifyStripeEvent(
@@ -324,6 +383,72 @@ export class SubscriptionsService {
     );
   }
 
+  private async applyRevenueCatEvent(
+    event: RevenueCatEvent
+  ): Promise<{ applied: boolean; userId: string | null }> {
+    const userId = await this.userIdFromRevenueCatEvent(event);
+    if (!userId) {
+      return { applied: false, userId: null };
+    }
+    const mapped = mapRevenueCatEvent(event);
+    await this.upsertSubscription(
+      userId,
+      {
+        plan: mapped.plan,
+        provider: "revenuecat",
+        revenuecatAppUserId: event.app_user_id ?? event.original_app_user_id,
+        revenuecatProductId: mapped.revenuecatProductId,
+        revenuecatEntitlementId: mapped.revenuecatEntitlementId,
+        revenuecatEventType: mapped.revenuecatEventType,
+        revenuecatStore: mapped.store,
+        revenuecatEnvironment: mapped.environment,
+        currentPeriodEnd: mapped.currentPeriodEnd,
+        cancelAtPeriodEnd: mapped.cancelAtPeriodEnd
+      },
+      `customer-subscriptions.revenuecat.${event.type.toLowerCase()}`,
+      mapped.status,
+      "revenuecat"
+    );
+    return { applied: true, userId };
+  }
+
+  private async userIdFromRevenueCatEvent(event: RevenueCatEvent): Promise<string | undefined> {
+    for (const candidate of revenueCatUserCandidates(event)) {
+      if (/^[a-fA-F0-9]{24}$/.test(candidate)) {
+        const account = await CustomerAccountModel.findOne({ _id: candidate, deletedAt: null }).select("_id");
+        if (account) {
+          return account._id.toString();
+        }
+      }
+      if (candidate.includes("@")) {
+        const account = await CustomerAccountModel.findOne({
+          email: candidate.toLowerCase(),
+          deletedAt: null
+        }).select("_id");
+        if (account) {
+          return account._id.toString();
+        }
+      }
+      const byRevenueCatId = await GeneratedApiRecordModel.findOne({
+        resource: "customer-subscriptions",
+        "data.revenuecatAppUserId": candidate,
+        deletedAt: null
+      }).select("ownerId");
+      if (byRevenueCatId?.ownerId) {
+        return byRevenueCatId.ownerId;
+      }
+      const byOwnerId = await GeneratedApiRecordModel.findOne({
+        resource: "customer-subscriptions",
+        ownerId: candidate,
+        deletedAt: null
+      }).select("ownerId");
+      if (byOwnerId?.ownerId) {
+        return byOwnerId.ownerId;
+      }
+    }
+    return undefined;
+  }
+
   private metadataValue(object: Record<string, unknown>, key: string): string | undefined {
     const metadata = object.metadata;
     return typeof metadata === "object" && metadata !== null && !Array.isArray(metadata)
@@ -363,7 +488,8 @@ export class SubscriptionsService {
     userId: string,
     data: Record<string, unknown>,
     action: string,
-    status: string
+    status: string,
+    actorType: "stripe" | "revenuecat" = "stripe"
   ): Promise<void> {
     const existing = await this.subscriptionForUser(userId);
     const nextData = {
@@ -377,7 +503,7 @@ export class SubscriptionsService {
       existing.history.push({
         action,
         actorId: userId,
-        actorType: "stripe",
+        actorType,
         at: new Date(),
         metadata: nextData
       });
@@ -394,7 +520,7 @@ export class SubscriptionsService {
         {
           action,
           actorId: userId,
-          actorType: "stripe",
+          actorType,
           at: new Date(),
           metadata: nextData
         }

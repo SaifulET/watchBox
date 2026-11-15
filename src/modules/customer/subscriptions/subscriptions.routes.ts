@@ -16,6 +16,7 @@ export const createSubscriptionsRouter = (): Router => {
   router.post("/subscription/checkout", customerAuth, validate({ body: checkoutSchema }), asyncHandler(controller.checkout));
   router.post("/subscription/portal", customerAuth, validate({ body: portalSchema }), asyncHandler(controller.portal));
   router.post("/webhooks/stripe", asyncHandler(controller.stripeWebhook));
+  router.post("/webhooks/revenuecat", asyncHandler(controller.revenueCatWebhook));
 
   return router;
 };

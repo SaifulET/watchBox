@@ -37,4 +37,12 @@ export class SubscriptionsController {
       await this.service.handleStripeWebhook(req.rawBody, req.header("stripe-signature"), req.body)
     );
   };
+
+  public revenueCatWebhook = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.handleRevenueCatWebhook(req.header("authorization"), req.body)
+    );
+  };
 }

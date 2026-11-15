@@ -14,7 +14,12 @@ export type RealtimeEventName =
   | "support-ticket:created"
   | "support-ticket:closed"
   | "support-message:new"
-  | "seller-contact:created";
+  | "seller-contact:created"
+  | "chat:created"
+  | "chat-message:new"
+  | "report:created"
+  | "report:updated"
+  | "report:deleted";
 
 export type RealtimeEventPayload = {
   action: string;
