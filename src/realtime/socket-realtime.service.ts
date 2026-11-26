@@ -1,8 +1,10 @@
 import type { Server as HttpServer } from "node:http";
+import mongoose from "mongoose";
 import { Server as SocketServer, type Socket } from "socket.io";
 import { authenticateAccessToken } from "../common/auth/authenticate.js";
 import type { AuthenticatedActor } from "../common/auth/auth.types.js";
 import type { WatchboxLogger } from "../common/utils/logger.js";
+import { ChatConversationModel } from "../modules/chats/chats.model.js";
 
 export type RealtimeEventName =
   | "notification:new"
@@ -17,6 +19,9 @@ export type RealtimeEventName =
   | "seller-contact:created"
   | "chat:created"
   | "chat-message:new"
+  | "typing"
+  | "stop_typing"
+  | "mark_seen"
   | "report:created"
   | "report:updated"
   | "report:deleted";
@@ -34,7 +39,17 @@ export interface RealtimePublisher {
   emitToAdmins(event: RealtimeEventName, payload: RealtimeEventPayload): void;
 }
 
-type ClientToServerEvents = Record<string, never>;
+type ChatPresenceInput = {
+  chatId?: unknown;
+  conversationId?: unknown;
+  roomId?: unknown;
+};
+
+type ClientToServerEvents = {
+  typing: (payload: ChatPresenceInput) => void;
+  stop_typing: (payload: ChatPresenceInput) => void;
+  mark_seen: (payload: ChatPresenceInput) => void;
+};
 type ServerToClientEvents = Record<string, (payload: RealtimeEventPayload) => void>;
 type InterServerEvents = Record<string, never>;
 type SocketData = {
@@ -132,6 +147,24 @@ export class SocketRealtimeService implements RealtimePublisher {
         "Authenticated socket connected"
       );
 
+      socket.on("typing", (payload) => {
+        void this.handleTypingEvent(auth, payload, "typing").catch((error: unknown) => {
+          this.logger.warn({ error, actorId: auth.id }, "Failed to relay typing event");
+        });
+      });
+
+      socket.on("stop_typing", (payload) => {
+        void this.handleTypingEvent(auth, payload, "stop_typing").catch((error: unknown) => {
+          this.logger.warn({ error, actorId: auth.id }, "Failed to relay stop_typing event");
+        });
+      });
+
+      socket.on("mark_seen", (payload) => {
+        void this.handleMarkSeenEvent(auth, payload).catch((error: unknown) => {
+          this.logger.warn({ error, actorId: auth.id }, "Failed to process mark_seen event");
+        });
+      });
+
       socket.on("disconnect", (reason) => {
         this.logger.info(
           { socketId: socket.id, actorId: auth.id, audience: auth.audience, reason },
@@ -159,5 +192,104 @@ export class SocketRealtimeService implements RealtimePublisher {
 
   public disconnectAll(): void {
     this.io.disconnectSockets(true);
+  }
+
+  private extractChatId(payload: ChatPresenceInput | undefined): string | undefined {
+    if (!payload || typeof payload !== "object") {
+      return undefined;
+    }
+    const candidate = payload.chatId ?? payload.conversationId ?? payload.roomId;
+    return typeof candidate === "string" && mongoose.isValidObjectId(candidate.trim())
+      ? candidate.trim()
+      : undefined;
+  }
+
+  private async handleTypingEvent(
+    auth: AuthenticatedActor,
+    payload: ChatPresenceInput | undefined,
+    event: "typing" | "stop_typing"
+  ): Promise<void> {
+    const chatId = this.extractChatId(payload);
+    if (!chatId) {
+      return;
+    }
+    const conversation = await ChatConversationModel.findOne({ _id: chatId, deletedAt: null });
+    if (!conversation) {
+      return;
+    }
+    const isParticipant = conversation.participants.some((p) => p.id === auth.id);
+    if (!isParticipant && !(auth.audience === "admin" && conversation.type === "support")) {
+      return;
+    }
+    const eventPayload: RealtimeEventPayload = {
+      action: `chat.${event}`,
+      aggregateId: chatId,
+      params: { chatId },
+      data: {
+        chatId,
+        userId: auth.id,
+        audience: auth.audience,
+        isTyping: event === "typing"
+      },
+      occurredAt: new Date().toISOString()
+    };
+    for (const participant of conversation.participants) {
+      if (participant.role !== "admin" && participant.id !== auth.id) {
+        this.emitToCustomer(participant.id, event, eventPayload);
+      }
+    }
+    if (conversation.type === "support" && auth.audience === "customer") {
+      this.emitToAdmins(event, eventPayload);
+    }
+  }
+
+  private async handleMarkSeenEvent(
+    auth: AuthenticatedActor,
+    payload: ChatPresenceInput | undefined
+  ): Promise<void> {
+    const chatId = this.extractChatId(payload);
+    if (!chatId) {
+      return;
+    }
+    const conversation = await ChatConversationModel.findOne({ _id: chatId, deletedAt: null });
+    if (!conversation) {
+      return;
+    }
+    const existingParticipant = conversation.participants.find((p) => p.id === auth.id);
+    if (!existingParticipant && !(auth.audience === "admin" && conversation.type === "support")) {
+      return;
+    }
+    const seenAt = new Date();
+    if (existingParticipant) {
+      existingParticipant.lastReadAt = seenAt;
+    } else if (auth.audience === "admin") {
+      conversation.participants.push({
+        id: auth.id,
+        role: "admin",
+        lastReadAt: seenAt
+      });
+    }
+    await conversation.save();
+
+    const eventPayload: RealtimeEventPayload = {
+      action: "chat.mark_seen",
+      aggregateId: chatId,
+      params: { chatId },
+      data: {
+        chatId,
+        seenBy: auth.id,
+        audience: auth.audience,
+        seenAt: seenAt.toISOString()
+      },
+      occurredAt: seenAt.toISOString()
+    };
+    for (const participant of conversation.participants) {
+      if (participant.role !== "admin" && participant.id !== auth.id) {
+        this.emitToCustomer(participant.id, "mark_seen", eventPayload);
+      }
+    }
+    if (conversation.type === "support" && auth.audience === "customer") {
+      this.emitToAdmins("mark_seen", eventPayload);
+    }
   }
 }

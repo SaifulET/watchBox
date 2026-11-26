@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { AuthenticationError } from "../../../common/errors/app-error.js";
 import { sendSuccess } from "../../../common/utils/api-response.js";
 import type { SubscriptionsService } from "./subscriptions.service.js";
-import type { CheckoutInput, PortalInput } from "./subscriptions.validation.js";
+import type { ChangePlanInput, CheckoutInput, PortalInput } from "./subscriptions.validation.js";
 
 const actorId = (req: Request): string => {
   if (!req.auth || req.auth.audience !== "customer") {
@@ -20,6 +20,18 @@ export class SubscriptionsController {
 
   public status = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(res, req.requestId, await this.service.status(actorId(req)));
+  };
+
+  public usage = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.usage(actorId(req)));
+  };
+
+  public changePlan = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.changePlan(actorId(req), req.body as ChangePlanInput)
+    );
   };
 
   public checkout = async (req: Request, res: Response): Promise<void> => {

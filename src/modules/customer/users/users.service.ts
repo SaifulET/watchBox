@@ -22,6 +22,7 @@ import type {
   ConfirmAvatarInput,
   NearbyUsersQueryInput,
   UpdateDarkModeInput,
+  UpdateFcmTokenInput,
   UpdatePreferencesInput,
   UpdateProfileInput
 } from "./users.validation.js";
@@ -200,6 +201,74 @@ export class UserService {
     }
     await this.publish("customer.dark-mode-updated", userId, { darkMode: input.darkMode });
     return { darkMode: Boolean(updated.darkMode) };
+  }
+
+  public async updateFcmToken(userId: string, input: UpdateFcmTokenInput) {
+    const account = await this.requireAccount(userId);
+    const now = new Date();
+    const existingDevices = Array.isArray(account.fcmDevices) ? account.fcmDevices : [];
+    const filtered = existingDevices.filter(
+      (device) =>
+        device.token !== input.fcmToken &&
+        (!input.deviceId || device.deviceId !== input.deviceId)
+    );
+    const nextEntry: {
+      token: string;
+      platform?: string;
+      deviceId?: string;
+      updatedAt: Date;
+    } = {
+      token: input.fcmToken,
+      updatedAt: now
+    };
+    if (input.platform) {
+      nextEntry.platform = input.platform;
+    }
+    if (input.deviceId) {
+      nextEntry.deviceId = input.deviceId;
+    }
+    filtered.push(nextEntry);
+    const devices = filtered.slice(-10);
+
+    const updated = await this.users.updateById(userId, {
+      $set: {
+        fcmToken: input.fcmToken,
+        fcmDevices: devices
+      }
+    });
+    if (!updated) {
+      throw new ResourceNotFoundError("User profile not found.");
+    }
+    await this.publish("customer.fcm-token-updated", userId, {
+      platform: input.platform ?? null,
+      deviceId: input.deviceId ?? null
+    });
+    return {
+      updated: true,
+      fcmToken: updated.fcmToken ?? input.fcmToken,
+      deviceId: input.deviceId ?? null,
+      platform: input.platform ?? null,
+      deviceCount: devices.length
+    };
+  }
+
+  public async removeFcmDevice(userId: string, deviceIdOrToken: string) {
+    const account = await this.requireAccount(userId);
+    const existingDevices = Array.isArray(account.fcmDevices) ? account.fcmDevices : [];
+    const remaining = existingDevices.filter(
+      (device) => device.deviceId !== deviceIdOrToken && device.token !== deviceIdOrToken
+    );
+    const nextPrimary = remaining.at(-1)?.token;
+    const update: Record<string, unknown> = {
+      $set: { fcmDevices: remaining }
+    };
+    if (nextPrimary) {
+      (update.$set as Record<string, unknown>).fcmToken = nextPrimary;
+    } else if (account.fcmToken === deviceIdOrToken || remaining.length === 0) {
+      update.$unset = { fcmToken: "" };
+    }
+    await this.users.updateById(userId, update);
+    return { deleted: true, deviceId: deviceIdOrToken, deviceCount: remaining.length };
   }
 
   public async updatePreferences(

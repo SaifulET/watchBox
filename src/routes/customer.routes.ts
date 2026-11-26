@@ -15,10 +15,12 @@ import { MarketplaceController } from "../modules/customer/marketplaces/marketpl
 import { MarketplaceService } from "../modules/customer/marketplaces/marketplaces.service.js";
 import { marketplaceAggregateSearchQuerySchema } from "../modules/customer/marketplaces/marketplaces.validation.js";
 import { createNotificationPreferencesRouter } from "../modules/customer/notification-preferences/notification-preferences.routes.js";
+import { createCustomerNotificationsRouter } from "../modules/customer/notifications/notifications.routes.js";
+import { createDiscoveryRouter } from "../modules/customer/discovery/discovery.routes.js";
 import { createPurchasesRouter } from "../modules/customer/purchases/purchases.routes.js";
 import { createSavedRouter } from "../modules/customer/saved/saved.routes.js";
 import { createSubscriptionsRouter } from "../modules/customer/subscriptions/subscriptions.routes.js";
-import { createUsersRouter } from "../modules/customer/users/users.routes.js";
+import { createDevicesRouter, createUsersRouter } from "../modules/customer/users/users.routes.js";
 import { createWatchAlertsRouter } from "../modules/customer/watch-alerts/watch-alerts.routes.js";
 import { createCustomerChatsRouter } from "../modules/chats/customer-chats.routes.js";
 import { createCustomerModerationRouter } from "../modules/moderation/customer-moderation.routes.js";
@@ -36,9 +38,12 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   });
 
   router.use("/auth", createCustomerAuthRouter(dependencies));
-  router.use("/ebay", createEbayRouter());
+  router.use("/ebay", createEbayRouter(dependencies));
   router.use("/dealer", createDealerEbayRouter());
   router.use("/users", createUsersRouter(dependencies));
+  router.use("/devices", createDevicesRouter(dependencies));
+  router.use("/notifications", createCustomerNotificationsRouter(dependencies));
+  router.use(createDiscoveryRouter());
   router.use(createAiRouter(dependencies));
   router.use("/content", createPublicContentRouter());
   router.use("/public", createPublicPagesRouter(dependencies));

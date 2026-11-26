@@ -34,7 +34,12 @@ export const bootstrapWorker = async (): Promise<{ stop: () => Promise<void> }> 
   await Promise.all(
     workerQueues
       .filter((queue) => queue !== bulkEmailCampaignQueue)
-      .map((queue) => channel.assertQueue(queue, { durable: true }))
+      .map((queue) =>
+        channel.assertQueue(queue, {
+          durable: true,
+          deadLetterExchange: rabbitConfig.deadLetterExchange
+        })
+      )
   );
   await registerBulkEmailCampaignConsumer(channel, rabbit, logger);
   await registerChrono24Consumers(channel, redis, logger);

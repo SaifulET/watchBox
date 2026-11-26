@@ -21,6 +21,13 @@ export type CustomerAccount = {
   country?: string;
   avatarKey?: string;
   avatarUrl?: string;
+  fcmToken?: string;
+  fcmDevices?: Array<{
+    token: string;
+    platform?: string;
+    deviceId?: string;
+    updatedAt: Date;
+  }>;
   preferences: {
     currency: string;
   };
@@ -97,6 +104,15 @@ const customerAccountSchema = new Schema<CustomerAccount>(
     country: { type: String, trim: true },
     avatarKey: { type: String, trim: true },
     avatarUrl: { type: String, trim: true },
+    fcmToken: { type: String, trim: true },
+    fcmDevices: [
+      {
+        token: { type: String, required: true, trim: true },
+        platform: { type: String, trim: true },
+        deviceId: { type: String, trim: true },
+        updatedAt: { type: Date, required: true }
+      }
+    ],
     preferences: {
       currency: { type: String, default: "USD" }
     },

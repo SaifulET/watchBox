@@ -154,12 +154,12 @@ describe.sequential("generated API routes", () => {
     await mongoose.disconnect();
   });
 
-  it("serves public catalogue reads from the generated API layer", async () => {
+  it("serves public catalogue reads from the discovery API layer", async () => {
     const response = await request(app).get("/api/v1/brands").expect(200);
-    const body = response.body as DataResponse<unknown[]> & { meta: { total: number } };
+    const body = response.body as DataResponse<{ total: number; items: unknown[] }>;
     expect(body.success).toBe(true);
-    expect(body.data).toEqual([]);
-    expect(body.meta.total).toBe(0);
+    expect(Array.isArray(body.data.items)).toBe(true);
+    expect(body.data.total).toBeGreaterThan(0);
   });
 
   it("persists support ticket messages for later reads", async () => {

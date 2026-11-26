@@ -25,6 +25,9 @@ import { validateWebhookSignature } from "./webhook-signature.middleware.js";
 const alreadyImplemented = (path: string): boolean =>
   path.includes("/auth/") ||
   path.startsWith("/api/v1/users/me") ||
+  path === "/api/v1/users/update-fcm-token" ||
+  path === "/api/v1/devices" ||
+  path === "/api/v1/devices/:deviceId" ||
   path.startsWith("/api/v1/public") ||
   path.startsWith("/api/v1/chats") ||
   path.startsWith("/api/v1/admin/chats") ||
@@ -38,10 +41,26 @@ const alreadyImplemented = (path: string): boolean =>
   path === "/api/v1/admin/reports/:reportId/resolve" ||
   path === "/api/v1/admin/reports/:reportId/dismiss" ||
   path.startsWith("/api/v1/admin/notifications") ||
+  (path.startsWith("/api/v1/notifications") && path !== "/api/v1/notifications/stream") ||
   path === "/api/v1/listings/:listingId/contact-seller" ||
   path === "/api/v1/listings/:listingId/report" ||
   path === "/api/v1/notification-preferences" ||
   path === "/api/v1/search" ||
+  path === "/api/v1/search/suggestions" ||
+  path === "/api/v1/search/popular" ||
+  path === "/api/v1/search/recent" ||
+  path === "/api/v1/search/facets" ||
+  path === "/api/v1/brands" ||
+  path === "/api/v1/watch-models" ||
+  path === "/api/v1/recommendations/home" ||
+  path === "/api/v1/recommendations/for-you" ||
+  path === "/api/v1/recommendations/trending" ||
+  path === "/api/v1/analytics/market-insights" ||
+  path === "/api/v1/subscriptions/plans" ||
+  path === "/api/v1/subscriptions/me" ||
+  path === "/api/v1/subscriptions/me/usage" ||
+  path === "/api/v1/subscriptions/change-plan" ||
+  path === "/api/v1/plans/change-plan" ||
   path === "/api/v1/webhooks/stripe" ||
   path === "/api/v1/webhooks/revenuecat";
 

@@ -101,6 +101,34 @@ export const updateDarkModeSchema = z
   })
   .strict();
 
+export const updateFcmTokenSchema = z.preprocess(
+  (value) => {
+    const body =
+      typeof value === "object" && value !== null && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+    const token =
+      blankToUndefined(body.fcmToken) ??
+      blankToUndefined(body.fcm_token) ??
+      blankToUndefined(body.token) ??
+      blankToUndefined(body.deviceToken) ??
+      blankToUndefined(body.device_token) ??
+      blankToUndefined(body.pushToken);
+    const platform = blankToUndefined(body.platform ?? body.os);
+    const deviceId = blankToUndefined(body.deviceId ?? body.device_id);
+    return {
+      ...(token !== undefined ? { fcmToken: token } : {}),
+      ...(platform !== undefined ? { platform } : {}),
+      ...(deviceId !== undefined ? { deviceId } : {})
+    };
+  },
+  z.object({
+    fcmToken: z.string().trim().min(8).max(1024),
+    platform: z.string().trim().min(1).max(40).optional(),
+    deviceId: z.string().trim().min(1).max(180).optional()
+  })
+);
+
 export const nearbyUsersQuerySchema = z
   .object({
     latitude: queryCoordinate.optional(),
@@ -141,4 +169,5 @@ export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type AvatarUploadUrlInput = z.infer<typeof avatarUploadUrlSchema>;
 export type ConfirmAvatarInput = z.infer<typeof confirmAvatarSchema>;
 export type UpdateDarkModeInput = z.infer<typeof updateDarkModeSchema>;
+export type UpdateFcmTokenInput = z.infer<typeof updateFcmTokenSchema>;
 export type NearbyUsersQueryInput = z.infer<typeof nearbyUsersQuerySchema>;

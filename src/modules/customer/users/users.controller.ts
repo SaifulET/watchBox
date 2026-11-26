@@ -7,6 +7,7 @@ import type {
   ConfirmAvatarInput,
   NearbyUsersQueryInput,
   UpdateDarkModeInput,
+  UpdateFcmTokenInput,
   UpdatePreferencesInput,
   UpdateProfileInput
 } from "./users.validation.js";
@@ -83,6 +84,22 @@ export class UserController {
       res,
       req.requestId,
       await this.service.updateDarkMode(actorId(req), req.body as UpdateDarkModeInput)
+    );
+  };
+
+  public updateFcmToken = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.updateFcmToken(actorId(req), req.body as UpdateFcmTokenInput)
+    );
+  };
+
+  public removeFcmDevice = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.removeFcmDevice(actorId(req), req.params.deviceId ?? "")
     );
   };
 

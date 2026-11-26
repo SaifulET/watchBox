@@ -12,6 +12,7 @@ import {
   confirmAvatarSchema,
   nearbyUsersQuerySchema,
   updateDarkModeSchema,
+  updateFcmTokenSchema,
   updatePreferencesSchema,
   updateProfileSchema
 } from "./users.validation.js";
@@ -52,6 +53,16 @@ export const createUsersRouter = (dependencies: RouteDependencies = {}): Router 
     validate({ body: updateDarkModeSchema }),
     asyncHandler(controller.updateDarkMode)
   );
+  router.patch(
+    "/update-fcm-token",
+    validate({ body: updateFcmTokenSchema }),
+    asyncHandler(controller.updateFcmToken)
+  );
+  router.post(
+    "/update-fcm-token",
+    validate({ body: updateFcmTokenSchema }),
+    asyncHandler(controller.updateFcmToken)
+  );
   router.post(
     "/me/avatar/upload-url",
     validate({ body: avatarUploadUrlSchema }),
@@ -66,5 +77,20 @@ export const createUsersRouter = (dependencies: RouteDependencies = {}): Router 
   );
   router.delete("/me/avatar", asyncHandler(controller.deleteAvatar));
 
+  return router;
+};
+
+export const createDevicesRouter = (dependencies: RouteDependencies = {}): Router => {
+  const router = Router();
+  const serviceDependencies: ConstructorParameters<typeof UserService>[0] = {
+    events: new DomainEventPublisher(dependencies.rabbitMq)
+  };
+  if (dependencies.redis) {
+    serviceDependencies.redis = dependencies.redis;
+  }
+  const controller = new UserController(new UserService(serviceDependencies));
+  router.use(authenticate("customer"));
+  router.post("/", validate({ body: updateFcmTokenSchema }), asyncHandler(controller.updateFcmToken));
+  router.delete("/:deviceId", asyncHandler(controller.removeFcmDevice));
   return router;
 };

@@ -57,6 +57,25 @@ export const authenticate = (audience: TokenAudience): RequestHandler => {
   };
 };
 
+export const authenticateOptional = (audience: TokenAudience): RequestHandler => {
+  return (req, _res, next) => {
+    const header = req.header("authorization");
+    if (!header?.startsWith(bearerPrefix)) {
+      next();
+      return;
+    }
+    const token = header.slice(bearerPrefix.length);
+    void authenticateAccessToken(token, audience)
+      .then((actor) => {
+        req.auth = actor;
+        next();
+      })
+      .catch(() => {
+        next();
+      });
+  };
+};
+
 export const requirePermissions = (...permissions: string[]): RequestHandler => {
   return (req, _res, next) => {
     if (!req.auth) {

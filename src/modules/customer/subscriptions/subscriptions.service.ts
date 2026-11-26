@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import mongoose from "mongoose";
 import {
   AuthenticationError,
   ConflictError,
@@ -18,7 +19,7 @@ import {
   GeneratedApiRecordModel,
   type GeneratedApiRecordDocument
 } from "../../generated-api/generated-api.model.js";
-import type { CheckoutInput, PortalInput } from "./subscriptions.validation.js";
+import type { ChangePlanInput, CheckoutInput, PortalInput } from "./subscriptions.validation.js";
 import {
   extractRevenueCatEvent,
   mapRevenueCatEvent,
@@ -68,23 +69,33 @@ const numberValue = (value: unknown): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const serializeSubscription = (record: GeneratedApiRecordDocument | null) => ({
-  plan: record?.data.plan ?? "standard",
-  status: record?.status ?? "active",
-  provider:
-    record?.data.provider ??
-    (record?.data.revenuecatAppUserId
-      ? "revenuecat"
-      : record?.data.stripeSubscriptionId
-        ? "stripe"
-        : null),
-  stripeCustomerId: record?.data.stripeCustomerId ?? null,
-  stripeSubscriptionId: record?.data.stripeSubscriptionId ?? null,
-  revenuecatAppUserId: record?.data.revenuecatAppUserId ?? null,
-  revenuecatProductId: record?.data.revenuecatProductId ?? null,
-  currentPeriodEnd: record?.data.currentPeriodEnd ?? null,
-  cancelAtPeriodEnd: record?.data.cancelAtPeriodEnd ?? false
-});
+const FREE_MONTHLY_SEARCH_LIMIT = 5;
+
+const serializeSubscription = (record: GeneratedApiRecordDocument | null) => {
+  const plan = record?.data.plan === "elite_collector" ? "elite_collector" : "standard";
+  const status = record?.status ?? "active";
+  const isPaid = plan === "elite_collector" && !["expired", "canceled", "cancelled"].includes(status);
+  return {
+    plan,
+    planName: plan === "elite_collector" ? "Elite Collector" : "Standard",
+    tier: isPaid ? "paid" : "free",
+    isPaid,
+    status,
+    provider:
+      record?.data.provider ??
+      (record?.data.revenuecatAppUserId
+        ? "revenuecat"
+        : record?.data.stripeSubscriptionId
+          ? "stripe"
+          : null),
+    stripeCustomerId: record?.data.stripeCustomerId ?? null,
+    stripeSubscriptionId: record?.data.stripeSubscriptionId ?? null,
+    revenuecatAppUserId: record?.data.revenuecatAppUserId ?? null,
+    revenuecatProductId: record?.data.revenuecatProductId ?? null,
+    currentPeriodEnd: record?.data.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: record?.data.cancelAtPeriodEnd ?? false
+  };
+};
 
 export class SubscriptionsService {
   private readonly payments: PaymentProvider;
@@ -107,6 +118,88 @@ export class SubscriptionsService {
   public async status(userId: string) {
     const record = await this.subscriptionForUser(userId);
     return serializeSubscription(record);
+  }
+
+  public async changePlan(userId: string, input: ChangePlanInput) {
+    const account = await CustomerAccountModel.findOne({ _id: userId, deletedAt: null }).select("_id");
+    if (!account) {
+      throw new ResourceNotFoundError("User not found.");
+    }
+    const updateData: Record<string, unknown> = {
+      plan: input.plan,
+      provider: input.provider ?? (input.revenuecatProductId || input.revenuecatAppUserId ? "revenuecat" : "app"),
+      cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false
+    };
+    if (input.revenuecatAppUserId) {
+      updateData.revenuecatAppUserId = input.revenuecatAppUserId;
+    }
+    if (input.revenuecatProductId) {
+      updateData.revenuecatProductId = input.revenuecatProductId;
+    }
+    if (input.currentPeriodEnd) {
+      updateData.currentPeriodEnd = input.currentPeriodEnd;
+    }
+    await this.upsertSubscription(
+      userId,
+      updateData,
+      "customer-subscriptions.change-plan",
+      "active",
+      input.provider === "revenuecat" ? "revenuecat" : "customer"
+    );
+    const updated = await this.subscriptionForUser(userId);
+    return serializeSubscription(updated);
+  }
+
+  public async usage(userId: string) {
+    const subscription = serializeSubscription(await this.subscriptionForUser(userId));
+    const now = new Date();
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+
+    const [monthlySearches, savedSearchesCount, savedWatchesCount, listingsCount] = await Promise.all([
+      GeneratedApiRecordModel.countDocuments({
+        resource: mongoose.trusted({ $in: ["search-history", "saved-searches"] }),
+        ownerId: userId,
+        deletedAt: null,
+        createdAt: mongoose.trusted({ $gte: periodStart, $lt: periodEnd })
+      }),
+      GeneratedApiRecordModel.countDocuments({
+        resource: "saved-searches",
+        ownerId: userId,
+        deletedAt: null
+      }),
+      GeneratedApiRecordModel.countDocuments({
+        resource: "saved-watches",
+        ownerId: userId,
+        deletedAt: null
+      }),
+      GeneratedApiRecordModel.countDocuments({
+        resource: "listings",
+        ownerId: userId,
+        deletedAt: null
+      })
+    ]);
+
+    const searchLimit = subscription.isPaid ? null : FREE_MONTHLY_SEARCH_LIMIT;
+    const searchesRemaining =
+      searchLimit === null ? null : Math.max(0, searchLimit - monthlySearches);
+
+    return {
+      plan: subscription.plan,
+      planName: subscription.planName,
+      tier: subscription.tier,
+      isPaid: subscription.isPaid,
+      status: subscription.status,
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      searchesUsed: monthlySearches,
+      searchLimit,
+      searchesRemaining,
+      unlimited: subscription.isPaid,
+      savedSearchesCount,
+      savedWatchesCount,
+      listingsCount
+    };
   }
 
   public async checkout(userId: string, input: CheckoutInput) {
@@ -489,7 +582,7 @@ export class SubscriptionsService {
     data: Record<string, unknown>,
     action: string,
     status: string,
-    actorType: "stripe" | "revenuecat" = "stripe"
+    actorType: "stripe" | "revenuecat" | "customer" = "stripe"
   ): Promise<void> {
     const existing = await this.subscriptionForUser(userId);
     const nextData = {
