@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { AuthenticationError } from "../../../common/errors/app-error.js";
-import { sendSuccess } from "../../../common/utils/api-response.js";
+import { buildMeta, sendSuccess } from "../../../common/utils/api-response.js";
 import type { ListingsService } from "./listings.service.js";
 
 const actorId = (req: Request): string => {
@@ -49,6 +49,40 @@ const listingBody = (body: unknown): Record<string, unknown> => {
 export class ListingsController {
   public constructor(private readonly service: ListingsService) {}
 
+  public list = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.service.listListings(req.query as Record<string, unknown>);
+    res.status(200).json({
+      success: true,
+      data: result.items,
+      meta: {
+        ...buildMeta(req.requestId),
+        ...result.meta
+      }
+    });
+  };
+
+  public listMine =
+    (statusBucket?: string) =>
+    async (req: Request, res: Response): Promise<void> => {
+      const result = await this.service.listListings(
+        req.query as Record<string, unknown>,
+        actorId(req),
+        statusBucket
+      );
+      res.status(200).json({
+        success: true,
+        data: result.items,
+        meta: {
+          ...buildMeta(req.requestId),
+          ...result.meta
+        }
+      });
+    };
+
+  public getById = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, req.requestId, await this.service.getListingById(req.params.listingId ?? ""));
+  };
+
   public create = async (req: Request, res: Response): Promise<void> => {
     sendSuccess(
       res,
@@ -70,4 +104,22 @@ export class ListingsController {
       )
     );
   };
+
+  public remove = async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(
+      res,
+      req.requestId,
+      await this.service.deleteListing(actorId(req), req.params.listingId ?? "")
+    );
+  };
+
+  public transition =
+    (action: string) =>
+    async (req: Request, res: Response): Promise<void> => {
+      sendSuccess(
+        res,
+        req.requestId,
+        await this.service.transitionStatus(actorId(req), req.params.listingId ?? "", action)
+      );
+    };
 }

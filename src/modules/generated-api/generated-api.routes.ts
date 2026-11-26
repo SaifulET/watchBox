@@ -42,6 +42,24 @@ const alreadyImplemented = (path: string): boolean =>
   path === "/api/v1/admin/reports/:reportId/dismiss" ||
   path.startsWith("/api/v1/admin/notifications") ||
   (path.startsWith("/api/v1/notifications") && path !== "/api/v1/notifications/stream") ||
+  path === "/api/v1/listings" ||
+  path === "/api/v1/listings/:listingId" ||
+  path === "/api/v1/listings/:listingId/submit" ||
+  path === "/api/v1/listings/:listingId/publish" ||
+  path === "/api/v1/listings/:listingId/pause" ||
+  path === "/api/v1/listings/:listingId/resume" ||
+  path === "/api/v1/listings/:listingId/archive" ||
+  path === "/api/v1/listings/:listingId/mark-sold" ||
+  path === "/api/v1/listings/:listingId/reserve" ||
+  path === "/api/v1/listings/:listingId/unreserve" ||
+  path === "/api/v1/me/listings" ||
+  path === "/api/v1/me/listings/drafts" ||
+  path === "/api/v1/me/listings/pending" ||
+  path === "/api/v1/me/listings/active" ||
+  path === "/api/v1/me/listings/paused" ||
+  path === "/api/v1/me/listings/rejected" ||
+  path === "/api/v1/me/listings/sold" ||
+  path === "/api/v1/me/listings/archived" ||
   path === "/api/v1/listings/:listingId/contact-seller" ||
   path === "/api/v1/listings/:listingId/report" ||
   path === "/api/v1/notification-preferences" ||

@@ -329,4 +329,82 @@ describe("Flutter audit fixes", () => {
       await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     }
   });
+
+  it("reads, filters, transitions, and deletes listings via real ListingsService (/listings & /me/listings)", async () => {
+    const owner = await registerCustomer(app, "owner-list@example.com", "Owner");
+    const other = await registerCustomer(app, "other-list@example.com", "Other");
+
+    const createdRes = await request(app)
+      .post("/api/v1/listings")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .send({
+        title: "Rolex Daytona Panda 116500LN",
+        brand: "Rolex",
+        model: "Daytona",
+        price: 31500,
+        currency: "USD",
+        condition: "Mint"
+      })
+      .expect(201);
+    const listingId = createdRes.body.data.id as string;
+
+    const myRes = await request(app)
+      .get("/api/v1/me/listings")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    expect(myRes.body.data).toHaveLength(1);
+    expect(myRes.body.data[0].id).toBe(listingId);
+    expect(myRes.body.data[0].owner.displayName).toBe("Owner");
+    expect(myRes.body.meta.total).toBe(1);
+
+    const myActiveRes = await request(app)
+      .get("/api/v1/me/listings/active")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    expect(myActiveRes.body.data).toHaveLength(1);
+
+    const otherMyRes = await request(app)
+      .get("/api/v1/me/listings")
+      .set("Authorization", `Bearer ${other.token}`)
+      .expect(200);
+    expect(otherMyRes.body.data).toHaveLength(0);
+
+    const publicRes = await request(app).get("/api/v1/listings?brand=Rolex").expect(200);
+    expect(publicRes.body.data).toHaveLength(1);
+    expect(publicRes.body.data[0].id).toBe(listingId);
+
+    const detailRes = await request(app).get(`/api/v1/listings/${listingId}`).expect(200);
+    expect(detailRes.body.data.data.title).toBe("Rolex Daytona Panda 116500LN");
+    expect(detailRes.body.data.owner.id).toBe(owner.id);
+
+    await request(app)
+      .post(`/api/v1/listings/${listingId}/pause`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+
+    const myPausedRes = await request(app)
+      .get("/api/v1/me/listings/paused")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    expect(myPausedRes.body.data).toHaveLength(1);
+
+    const myActiveAfterPause = await request(app)
+      .get("/api/v1/me/listings/active")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    expect(myActiveAfterPause.body.data).toHaveLength(0);
+
+    await request(app)
+      .delete(`/api/v1/listings/${listingId}`)
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+
+    const afterDelete = await request(app)
+      .get("/api/v1/me/listings")
+      .set("Authorization", `Bearer ${owner.token}`)
+      .expect(200);
+    expect(afterDelete.body.data).toHaveLength(0);
+
+    await request(app).get(`/api/v1/listings/${listingId}`).expect(404);
+  });
 });

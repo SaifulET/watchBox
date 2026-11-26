@@ -9,7 +9,7 @@ import { createPublicPagesRouter } from "../modules/public-pages/public-pages.ro
 import { createDealerEbayRouter, createEbayRouter } from "../modules/customer/ebay/ebay.routes.js";
 import { createListingImagesRouter } from "../modules/customer/listings/listing-images.routes.js";
 import { createEbayWebhookRouter } from "../modules/customer/marketplaces/ebay-webhook.routes.js";
-import { createListingsRouter } from "../modules/customer/listings/listings.routes.js";
+import { createListingsRouter, createMyListingsRouter } from "../modules/customer/listings/listings.routes.js";
 import { createMarketplacesRouter } from "../modules/customer/marketplaces/marketplaces.routes.js";
 import { MarketplaceController } from "../modules/customer/marketplaces/marketplaces.controller.js";
 import { MarketplaceService } from "../modules/customer/marketplaces/marketplaces.service.js";
@@ -50,6 +50,7 @@ export const createCustomerRouter = (dependencies: RouteDependencies = {}): Rout
   router.use("/admin/settings/content", createAdminContentRouter());
   router.use("/listings", createListingsRouter());
   router.use("/listings", createListingImagesRouter());
+  router.use("/me/listings", createMyListingsRouter());
   const marketplaceController = new MarketplaceController(new MarketplaceService(dependencies.redis));
   router.get(
     "/search",
