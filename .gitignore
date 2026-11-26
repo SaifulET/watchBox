@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+.env
+.env.*
 !.env.example
 !.env.ec2.example
 .DS_Store
